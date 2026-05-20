@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Banking Sentinel — AI Risk Intelligence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Helvetica+Neue:wght@300;400;500;700&family=Figtree:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --yellow: #FFD000;
+    --yellow-dark: #E6BB00;
+    --yellow-light: #FFF4A0;
+    --yellow-pale: #FFFBE6;
+    --black: #0A0A0A;
+    --dark: #1A1A1A;
+    --mid: #5A5A5A;
+    --light: #A0A0A0;
+    --border: #E0E0E0;
+    --bg: #F8F8F6;
+    --white: #FFFFFF;
+    --red: #D42020;
+    --red-light: #FFF0F0;
+    --green: #0D7A3E;
+    --green-light: #F0FFF6;
+    --amber: #C47A00;
+    --amber-light: #FFFBF0;
+    --blue: #0055B3;
+    --sans: 'Figtree', 'Helvetica Neue', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--dark);
+    font-family: var(--sans);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--black);
+    padding: 0 28px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  /* Yellow diamond accent line */
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--yellow);
+  }
+
+  .logo { display: flex; align-items: center; gap: 16px; }
+
+  /* Diamond shape */
+  .diamond {
+    width: 32px;
+    height: 32px;
+    background: var(--yellow);
+    transform: rotate(45deg);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .diamond::after {
+    content: '';
+    position: absolute;
+    right: -4px;
+    top: -4px;
+    width: 12px;
+    height: 12px;
+    background: var(--black);
+    opacity: 0.3;
+  }
+
+  .logo-text { display: flex; flex-direction: column; gap: 1px; }
+  .logo-name { font-family: var(--sans); font-size: 15px; font-weight: 700; letter-spacing: 1px; color: var(--white); }
+  .logo-tagline { font-family: var(--mono); font-size: 8px; letter-spacing: 2px; color: rgba(255,208,0,0.7); text-transform: uppercase; }
+
+  .header-nav { display: flex; gap: 0; }
+  .nav-item { font-family: var(--sans); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5); padding: 0 16px; height: 56px; display: flex; align-items: center; letter-spacing: 0.5px; cursor: pointer; transition: color 0.2s; border-bottom: 3px solid transparent; }
+  .nav-item.active { color: var(--yellow); border-bottom-color: var(--yellow); }
+  .nav-item:hover { color: var(--white); }
+
+  .header-right { display: flex; gap: 8px; align-items: center; }
+
+  .hpill { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; padding: 4px 10px; border-radius: 2px; }
+  .hpill.warn { background: rgba(212,32,32,0.2); color: #ff6666; border: 1px solid rgba(212,32,32,0.4); }
+  .hpill.live { background: rgba(13,122,62,0.2); color: #2add7a; border: 1px solid rgba(13,122,62,0.4); }
+  .hpill.live::before { content: '● '; animation: blink 2s infinite; }
+  .hpill.info { background: rgba(255,208,0,0.1); color: var(--yellow); border: 1px solid rgba(255,208,0,0.3); }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+  /* ALERT BAR */
+  .alert-bar {
+    background: var(--red);
+    padding: 7px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  .ab-label { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.7); white-space: nowrap; }
+  .ab-items { display: flex; gap: 16px; overflow: hidden; }
+  .ab-item { font-family: var(--sans); font-size: 11px; font-weight: 500; color: var(--white); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+  .ab-sep { color: rgba(255,255,255,0.3); }
+
+  /* MAIN */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 300px 1fr 390px;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  .panel { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: var(--white); }
+  .panel:last-child { border-right: none; }
+  .panel:first-child { background: var(--bg); }
+
+  .panel-header {
+    padding: 18px 22px 14px;
+    border-bottom: 2px solid var(--yellow);
+    flex-shrink: 0;
+    background: var(--white);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .panel-label { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--light); margin-bottom: 3px; }
+  .panel-title { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--dark); letter-spacing: -0.2px; }
+  .panel-count { font-family: var(--mono); font-size: 10px; color: var(--light); }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 18px 22px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+  /* PANEL 1 */
+  .query-wrap { position: relative; margin-bottom: 18px; }
+  .query-input {
+    width: 100%; background: var(--white); border: 1.5px solid var(--border);
+    border-left: 4px solid var(--yellow); color: var(--dark); font-family: var(--sans);
+    font-size: 12px; padding: 12px 14px; resize: none; height: 76px;
+    outline: none; transition: border-color 0.2s; line-height: 1.5; border-radius: 0;
+  }
+  .query-input:focus { border-color: var(--dark); border-left-color: var(--yellow); }
+  .query-input::placeholder { color: var(--light); }
+
+  .query-send {
+    margin-top: 8px; width: 100%; background: var(--yellow); border: none; color: var(--black);
+    font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 1px;
+    padding: 10px; cursor: pointer; text-transform: uppercase; transition: background 0.2s;
+  }
+  .query-send:hover { background: var(--yellow-dark); }
+
+  .sh { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--light); margin-bottom: 10px; margin-top: 18px; }
+
+  .eq { padding: 9px 12px; border: 1px solid var(--border); border-left: 3px solid var(--yellow); margin-bottom: 6px; cursor: pointer; font-size: 11px; color: var(--mid); transition: all 0.15s; background: var(--white); }
+  .eq:hover { background: var(--yellow-pale); color: var(--dark); border-left-color: var(--yellow-dark); }
+
+  .alert-box { padding: 10px 12px; border: 1px solid; margin-bottom: 6px; }
+  .alert-box.high { border-color: rgba(212,32,32,0.3); background: var(--red-light); border-left: 3px solid var(--red); }
+  .alert-box.med { border-color: rgba(196,122,0,0.3); background: var(--amber-light); border-left: 3px solid var(--amber); }
+  .alert-std { font-family: var(--mono); font-size: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .alert-box.high .alert-std { color: var(--red); }
+  .alert-box.med .alert-std { color: var(--amber); }
+  .alert-text { font-size: 11px; color: var(--dark); line-height: 1.4; }
+
+  .intent-box { margin-top: 14px; padding: 12px 14px; border: 1.5px solid var(--yellow); background: var(--yellow-pale); display: none; }
+  .intent-row { display: flex; gap: 0; margin-bottom: 3px; font-family: var(--mono); font-size: 9px; }
+  .ik { color: var(--light); width: 72px; flex-shrink: 0; }
+  .iv { color: var(--dark); font-weight: 500; }
+
+  /* PANEL 2 */
+  .agent-item { padding: 14px 0; border-bottom: 1px solid var(--border); opacity: 0.2; transition: opacity 0.4s; display: grid; grid-template-columns: 28px 1fr; }
+  .agent-item.active { opacity: 1; }
+  .agent-item.complete { opacity: 0.6; }
+
+  .an { font-family: var(--mono); font-size: 9px; color: var(--light); padding-top: 2px; }
+  .an.active { color: var(--amber); font-weight: 500; }
+  .an.complete { color: var(--green); font-weight: 500; }
+
+  .anr { font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--dark); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px; }
+  .ab { font-family: var(--mono); font-size: 8px; padding: 2px 7px; border-radius: 2px; letter-spacing: 1px; }
+  .ab-thinking { background: var(--yellow-light); color: var(--amber); border: 1px solid var(--yellow); }
+  .ab-complete { background: var(--green-light); color: var(--green); border: 1px solid rgba(13,122,62,0.3); }
+  .ab-waiting { background: var(--bg); color: var(--light); border: 1px solid var(--border); }
+
+  .ao { font-size: 11px; color: var(--mid); line-height: 1.6; }
+  .ao .h { color: var(--blue); font-weight: 500; }
+  .ao .r { color: var(--red); font-weight: 500; }
+  .ao .g { color: var(--green); }
+  .ao .w { color: var(--amber); }
+
+  .graph-wrap { margin-top: 10px; border: 1px solid var(--border); background: var(--bg); height: 120px; display: none; }
+  #graphCanvas { width: 100%; height: 100%; }
+
+  .conf-wrap { margin-top: 8px; display: none; align-items: center; gap: 8px; }
+  .cl { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--light); width: 72px; flex-shrink: 0; }
+  .cb { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .cf { height: 100%; background: var(--yellow); transition: width 1s ease; }
+  .cv { font-family: var(--mono); font-size: 9px; color: var(--amber); width: 32px; text-align: right; font-weight: 500; }
+
+  /* PANEL 3 */
+  .risk-header { display: flex; align-items: stretch; gap: 0; margin-bottom: 20px; border: 1px solid var(--border); overflow: hidden; }
+  .risk-score-block { background: var(--red); padding: 16px 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 90px; }
+  .rsn { font-family: var(--sans); font-size: 52px; font-weight: 700; color: var(--white); line-height: 1; }
+  .rsl { font-family: var(--mono); font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.8); margin-top: 2px; }
+  .risk-detail-block { padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; background: var(--red-light); }
+  .rdl { font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--red); margin-bottom: 3px; }
+  .rdd { font-size: 11px; color: var(--mid); line-height: 1.4; }
+
+  .section-title { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--light); margin-bottom: 10px; margin-top: 18px; padding-bottom: 6px; border-bottom: 2px solid var(--yellow); display: inline-block; }
+
+  .chain-item { display: flex; gap: 10px; margin-bottom: 7px; font-size: 11px; line-height: 1.5; }
+  .ca { color: var(--yellow-dark); flex-shrink: 0; font-weight: 700; }
+  .ct { color: var(--mid); }
+  .ct strong { color: var(--dark); font-weight: 600; }
+
+  .breach { border: 1px solid rgba(212,32,32,0.2); border-left: 4px solid var(--red); padding: 12px 14px; margin-bottom: 8px; background: var(--red-light); }
+  .bh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .bs { font-family: var(--sans); font-size: 11px; font-weight: 700; color: var(--red); }
+  .bsev { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: rgba(212,32,32,0.6); }
+  .bt { font-size: 11px; color: var(--dark); line-height: 1.5; }
+
+  .rec { border: 1px solid var(--border); border-left: 4px solid var(--yellow); padding: 12px 14px; margin-bottom: 6px; background: var(--white); }
+  .rh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .rp { font-family: var(--sans); font-size: 11px; font-weight: 700; }
+  .rp.hi { color: var(--red); }
+  .rp.med { color: var(--amber); }
+  .ro { font-family: var(--mono); font-size: 8px; color: var(--light); letter-spacing: 1px; }
+  .rt { font-size: 11px; color: var(--mid); line-height: 1.5; }
+
+  .ev-item { display: flex; gap: 8px; margin-bottom: 4px; font-family: var(--mono); font-size: 9px; color: var(--light); line-height: 1.4; }
+  .ed { color: var(--yellow-dark); flex-shrink: 0; font-weight: 700; }
+
+  /* STATUS BAR */
+  .statusbar {
+    height: 30px; background: var(--black); border-top: 3px solid var(--yellow);
+    display: flex; align-items: center; padding: 0 22px; gap: 0; flex-shrink: 0;
+  }
+  .sb-item { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: rgba(255,255,255,0.35); padding: 0 14px; border-right: 1px solid rgba(255,255,255,0.1); display: flex; gap: 5px; }
+  .sb-item span { color: var(--yellow); }
+  .sb-item:first-child { padding-left: 0; }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="diamond"></div>
+    <div class="logo-text">
+      <div class="logo-name">Banking Sentinel</div>
+      <div class="logo-tagline">AI Risk Intelligence · SAP TRBK · GraphRAG · Multi-Agent</div>
+    </div>
+  </div>
+  <div class="header-nav">
+    <div class="nav-item active">Risk Monitor</div>
+    <div class="nav-item">Portfolio</div>
+    <div class="nav-item">Regulatory</div>
+    <div class="nav-item">Audit Trail</div>
+  </div>
+  <div class="header-right">
+    <div class="hpill warn">▲ 3 Alerts</div>
+    <div class="hpill live">Graph Live</div>
+    <div class="hpill info">APRA · APS221 · CPS230</div>
+  </div>
+</header>
+
+<div class="alert-bar">
+  <div class="ab-label">Live Alerts</div>
+  <div class="ab-items">
+    <div class="ab-item">▲ APS 221 — Group exposure 92% of limit · B-4471 connected group</div>
+    <div class="ab-sep">|</div>
+    <div class="ab-item">▲ DTI Breach — Ratio 7.2 exceeds Feb 2026 limit of 6.0 · B-4471 HL-8821</div>
+    <div class="ab-sep">|</div>
+    <div class="ab-item">● RETAIL_PROP sector concentration at 78% of internal limit</div>
+  </div>
+</div>
+
+<main>
+
+  <!-- PANEL 1 -->
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-label">01 · Query</div>
+        <div class="panel-title">Risk Intelligence Query</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="query-wrap">
+        <textarea class="query-input" placeholder="Analyse borrower B-4471 for all risk dimensions..."></textarea>
+      </div>
+      <button class="query-send" onclick="runDemo()">▶ Run Analysis</button>
+
+      <div class="sh">Quick Queries</div>
+      <div class="eq" onclick="setQ(this)">Analyse all connected party risk for B-4471</div>
+      <div class="eq" onclick="setQ(this)">Borrowers with shared guarantors and overdue payments</div>
+      <div class="eq" onclick="setQ(this)">DTI breaches against February 2026 APRA limit</div>
+      <div class="eq" onclick="setQ(this)">Retail property sector concentration analysis</div>
+
+      <div class="sh">Regulatory Alerts</div>
+      <div class="alert-box high">
+        <div class="alert-std">APS 221 — Large Exposures</div>
+        <div class="alert-text">Group exposure 92% of limit. B-4471 · B-4472 · B-4473 via guarantor G-0091 (TrustCo Holdings). Combined AUD $7.8M.</div>
+      </div>
+      <div class="alert-box high">
+        <div class="alert-std">DTI Limit Breach — Feb 2026</div>
+        <div class="alert-text">B-4471 DTI ratio 7.2 exceeds APRA limit of 6.0 activated February 2026. Loan HL-8821 approved pre-activation.</div>
+      </div>
+      <div class="alert-box med">
+        <div class="alert-std">Sector Concentration</div>
+        <div class="alert-text">RETAIL_PROP at 78% of internal limit. Four connected borrowers in same sector.</div>
+      </div>
+
+      <div class="intent-box" id="intentBox">
+        <div class="sh" style="margin-top:0">Intake Agent — Parsed Intent</div>
+        <div class="intent-row"><span class="ik">customer</span><span class="iv">B-4471 · James Thornton</span></div>
+        <div class="intent-row"><span class="ik">dimensions</span><span class="iv">Credit · Connected · Regulatory · Sector</span></div>
+        <div class="intent-row"><span class="ik">graph depth</span><span class="iv">6 hops · include guarantors</span></div>
+        <div class="intent-row"><span class="ik">route</span><span class="iv">Graph → Policy → Risk → Recommend</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 2 -->
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-label">02 · Agent Pipeline</div>
+        <div class="panel-title">TRBK Graph Traversal · 5 Specialist Agents</div>
+      </div>
+      <div class="panel-count" id="agentProgress">0 / 5 complete</div>
+    </div>
+    <div class="panel-body">
+
+      <div class="agent-item" id="a1">
+        <div class="an">01</div>
+        <div>
+          <div class="anr">Intake Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">Parses query · Identifies customer · Routes to specialist agents · Builds execution plan</div>
+        </div>
+      </div>
+
+      <div class="agent-item" id="a2">
+        <div class="an">02</div>
+        <div>
+          <div class="anr">Graph Traversal Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">TRBK multi-hop · BUT000 → BP2000 → BCA_GUARANTOR → DFKKOP · ReAct loop · 6-8 hops</div>
+          <div class="graph-wrap" id="gw"><canvas id="graphCanvas"></canvas></div>
+        </div>
+      </div>
+
+      <div class="agent-item" id="a3">
+        <div class="an">03</div>
+        <div>
+          <div class="anr">Policy Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">Hybrid RAG · APRA prudential standards · APS 221 · CPS 230 · HyDE query enhancement</div>
+        </div>
+      </div>
+
+      <div class="agent-item" id="a4">
+        <div class="an">04</div>
+        <div>
+          <div class="anr">Risk Scoring Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">Self-RAG confidence evaluation · Re-queries if below 75% · Basel III metrics · 4 dimensions</div>
+          <div class="conf-wrap" id="cw">
+            <span class="cl">Confidence</span>
+            <div class="cb"><div class="cf" id="cf" style="width:0%"></div></div>
+            <span class="cv" id="cv">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="agent-item" id="a5">
+        <div class="an">05</div>
+        <div>
+          <div class="anr">Recommendation Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">Synthesises all findings · APRA-ready risk brief · Evidence trail · Actionable recommendations</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PANEL 3 -->
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-label">03 · Risk Brief</div>
+        <div class="panel-title">AI Generated · APRA-Ready · CPS 230 Audit Trail</div>
+      </div>
+    </div>
+    <div class="panel-body" id="rb" style="opacity:0.2">
+
+      <div class="risk-header" id="riskHeader">
+        <div class="risk-score-block">
+          <div class="rsn" id="rsn">—</div>
+          <div class="rsl">/ 100</div>
+        </div>
+        <div class="risk-detail-block" style="flex:1">
+          <div class="rdl" id="rdl">Awaiting Analysis</div>
+          <div class="rdd" id="rdd">Run a query to generate the risk brief</div>
+        </div>
+      </div>
+
+      <div class="section-title">Connected Risk Chain</div>
+      <div id="chain"><div class="chain-item"><span class="ca">→</span><span class="ct">Awaiting graph traversal...</span></div></div>
+
+      <div class="section-title">Regulatory Breaches</div>
+      <div id="breaches"><div class="breach" style="opacity:0.3"><div class="bh"><span class="bs">—</span></div><div class="bt">Awaiting policy agent...</div></div></div>
+
+      <div class="section-title">Recommended Actions</div>
+      <div id="recs"><div class="rec" style="opacity:0.3"><div class="rh"><span class="rp">—</span></div><div class="rt">Awaiting synthesis...</div></div></div>
+
+      <div class="section-title">Evidence Trail · CPS 230</div>
+      <div id="evs"><div class="ev-item"><span class="ed">◆</span>Awaiting retrieval...</div></div>
+
+    </div>
+  </div>
+
+</main>
+
+<div class="statusbar">
+  <div class="sb-item">Langfuse <span id="ts">idle</span></div>
+  <div class="sb-item">Tokens <span id="tc">0</span></div>
+  <div class="sb-item">Latency <span id="lat">—</span></div>
+  <div class="sb-item">RAGAS <span id="rag">—</span></div>
+  <div class="sb-item">Graph Hops <span id="gh">0</span></div>
+  <div class="sb-item">Self-RAG Re-queries <span id="rq">0</span></div>
+  <div class="sb-item">TRBK Tables <span id="tbl">—</span></div>
+</div>
+
+<script>
+function setQ(el) { document.querySelector('.query-input').value = el.textContent; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+let done = 0;
+
+function setAgent(id, state, html) {
+  const el = document.getElementById(id);
+  el.className = 'agent-item ' + state;
+  el.querySelector('.an').className = 'an ' + state;
+  const b = el.querySelector('.ab');
+  b.className = 'ab ab-' + (state==='active'?'thinking':state==='complete'?'complete':'waiting');
+  b.textContent = state==='active'?'Thinking...':state==='complete'?'Complete ✓':'Waiting';
+  if (html) el.querySelector('.ao').innerHTML = html;
+  if (state==='complete') { done++; document.getElementById('agentProgress').textContent = done + ' / 5 complete'; }
+}
+
+function drawGraph() {
+  const c = document.getElementById('graphCanvas');
+  const ctx = c.getContext('2d');
+  c.width = c.offsetWidth; c.height = c.offsetHeight;
+  const w = c.width, h = c.height;
+
+  const nodes = [
+    {x:50,y:h/2,l:'B-4471',s:'Borrower',col:'#D42020',r:14},
+    {x:155,y:h/2-35,l:'HL-8821',s:'Home Loan',col:'#0055B3',r:11},
+    {x:155,y:h/2+35,l:'PL-2201',s:'Personal',col:'#0055B3',r:10},
+    {x:265,y:h/2-48,l:'G-0091',s:'Guarantor',col:'#D42020',r:13},
+    {x:265,y:h/2+48,l:'OVERDUE',s:'61 days',col:'#D42020',r:9},
+    {x:360,y:h/2-28,l:'B-4472',s:'Connected',col:'#C47A00',r:10},
+    {x:360,y:h/2+28,l:'B-4473',s:'Connected',col:'#C47A00',r:10},
+    {x:48,y:22,l:'TrustCo',s:'Parent',col:'#D42020',r:9},
+  ];
+  const edges=[[0,1],[0,2],[1,3],[2,4],[3,5],[3,6],[0,7]];
+
+  ctx.strokeStyle='rgba(0,0,0,0.08)'; ctx.lineWidth=1.5;
+  edges.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(nodes[a].x,nodes[a].y);ctx.lineTo(nodes[b].x,nodes[b].y);ctx.stroke();});
+
+  nodes.forEach(n=>{
+    ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+    ctx.fillStyle=n.col+'22';ctx.fill();
+    ctx.strokeStyle=n.col;ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#1A1A1A';ctx.font='bold 8px Figtree';ctx.textAlign='center';
+    ctx.fillText(n.l,n.x,n.y+2);
+    ctx.fillStyle='#A0A0A0';ctx.font='7px Figtree';
+    ctx.fillText(n.s,n.x,n.y+n.r+11);
+  });
+}
+
+async function runDemo() {
+  done = 0;
+  document.getElementById('agentProgress').textContent='0 / 5 complete';
+  document.getElementById('intentBox').style.display='block';
+  document.getElementById('rb').style.opacity='1';
+  document.getElementById('ts').textContent='tracing'; document.getElementById('ts').style.color='#FFD000';
+  document.getElementById('tbl').textContent='BUT000·BP2000·BCA_LOAN_HDR·DFKKOP·BCA_GUARANTOR';
+
+  let tok=0; const ti=setInterval(()=>{tok+=Math.floor(Math.random()*80+20);document.getElementById('tc').textContent=tok.toLocaleString();},350);
+
+  setAgent('a1','active','Parsing query... B-4471 identified... routing to agents...');
+  await sleep(1100);
+  setAgent('a1','complete','Customer: <span class="h">B-4471 James Thornton</span> · Dimensions: <span class="h">Credit · Connected · Regulatory · Sector</span>');
+  document.getElementById('lat').textContent='1.1s';
+
+  setAgent('a2','active','Traversing TRBK graph... BUT000 → BP2000 → BCA_GUARANTOR → DFKKOP...');
+  document.getElementById('gh').textContent='2';
+  await sleep(700);
+  document.getElementById('gw').style.display='block';
+  setTimeout(drawGraph,50);
+  document.getElementById('gh').textContent='4';
+  await sleep(900);
+  document.getElementById('gh').textContent='6';
+  setAgent('a2','complete','Loans: <span class="r">HL-8821 $1.2M · PL-2201 $45K</span> · Guarantor: <span class="r">G-0091 covers B-4472 + B-4473</span> · Parent: <span class="r">TrustCo Holdings</span> · DFKKOP: <span class="r">61 days overdue $8,450</span>');
+  document.getElementById('lat').textContent='2.8s';
+
+  document.getElementById('chain').innerHTML=`
+    <div class="chain-item"><span class="ca">→</span><span class="ct"><strong>B-4471</strong> (James Thornton) — home loan HL-8821 AUD $1.2M + personal loan PL-2201 AUD $45K</span></div>
+    <div class="chain-item"><span class="ca">→</span><span class="ct">Guarantor <strong>G-0091</strong> (TrustCo Holdings Pty Ltd) also guarantees loans for <strong>B-4472 and B-4473</strong></span></div>
+    <div class="chain-item"><span class="ca">→</span><span class="ct">Combined group exposure: <strong>AUD $7.8M</strong> — APS 221 limit AUD $8.5M — utilisation <strong>92%</strong></span></div>
+    <div class="chain-item"><span class="ca">→</span><span class="ct">B-4471 DTI ratio: <strong>7.2</strong> — exceeds APRA Feb 2026 limit of 6.0 — loan approved pre-activation</span></div>
+    <div class="chain-item"><span class="ca">→</span><span class="ct">All three borrowers in <strong>SECTOR_CODE: RETAIL_PROP</strong> — combined sector exposure 78% of limit</span></div>
+    <div class="chain-item"><span class="ca">→</span><span class="ct">HL-8821 — DFKKOP: <strong>61 days overdue</strong> AUD $8,450 — no matching DFKKZP payment record</span></div>
+  `;
+
+  setAgent('a3','active','Hybrid RAG on APRA standards... HyDE generating hypothetical breach profile...');
+  await sleep(1500);
+  setAgent('a3','complete','APS 221: <span class="r">92% utilisation — board notification required</span> · DTI: <span class="r">7.2 breaches Feb 2026</span> · CPS 230: <span class="w">documentation required</span>');
+  document.getElementById('lat').textContent='4.2s';
+
+  setAgent('a4','active','Scoring across 4 risk dimensions... evaluating confidence...');
+  document.getElementById('cw').style.display='flex';
+  await sleep(600);
+  document.getElementById('cf').style.width='64%'; document.getElementById('cv').textContent='64%';
+  await sleep(900);
+  document.getElementById('rq').textContent='1';
+  setAgent('a4','active','Confidence 64% — below threshold. <span class="h">Re-querying: TrustCo Holdings full group exposure...</span>');
+  await sleep(1100);
+  document.getElementById('gh').textContent='8';
+  document.getElementById('cf').style.width='89%'; document.getElementById('cv').textContent='89%';
+  await sleep(500);
+  setAgent('a4','complete','Score: <span class="r">81 / HIGH</span> · Confidence: <span class="h">89%</span> · Self-RAG: 1 re-query · 4 active risk dimensions');
+  document.getElementById('rsn').textContent='81';
+  document.getElementById('rdl').textContent='HIGH RISK';
+  document.getElementById('rdd').textContent='Connected Party · Credit · Regulatory · Sector';
+  document.getElementById('lat').textContent='6.7s';
+  document.getElementById('riskHeader').querySelector('.risk-score-block').style.background='#D42020';
+
+  document.getElementById('breaches').innerHTML=`
+    <div class="breach"><div class="bh"><span class="bs">APS 221 — Large Exposures</span><span class="bsev">Immediate Review Required</span></div><div class="bt">Group (B-4471, B-4472, B-4473 via G-0091 / TrustCo Holdings) combined AUD $7.8M. Limit AUD $8.5M. 92% utilisation. Any new drawdown breaches. APRA requires board notification above 90%.</div></div>
+    <div class="breach"><div class="bh"><span class="bs">DTI Limits — February 2026</span><span class="bsev">Regulatory Breach</span></div><div class="bt">B-4471 DTI ratio 7.2 exceeds the 6.0 limit activated February 2026. Loan HL-8821 approved October 2025 — pre-activation. Not yet reported to APRA.</div></div>
+    <div class="breach"><div class="bh"><span class="bs">Sector Concentration — Internal Policy</span><span class="bsev">Monitor</span></div><div class="bt">RETAIL_PROP at 78% of internal limit. Four connected borrowers in same sector. Pre-approval escalation required under credit policy §7.3.</div></div>
+  `;
+
+  setAgent('a5','active','Synthesising all findings... generating APRA-ready risk brief...');
+  await sleep(1800);
+  setAgent('a5','complete','Risk brief generated · 3 regulatory findings · 3 recommendations · Full evidence trail');
+
+  document.getElementById('recs').innerHTML=`
+    <div class="rec"><div class="rh"><span class="rp hi">Immediate Action</span><span class="ro">Credit Risk Officer</span></div><div class="rt">Halt all new drawdowns for B-4471, B-4472, B-4473 and any G-0091 / TrustCo Holdings connected entity pending group exposure review. Next drawdown will breach APS 221.</div></div>
+    <div class="rec"><div class="rh"><span class="rp hi">Within 5 Days</span><span class="ro">Regulatory Reporting</span></div><div class="rt">Document DTI breach for B-4471 HL-8821 under APRA February 2026 requirements. Prepare remediation plan — restructure or additional security options.</div></div>
+    <div class="rec"><div class="rh"><span class="rp med">Within 30 Days</span><span class="ro">Portfolio Risk Team</span></div><div class="rt">Sector concentration review for RETAIL_PROP book. Four connected borrowers. Engage credit policy §7.3 escalation before any new approvals in this connected group.</div></div>
+  `;
+
+  document.getElementById('evs').innerHTML=`
+    <div class="ev-item"><span class="ed">◆</span>TRBK Graph: 8-hop · BUT000 → BP2000 → BKKN → BCA_LOAN_HDR → BCA_GUARANTOR → DFKKOP</div>
+    <div class="ev-item"><span class="ed">◆</span>Policy RAG: APS 221 §3.2 Large Exposure Limits (2024 revision) · similarity 0.96</div>
+    <div class="ev-item"><span class="ed">◆</span>Policy RAG: APRA DTI Activation Notice February 2026 · similarity 0.94</div>
+    <div class="ev-item"><span class="ed">◆</span>Policy RAG: Credit Policy §7.3 Sector Concentration Escalation · similarity 0.89</div>
+    <div class="ev-item"><span class="ed">◆</span>Self-RAG: re-query at 64% confidence · TrustCo full group exposure · final confidence 89%</div>
+    <div class="ev-item"><span class="ed">◆</span>Tables: BUT000 · BP2000 · BKKN · BCA_LOAN_HDR · BCA_GUARANTOR · BCA_LOAN_SCHED · DFKKOP · BCA_SECTOR · BCA_DTI</div>
+  `;
+
+  clearInterval(ti);
+  document.getElementById('rag').textContent='0.93'; document.getElementById('rag').style.color='#FFD000';
+  document.getElementById('lat').textContent='9.1s total';
+  document.getElementById('ts').textContent='complete'; document.getElementById('ts').style.color='#FFD000';
+}
+</script>
+</body>
+</html>
