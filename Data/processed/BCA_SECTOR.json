@@ -1,0 +1,173 @@
+{
+  "table": "BCA_SECTOR",
+  "records": [
+    {
+      "PARTNER": "30100001",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2022-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100002",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2021-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100003",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100004",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100008",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2022-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100013",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2021-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100005",
+      "SECTOR_CODE": "CONSTRUCTION",
+      "SECTOR_DESC": "Construction",
+      "VALID_FROM": "2024-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100006",
+      "SECTOR_CODE": "AGRICULTURE",
+      "SECTOR_DESC": "Agriculture",
+      "VALID_FROM": "2024-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100009",
+      "SECTOR_CODE": "MINING",
+      "SECTOR_DESC": "Mining & Resources",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100010",
+      "SECTOR_CODE": "HEALTHCARE",
+      "SECTOR_DESC": "Healthcare",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100012",
+      "SECTOR_CODE": "TECHNOLOGY",
+      "SECTOR_DESC": "Technology",
+      "VALID_FROM": "2024-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100021",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2022-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100023",
+      "SECTOR_CODE": "PROFESSIONAL",
+      "SECTOR_DESC": "Professional Services",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100024",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2022-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100028",
+      "SECTOR_CODE": "MANUFACTURING",
+      "SECTOR_DESC": "Manufacturing",
+      "VALID_FROM": "2024-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100029",
+      "SECTOR_CODE": "EDUCATION",
+      "SECTOR_DESC": "Education",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100065",
+      "SECTOR_CODE": "FINANCIAL",
+      "SECTOR_DESC": "Financial Services",
+      "VALID_FROM": "2022-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100066",
+      "SECTOR_CODE": "RETAIL",
+      "SECTOR_DESC": "Retail Trade",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100080",
+      "SECTOR_CODE": "HOSPITALITY",
+      "SECTOR_DESC": "Hospitality & Tourism",
+      "VALID_FROM": "2024-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100081",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2022-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30100100",
+      "SECTOR_CODE": "TRANSPORT",
+      "SECTOR_DESC": "Transport & Logistics",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30186001",
+      "SECTOR_CODE": "CONSTRUCTION",
+      "SECTOR_DESC": "Construction",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30186002",
+      "SECTOR_CODE": "HEALTHCARE",
+      "SECTOR_DESC": "Healthcare",
+      "VALID_FROM": "2022-01-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "PARTNER": "30186005",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "SECTOR_DESC": "Retail Property",
+      "VALID_FROM": "2023-01-01",
+      "VALID_TO": "9999-12-31"
+    }
+  ]
+}

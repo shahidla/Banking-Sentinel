@@ -1,0 +1,115 @@
+{
+  "table": "DFKKZP",
+  "records": [
+    {
+      "ZPBEL": "ZP-L001-001",
+      "VKONT": "CA-30100001-01",
+      "GPART": "30100001",
+      "LOAN_ID": "L-001",
+      "BETRW": 8950,
+      "BUDAT": "2026-01-01",
+      "VALUT": "2026-01-01",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L001-002",
+      "VKONT": "CA-30100001-01",
+      "GPART": "30100001",
+      "LOAN_ID": "L-001",
+      "BETRW": 8950,
+      "BUDAT": "2026-02-01",
+      "VALUT": "2026-02-01",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L003-001",
+      "VKONT": "CA-30100002-01",
+      "GPART": "30100002",
+      "LOAN_ID": "L-003",
+      "BETRW": 7420,
+      "BUDAT": "2026-03-21",
+      "VALUT": "2026-03-21",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L006-001",
+      "VKONT": "CA-30100005-01",
+      "GPART": "30100005",
+      "LOAN_ID": "L-006",
+      "BETRW": 36200,
+      "BUDAT": "2026-04-14",
+      "VALUT": "2026-04-14",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L006-002",
+      "VKONT": "CA-30100005-01",
+      "GPART": "30100005",
+      "LOAN_ID": "L-006",
+      "BETRW": 36200,
+      "BUDAT": "2026-03-14",
+      "VALUT": "2026-03-14",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L008-001",
+      "VKONT": "CA-30100008-01",
+      "GPART": "30100008",
+      "LOAN_ID": "L-008",
+      "BETRW": 13950,
+      "BUDAT": "2026-04-04",
+      "VALUT": "2026-04-04",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L009-001",
+      "VKONT": "CA-30100009-01",
+      "GPART": "30100009",
+      "LOAN_ID": "L-009",
+      "BETRW": 62400,
+      "BUDAT": "2026-03-31",
+      "VALUT": "2026-03-31",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L009-002",
+      "VKONT": "CA-30100009-01",
+      "GPART": "30100009",
+      "LOAN_ID": "L-009",
+      "BETRW": 62400,
+      "BUDAT": "2026-02-28",
+      "VALUT": "2026-02-28",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L012-001",
+      "VKONT": "CA-30100013-01",
+      "GPART": "30100013",
+      "LOAN_ID": "L-012",
+      "BETRW": 9680,
+      "BUDAT": "2026-04-19",
+      "VALUT": "2026-04-19",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    },
+    {
+      "ZPBEL": "ZP-L012-002",
+      "VKONT": "CA-30100013-01",
+      "GPART": "30100013",
+      "LOAN_ID": "L-012",
+      "BETRW": 9680,
+      "BUDAT": "2026-03-20",
+      "VALUT": "2026-03-20",
+      "STATUS": "POSTED",
+      "CURRENCY": "AUD"
+    }
+  ]
+}

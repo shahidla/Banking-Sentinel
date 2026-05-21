@@ -1,0 +1,280 @@
+{
+  "table": "BCA_LOAN_COND",
+  "records": [
+    {
+      "LOAN_ID": "L-001",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.24,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2022-03-15",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-002",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.74,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-06-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-003",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.14,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2021-11-20",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-004",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 7.45,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2025-08-10",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-005",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.39,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-02-28",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-006",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 7.2,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2024-01-15",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-007",
+      "COND_TYPE": "FIXED",
+      "RATE": 9.95,
+      "MARGIN": null,
+      "BASE_RATE_INDEX": null,
+      "VALID_FROM": "2024-04-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": null
+    },
+    {
+      "LOAN_ID": "L-008",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.59,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2022-09-05",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-009",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 7.85,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-07-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-010",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.09,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-10-12",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-011",
+      "COND_TYPE": "FIXED",
+      "RATE": 10.5,
+      "MARGIN": null,
+      "BASE_RATE_INDEX": null,
+      "VALID_FROM": "2024-06-15",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": null
+    },
+    {
+      "LOAN_ID": "L-012",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 5.89,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2021-05-20",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-013",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.19,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2022-08-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-014",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.29,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-01-10",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-015",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.64,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2022-11-15",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-016",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 7.35,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2024-03-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-017",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.04,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-04-20",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-018",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.34,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2022-06-30",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-019",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.44,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-09-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-020",
+      "COND_TYPE": "FIXED",
+      "RATE": 9.75,
+      "MARGIN": null,
+      "BASE_RATE_INDEX": null,
+      "VALID_FROM": "2024-02-15",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": null
+    },
+    {
+      "LOAN_ID": "L-021",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.24,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2022-12-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-022",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.19,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-11-01",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-023",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 7.55,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-05-15",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-024",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.29,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2022-07-20",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    },
+    {
+      "LOAN_ID": "L-025",
+      "COND_TYPE": "VARIABLE",
+      "RATE": 6.69,
+      "MARGIN": 2.74,
+      "BASE_RATE_INDEX": "RBA_CASH_RATE",
+      "VALID_FROM": "2023-08-10",
+      "VALID_TO": "9999-12-31",
+      "CURRENCY": "AUD",
+      "REVIEW_DATE": "2026-10-01"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+.env
+node_modules/
+gen/
+*.db
+*.sqlite*
+connection.properties
+*.log

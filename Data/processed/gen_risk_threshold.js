@@ -1,0 +1,68 @@
+const fs = require('fs');
+
+// RISK_THRESHOLD - APRA regulatory limits
+const records = [
+  {
+    THRESHOLD_ID: 'APS221-SINGLE',
+    THRESHOLD_TYPE: 'LARGE_EXPOSURE_SINGLE',
+    DESCRIPTION: 'APS 221 Single Obligor Large Exposure Limit',
+    LIMIT_VALUE: 5000000,
+    CURRENCY: 'AUD',
+    LIMIT_PCT: null,
+    REGULATOR: 'APRA',
+    STANDARD: 'APS 221',
+    EFFECTIVE_FROM: '2023-01-01',
+    NOTE: 'Single guarantor/obligor exposure must not exceed AUD 5M without senior credit approval'
+  },
+  {
+    THRESHOLD_ID: 'APS221-GROUP',
+    THRESHOLD_TYPE: 'LARGE_EXPOSURE_CONNECTED_GROUP',
+    DESCRIPTION: 'APS 221 Connected Party Group Large Exposure Limit',
+    LIMIT_VALUE: 7500000,
+    CURRENCY: 'AUD',
+    LIMIT_PCT: null,
+    REGULATOR: 'APRA',
+    STANDARD: 'APS 221',
+    EFFECTIVE_FROM: '2023-01-01',
+    NOTE: 'Combined exposure to connected party group must not exceed AUD 7.5M'
+  },
+  {
+    THRESHOLD_ID: 'APRA-DTI',
+    THRESHOLD_TYPE: 'DEBT_TO_INCOME',
+    DESCRIPTION: 'APRA Debt-to-Income Ratio Limit',
+    LIMIT_VALUE: null,
+    CURRENCY: null,
+    LIMIT_PCT: 6.0,
+    REGULATOR: 'APRA',
+    STANDARD: 'APRA DTI Guidance',
+    EFFECTIVE_FROM: '2026-02-01',
+    NOTE: 'Activated February 2026. New loans with DTI > 6.0 require enhanced assessment. Existing loans in breach require remediation plan.'
+  },
+  {
+    THRESHOLD_ID: 'SECTOR-RETAIL-PROP',
+    THRESHOLD_TYPE: 'SECTOR_CONCENTRATION',
+    DESCRIPTION: 'Retail Property Sector Concentration Limit',
+    LIMIT_VALUE: 56000000,
+    CURRENCY: 'AUD',
+    LIMIT_PCT: 25,
+    REGULATOR: 'INTERNAL',
+    STANDARD: 'Credit Risk Policy v4.2',
+    EFFECTIVE_FROM: '2024-01-01',
+    NOTE: 'Internal policy limit: Retail Property sector exposure must not exceed 25% of total loan book. Current book approx AUD 224M.'
+  },
+  {
+    THRESHOLD_ID: 'CPS230-AI',
+    THRESHOLD_TYPE: 'OPERATIONAL_RESILIENCE',
+    DESCRIPTION: 'CPS 230 AI Model Governance',
+    LIMIT_VALUE: null,
+    CURRENCY: null,
+    LIMIT_PCT: null,
+    REGULATOR: 'APRA',
+    STANDARD: 'CPS 230',
+    EFFECTIVE_FROM: '2025-07-01',
+    NOTE: 'All AI models used in material risk decisions must be explainable, auditable, and tested. Effective July 2025.'
+  },
+];
+
+fs.writeFileSync('C:/Dev/Banking-Sentinel/Data/processed/RISK_THRESHOLD.json', JSON.stringify({ table: 'RISK_THRESHOLD', records }, null, 2));
+console.log('RISK_THRESHOLD written:', records.length, 'records');

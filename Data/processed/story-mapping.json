@@ -1,0 +1,214 @@
+{
+  "description": "Banking Sentinel - TRBK Data Story Mapping",
+  "source": "SAP Business Accelerator Hub sandbox (API_BUSINESS_PARTNER)",
+  "generated": "2026-05-21",
+  "borrowers": [
+    {
+      "role": "B-001",
+      "bp_id": "30100001",
+      "name": "Domestic Customer AU 1",
+      "type": "ORG",
+      "sector": "RETAIL_PROP",
+      "story": "Home loan borrower, overdue 45 days, guarantor G-001"
+    },
+    {
+      "role": "B-002",
+      "bp_id": "30100002",
+      "name": "Domestic Customer AU 2",
+      "type": "ORG",
+      "sector": "RETAIL_PROP",
+      "story": "Investment property loan, overdue 30 days, guarantor G-001"
+    },
+    {
+      "role": "B-003",
+      "bp_id": "30100003",
+      "name": "Domestic Customer AU 3",
+      "type": "ORG",
+      "sector": "RETAIL_PROP",
+      "story": "Business loan, DTI 7.2 (APRA breach), guarantor G-001"
+    },
+    {
+      "role": "B-004",
+      "bp_id": "30100004",
+      "name": "Domestic Customer AU 4",
+      "type": "ORG",
+      "sector": "RETAIL_PROP",
+      "story": "Home loan, overdue 15 days, guarantor G-002"
+    },
+    {
+      "role": "B-005",
+      "bp_id": "30100005",
+      "name": "Domestic Customer AU 5",
+      "type": "ORG",
+      "sector": "CONSTRUCTION",
+      "story": "Business credit facility, performing, guarantor G-002"
+    },
+    {
+      "role": "B-006",
+      "bp_id": "30100006",
+      "name": "Domestic Customer AU 6",
+      "type": "ORG",
+      "sector": "AGRICULTURE",
+      "story": "Personal loan, performing"
+    },
+    {
+      "role": "B-007",
+      "bp_id": "30100008",
+      "name": "Domestic Customer AU 8",
+      "type": "ORG",
+      "sector": "RETAIL_PROP",
+      "story": "Investment property loan, performing - sector concentration flag"
+    },
+    {
+      "role": "B-008",
+      "bp_id": "30100009",
+      "name": "Domestic Customer AU 9",
+      "type": "ORG",
+      "sector": "MINING",
+      "story": "Business credit facility, performing"
+    },
+    {
+      "role": "B-009",
+      "bp_id": "30100010",
+      "name": "Domestic Customer AU 10",
+      "type": "ORG",
+      "sector": "HEALTHCARE",
+      "story": "Home loan, performing"
+    },
+    {
+      "role": "B-010",
+      "bp_id": "30100012",
+      "name": "Domestic Customer AU 12",
+      "type": "ORG",
+      "sector": "TECHNOLOGY",
+      "story": "Personal loan, performing"
+    },
+    {
+      "role": "B-011",
+      "bp_id": "30100013",
+      "name": "Domestic Customer AU 13",
+      "type": "ORG",
+      "sector": "RETAIL_PROP",
+      "story": "Home loan, overdue 60 days - sector concentration flag"
+    }
+  ],
+  "guarantors": [
+    {
+      "role": "G-001",
+      "bp_id": "30910005",
+      "name": "Rose Courtney",
+      "type": "PERSON",
+      "story": "Primary guarantor - covers B-001, B-002, B-003. Combined exposure AUD 4.2M. Connected via BUT050 to G-002 (same family trust)."
+    },
+    {
+      "role": "G-002",
+      "bp_id": "30910006",
+      "name": "Eric Miller",
+      "type": "PERSON",
+      "story": "Secondary guarantor - covers B-004, B-005. Connected to G-001. Combined group exposure AUD 7.8M - breaches APS 221."
+    },
+    {
+      "role": "G-003",
+      "bp_id": "30910007",
+      "name": "George Clark",
+      "type": "PERSON",
+      "story": "Independent guarantor - covers B-008, B-009"
+    },
+    {
+      "role": "G-004",
+      "bp_id": "30910008",
+      "name": "Alex Baker",
+      "type": "PERSON",
+      "story": "Independent guarantor - covers B-010, B-011"
+    }
+  ],
+  "connected_parties": [
+    {
+      "rel_number": "13",
+      "rel_category": "BUR001",
+      "bp1": "30100001",
+      "bp1_name": "Domestic Customer AU 1",
+      "bp2_contacts": [
+        {
+          "bp_id": "30910005",
+          "name": "Rose Courtney",
+          "story_role": "G-001 - guarantor for B-001, B-002, B-003"
+        },
+        {
+          "bp_id": "30910006",
+          "name": "Eric Miller",
+          "story_role": "G-002 - guarantor for B-004, B-005"
+        }
+      ],
+      "risk_note": "Both guarantors are contacts of same corporate entity. Synthetic BUT050 relationship added to make G-001/G-002 explicitly related (family trust structure)."
+    }
+  ],
+  "risk_patterns": [
+    {
+      "id": "RP-001",
+      "name": "Guarantor Concentration - G-001",
+      "description": "Guarantor Rose Courtney (G-001) covers 3 borrowers (B-001, B-002, B-003), all with overdue repayments",
+      "bps_involved": [
+        "30910005",
+        "30100001",
+        "30100002",
+        "30100003"
+      ],
+      "total_exposure_aud": 4200000,
+      "regulatory_limit_aud": 5000000,
+      "utilisation_pct": 84,
+      "standard": "APS 221",
+      "breach": false,
+      "near_breach": true
+    },
+    {
+      "id": "RP-002",
+      "name": "Connected Party Group Exposure - G-001/G-002",
+      "description": "G-001 (Rose Courtney) connected to G-002 (Eric Miller) via family trust. Combined group exposure breaches APS 221 large exposure limit.",
+      "bps_involved": [
+        "30910005",
+        "30910006",
+        "30100001",
+        "30100002",
+        "30100003",
+        "30100004",
+        "30100005"
+      ],
+      "total_exposure_aud": 7800000,
+      "regulatory_limit_aud": 7500000,
+      "utilisation_pct": 104,
+      "standard": "APS 221",
+      "breach": true,
+      "breach_amount_aud": 300000
+    },
+    {
+      "id": "RP-003",
+      "name": "Sector Concentration - Retail Property",
+      "description": "B-001, B-002, B-007, B-011 all in RETAIL_PROP sector. Combined exposure approaching concentration limit.",
+      "bps_involved": [
+        "30100001",
+        "30100002",
+        "30100008",
+        "30100013"
+      ],
+      "total_exposure_aud": 12400000,
+      "concentration_limit_pct": 25,
+      "current_pct": 22,
+      "standard": "APRA sector concentration guidance",
+      "breach": false,
+      "near_breach": true
+    },
+    {
+      "id": "RP-004",
+      "name": "DTI Breach - B-003",
+      "description": "Borrower B-003 (Domestic Customer AU 3) has DTI ratio 7.2, above APRA February 2026 limit of 6.0. Loan approved pre-limit.",
+      "bps_involved": [
+        "30100003"
+      ],
+      "dti_ratio": 7.2,
+      "dti_limit": 6,
+      "standard": "APRA DTI limit (activated Feb 2026)",
+      "breach": true
+    }
+  ]
+}

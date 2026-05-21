@@ -1,0 +1,116 @@
+{
+  "table": "BCA_DTI",
+  "records": [
+    {
+      "PARTNER": "30100003",
+      "DTI_RATIO": 7.2,
+      "ANNUAL_INCOME": 145000,
+      "TOTAL_DEBT": 2100000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": true,
+      "BREACH_DATE": "2026-02-01",
+      "NOTE": "Loan approved 2025-08-10 before APRA DTI limit activated Feb 2026. Now in breach."
+    },
+    {
+      "PARTNER": "30100001",
+      "DTI_RATIO": 5.8,
+      "ANNUAL_INCOME": 490000,
+      "TOTAL_DEBT": 2830000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Near DTI limit - combined home loan + investment property"
+    },
+    {
+      "PARTNER": "30100004",
+      "DTI_RATIO": 5.4,
+      "ANNUAL_INCOME": 305000,
+      "TOTAL_DEBT": 1650000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Approaching DTI limit"
+    },
+    {
+      "PARTNER": "30100002",
+      "DTI_RATIO": 4.2,
+      "ANNUAL_INCOME": 298000,
+      "TOTAL_DEBT": 1250000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Within DTI limit"
+    },
+    {
+      "PARTNER": "30100005",
+      "DTI_RATIO": 3.1,
+      "ANNUAL_INCOME": 596000,
+      "TOTAL_DEBT": 1850000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Business credit facility, strong income"
+    },
+    {
+      "PARTNER": "30100006",
+      "DTI_RATIO": 1.5,
+      "ANNUAL_INCOME": 30000,
+      "TOTAL_DEBT": 45000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Personal loan, low DTI"
+    },
+    {
+      "PARTNER": "30100008",
+      "DTI_RATIO": 4.9,
+      "ANNUAL_INCOME": 449000,
+      "TOTAL_DEBT": 2200000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Investment property, within limit"
+    },
+    {
+      "PARTNER": "30100009",
+      "DTI_RATIO": 2.8,
+      "ANNUAL_INCOME": 1143000,
+      "TOTAL_DEBT": 3200000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Mining company, strong revenue"
+    },
+    {
+      "PARTNER": "30100010",
+      "DTI_RATIO": 3.6,
+      "ANNUAL_INCOME": 247000,
+      "TOTAL_DEBT": 890000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Within DTI limit"
+    },
+    {
+      "PARTNER": "30100012",
+      "DTI_RATIO": 1.9,
+      "ANNUAL_INCOME": 147000,
+      "TOTAL_DEBT": 28000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Personal loan, low DTI"
+    },
+    {
+      "PARTNER": "30100013",
+      "DTI_RATIO": 4.4,
+      "ANNUAL_INCOME": 382000,
+      "TOTAL_DEBT": 1680000,
+      "CURRENCY": "AUD",
+      "APRA_LIMIT": 6,
+      "BREACH_FLAG": false,
+      "NOTE": "Within DTI limit"
+    }
+  ]
+}

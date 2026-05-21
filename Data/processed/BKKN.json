@@ -1,0 +1,245 @@
+{
+  "table": "BKKN",
+  "records": [
+    {
+      "VKONT": "CA-30100001-01",
+      "GPART": "30100001",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2022-03-15",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100001-02",
+      "GPART": "30100001",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-06-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100002-01",
+      "GPART": "30100002",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2021-11-20",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100003-01",
+      "GPART": "30100003",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2025-08-10",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100004-01",
+      "GPART": "30100004",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-02-28",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100005-01",
+      "GPART": "30100005",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2024-01-15",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100006-01",
+      "GPART": "30100006",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2024-04-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100008-01",
+      "GPART": "30100008",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2022-09-05",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100009-01",
+      "GPART": "30100009",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-07-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100010-01",
+      "GPART": "30100010",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-10-12",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100012-01",
+      "GPART": "30100012",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2024-06-15",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100013-01",
+      "GPART": "30100013",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2021-05-20",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100021-01",
+      "GPART": "30100021",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2022-08-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100023-01",
+      "GPART": "30100023",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-01-10",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100024-01",
+      "GPART": "30100024",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2022-11-15",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100028-01",
+      "GPART": "30100028",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2024-03-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100029-01",
+      "GPART": "30100029",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-04-20",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100065-01",
+      "GPART": "30100065",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2022-06-30",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100066-01",
+      "GPART": "30100066",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-09-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100080-01",
+      "GPART": "30100080",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2024-02-15",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100081-01",
+      "GPART": "30100081",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2022-12-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100100-01",
+      "GPART": "30100100",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-11-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30186001-01",
+      "GPART": "30186001",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-05-15",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30186002-01",
+      "GPART": "30186002",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2022-07-20",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30186005-01",
+      "GPART": "30186005",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2023-08-10",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100001-03",
+      "GPART": "30100001",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2025-01-15",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100002-02",
+      "GPART": "30100002",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2025-02-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100021-02",
+      "GPART": "30100021",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2025-03-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100080-02",
+      "GPART": "30100080",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2025-04-01",
+      "VALID_TO": "9999-12-31"
+    },
+    {
+      "VKONT": "CA-30100081-02",
+      "GPART": "30100081",
+      "BUKRS": "AU10",
+      "GSBER": "RETAIL_BANKING",
+      "VALID_FROM": "2025-01-20",
+      "VALID_TO": "9999-12-31"
+    }
+  ]
+}
