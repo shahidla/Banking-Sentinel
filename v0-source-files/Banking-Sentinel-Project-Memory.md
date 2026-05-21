@@ -186,6 +186,8 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | Data source | SAP Business Accelerator Hub sandbox as primary (real SAP BPs) + synthetic TRBK loan/risk layer on top | Client data (not allowed) / fully synthetic | Cannot use client data. Using real SAP BPs makes the story credible with bank architects. |
 | BP relationship table | BUT050 / BUT051 | BP2000 (doesn't exist in TRBK) | Confirmed by bank architects in session. BP2000 is NOT a real TRBK table. |
 | Agent model | claude-sonnet-4-6 for agents (speed/cost), claude-opus-4-7 for final risk brief | All Opus or all Haiku | Balance cost vs quality. Risk brief needs Opus reasoning. Agents need speed. |
+| Graph traversal — dev | Sequential SQL queries in ReAct agent loop | HANA Graph from day 1 | SQLite has no graph engine. Build logic in SQL first, swap to HANA Graph on prod. |
+| Graph traversal — prod | HANA Graph Workspace + openCypher (same syntax as Neo4j) | Plain SQL joins | HANA Cloud has native graph engine. One openCypher query replaces the multi-hop ReAct loop. Cleaner, faster, more impressive in the demo. |
 
 ---
 
