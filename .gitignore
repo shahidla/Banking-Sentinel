@@ -5,3 +5,6 @@ gen/
 *.sqlite*
 connection.properties
 *.log
+
+# added by cds
+.cdsrc-private.json

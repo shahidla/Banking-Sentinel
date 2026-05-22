@@ -1,0 +1,11 @@
+{
+  "requires": {
+    "db": {
+      "kind": "hana",
+      "deploy-format": "hdbtable"
+    },
+    "auth": {
+      "kind": "dummy"
+    }
+  }
+}

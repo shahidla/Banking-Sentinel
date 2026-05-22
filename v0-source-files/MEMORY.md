@@ -1,6 +1,6 @@
 # Banking Sentinel — Project Memory
 ## For Claude Code — New Conversation Handoff
-## Last updated: 2026-05-21 (Session 2)
+## Last updated: 2026-05-22 (Session 3)
 
 ---
 
@@ -23,13 +23,12 @@ A multi-agent AI risk intelligence system deployed on SAP BTP that monitors SAP 
 ```
 C:\Dev\Banking-Sentinel\
   v0-source-files/                    ← all source documents live here
-    Task1-TRBK-Table-Structure.md     ← SAP TRBK table structure + synthetic data design
-    Task2-Banking-Problems.md         ← Real banking problems this prototype solves
-    Task3-Banking-Sentinel-UI-1.html  ← Dark editorial UI (original)
-    Banking-Sentinel-AustralianBank.html ← Light Bloomberg-style UI (CHOSEN)
-    Banking-Sentinel-Bloomberg.html   ← Deep navy Bloomberg terminal UI
-    Task4-Banking-Sentinel-Project-Context.md ← Full project context (canonical reference)
-    Banking-Sentinel-Project-Memory.md ← THIS FILE
+    CONTEXT.md                        ← DEFINITIVE context (v5) — authoritative single source
+    MEMORY.md                         ← THIS FILE — living session state + decisions log
+    TRBK-Reference.md                 ← SAP TRBK table structure + synthetic data design
+    Banking-Problems.md               ← Real banking problems this prototype solves (generic ADI)
+    Banking-Sentinel-AustralianBank.html ← Light Bloomberg-style UI — CHOSEN for client demo
+    Banking-Sentinel-Bloomberg.html   ← Deep navy Bloomberg terminal UI — for blog audience
 
   Data/
     ABusinessPartner.json             ← 100 real SAP sandbox BPs (pulled from SAP Business Accelerator Hub)
@@ -57,7 +56,7 @@ C:\Dev\Banking-Sentinel\
 ## MJ LIVE — READ FIRST
 
 Banking Sentinel extends MJ Live patterns. Full MJ knowledge is saved at:
-`C:\Users\syedsm\.claude\projects\C--\memory\project_mj_context.md`
+`C:\Users\shahi\.claude\projects\C--\memory\project_mj_context.md`
 
 **Key patterns that carry forward:**
 - SAP CAP Node.js as application layer
@@ -151,7 +150,7 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | Phase | What | Status |
 |---|---|---|
 | 0 | SAP sandbox data pulled + TRBK synthetic data layer generated | ✅ DONE |
-| 1 | CAP project scaffold + SQLite schema + seed from JSON files | Not started |
+| 1 | CAP scaffold + HANA Cloud schema + seed + 6-hop traversal verified | ✅ DONE |
 | 2 | HANA Vector — APRA standards embedded | Not started |
 | 3 | LangGraph orchestrator + Intake Agent | Not started |
 | 4 | Graph Traversal Agent + ReAct + HANA graph queries | Not started |
@@ -164,13 +163,12 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 
 ---
 
-## UI — THREE VARIANTS (already built)
+## UI — TWO VARIANTS (already built, earlier versions retired)
 
 | File | Theme | Use |
 |---|---|---|
-| Task3-Banking-Sentinel-UI-1.html | Dark editorial (DM Mono / Fraunces) | Original |
-| Banking-Sentinel-AustralianBank.html | Light Bloomberg-style, yellow accent | Australian Bank demo |
-| Banking-Sentinel-Bloomberg.html | Deep navy, IBM Plex, blue grid | Bloomberg terminal style |
+| Banking-Sentinel-AustralianBank.html | Light Bloomberg-style, yellow accent | Client demo — CHOSEN |
+| Banking-Sentinel-Bloomberg.html | Deep navy, IBM Plex, blue grid | Blog audience |
 
 **Chosen UI:** `Banking-Sentinel-AustralianBank.html` — light Bloomberg-style, yellow accent.
 
@@ -181,22 +179,105 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | Decision | Chosen | Rejected | Why |
 |---|---|---|---|
 | UI variant | Banking-Sentinel-AustralianBank.html (light, yellow accent) | Dark editorial, Bloomberg terminal | User selected |
-| DB strategy | SQLite locally for dev/test, HANA Cloud on BTP for prod | HANA-only from start | BTP deployment takes time; same pattern as MJ Live |
+| DB strategy | HANA Cloud from day 1 | SQLite-first (MJ Live pattern) | V5 never mentions SQLite. HANA PAL, RPT-1, Knowledge Graph Engine cannot be simulated in SQLite. Confirmed Session 3. |
 | LLM split | Anthropic (claude-sonnet-4-6 for agents, claude-opus-4-7 for risk brief) + OpenAI (text-embedding-3-small for HANA Vector) | Claude-only or OpenAI-only | Same split as MJ Live — Claude for intelligence, OpenAI for embeddings |
 | Data source | SAP Business Accelerator Hub sandbox as primary (real SAP BPs) + synthetic TRBK loan/risk layer on top | Client data (not allowed) / fully synthetic | Cannot use client data. Using real SAP BPs makes the story credible with bank architects. |
 | BP relationship table | BUT050 / BUT051 | BP2000 (doesn't exist in TRBK) | Confirmed by bank architects in session. BP2000 is NOT a real TRBK table. |
 | Agent model | claude-sonnet-4-6 for agents (speed/cost), claude-opus-4-7 for final risk brief | All Opus or all Haiku | Balance cost vs quality. Risk brief needs Opus reasoning. Agents need speed. |
 | Graph traversal — dev | Sequential SQL queries in ReAct agent loop | HANA Graph from day 1 | SQLite has no graph engine. Build logic in SQL first, swap to HANA Graph on prod. |
 | Graph traversal — prod | HANA Graph Workspace + openCypher (same syntax as Neo4j) | Plain SQL joins | HANA Cloud has native graph engine. One openCypher query replaces the multi-hop ReAct loop. Cleaner, faster, more impressive in the demo. |
+| HANA Cloud from day 1 | HANA Cloud direct | SQLite-first | V5 never mentions SQLite. HANA PAL/RPT-1/Graph Engine don't work in SQLite. Confirmed Session 3. |
+| BUT050 field names | RELTYP: String(30), RELATIONSHIP_TYPE mapped | String(6) in v5 | Data uses full strings like FAMILY_TRUST_MEMBER (18 chars). Schema updated, redeployed. |
+| DFKKOP/BKKN VKONT | String(20) | String(12) in v5 | CA-30100001-01 is 14 chars. String(12) too small. Updated schema. |
+| DFKKZP key field | ZPBEL mapped to PAYMENT_ID | PAYMENT_ID in data | SAP field is ZPBEL (payment document). Mapped in seed script. |
+| BCA_GUARANTOR key | GUARANTOR_PARTNER | GUARANTOR in v5 | Real SAP field name confirmed from generated data. Schema updated. |
+| Sector on Loans | Null — sector lives in BCA_SECTOR per BP | Sector on Loan record | Sector concentration analysis requires: Loans → BKKN → BusinessPartners → BCA_SECTOR join. Not a direct filter on Loans.SECTOR_CODE. |
+| CDS bind --exec | Use for standalone scripts hitting HANA | CDS_ENV=hybrid alone | CDS_ENV=hybrid alone doesn't resolve CF bindings. cds bind --exec does. Pattern: cds bind --exec node scripts/xxx.js |
+| Langfuse integration | langfuse package directly | langfuse-langchain | langfuse-langchain locked to @langchain/core v0.3.x — incompatible with LangGraph v1.x (@langchain/core v1.x). langfuse package exports its own CallbackHandler that works with LangGraph v1.x. |
+| Source file cleanup (Session 3) | Renamed 4 files, deleted 4 files, kept 6 | Keep all files | Renamed: Context-v5→CONTEXT.md, Project-Memory→MEMORY.md, Task1→TRBK-Reference.md, Task2→Banking-Problems.md. Deleted: Task2-CBA (named client), Task4-context (pre-v5), Task3-UI.html + Task3-UI-1.html (retired per CONTEXT.md). |
+| PostgreSQL provider | Supabase (already provisioned) | Neon, Railway | Already provisioned. Connection string added to .env as POSTGRES_URL. |
+| Solace VPN | mj-live (reuse existing service) | New dedicated service | Same Solace service as MJ Live. Banking Sentinel uses different topic prefix (banking/*). |
+| Anomaly detection default | PAL (HANA statistical) | LLM | Per CONTEXT.md — PAL for bulk screening, LLM for explanation. ENV switch keeps both demonstrable. |
 
 ---
 
 ## OPEN QUESTIONS (confirm before Phase 1)
 
 1. HANA Cloud instance available on BTP — or build CAP scaffold local-first with SQLite first?
-2. Claude API key — fill in .env before Phase 1
-3. Do we need more SAP sandbox data? (BPFinancialServicesExtn, BPCreditWorthiness available). User may pull more on next session if time allows.
+2. ~~Claude API key~~ ✅ DONE
+3. Do we need more SAP sandbox data? (BPFinancialServicesExtn, BPCreditWorthiness available).
 4. Any additional risk patterns the bank architects want demonstrated?
+5. ~~POSTGRES_URL~~ ✅ DONE — Supabase connection string set in .env
+6. ~~LANGFUSE keys~~ ✅ DONE — all three Langfuse keys set in .env
+7. ~~SOLACE_VPN~~ ✅ DONE — set to mj-live (reusing existing Solace service)
+8. ~~ANOMALY_DETECTION_MODE~~ ✅ DONE — set to PAL
+
+## .ENV STATUS (as of 2026-05-22) — ALL KEYS SET ✅
+
+| Key | Status |
+|---|---|
+| ANTHROPIC_API_KEY | ✅ |
+| OPENAI_API_KEY | ✅ |
+| SOLACE_URL / VPN / USERNAME / PASSWORD | ✅ |
+| HANA_HOST / PORT / USER / PASSWORD | ✅ |
+| LANGFUSE_PUBLIC_KEY / SECRET_KEY / HOST | ✅ |
+| POSTGRES_URL (Supabase) | ✅ |
+| SAP_RPT_API_KEY | ✅ |
+| ANOMALY_DETECTION_MODE=PAL | ✅ |
+| CF / CPI / SAP Gen AI Hub credentials | ✅ |
+
+---
+
+## CRITICAL GAPS CLOSED — SESSION 3 (2026-05-22)
+
+These were identified as missing from Claude Code's initial understanding. Confirmed and locked in before Phase 1.
+
+**Data vs v5 discrepancies — confirmed in actual seeded data**
+- v5 says B-001 has DTI 7.2. Actual data: B-001 DTI = 5.8, B-003 (30100003) has DTI = 7.2. Risk pattern is correct, assignment is different.
+- v5 says B-001 overdue 61 days. Actual data: B-001 overdue 81 days (OP-L001-001) and 50 days (OP-L001-002). Pattern is stronger, not weaker.
+- Group exposure verified: G-001 ($6.18M single) + G-002 combined = $9.68M vs $7.5M limit = 129.1% utilisation.
+- All 4 risk patterns confirmed in HANA Cloud via verify-patterns.js. Twinkle 1 CONFIRMED.
+
+**BUT050 not BP2000**
+Work from BUT050/BUT051. V5 text still says BP2000 in some places — known gap. Do not update v5. BUT050 is the correct working table confirmed by bank architects.
+
+**RAGAS — run after Phase 1**
+V5 Part 7 defines 20 evaluation questions. Must run RAGAS after Phase 1 to verify all four hidden patterns are correctly seeded. Faithfulness target > 0.85 before proceeding to Phase 2.
+
+**Responsible AI guardrails — validateAgentOutput()**
+Architectural layer between every agent node. Four checks: schema validation, evidence check, confidence check (≥0.40 = refuse), hallucination check. Not behavioural — structural.
+
+**CPI three jobs — non-negotiable**
+1. Scheduled data ingestion iFlow (CSV → HANA)
+2. Governed AI gateway (all LLM calls, API key management, audit trail)
+3. Risk/regulatory event publishing to Solace
+
+**Solace topic structure — five topics**
+banking/pipeline/status, banking/risk/findings, banking/human/approval, banking/trbk/payment_event, banking/regulatory/update, banking/session/reset
+
+**A2A endpoint on CAP**
+/a2a/agent exposed as JSON-RPC 2.0. One endpoint — custom HTML UI now, Joule in enterprise. Meets SAP job A2A requirement.
+
+**Agent reasoning types — prompts must reflect these exactly**
+- Pattern Agent: something feels wrong before any rule fires
+- Relationship Agent: nature and strength of connections, not just existence
+- Trajectory Agent: conflicting signals resolved first, then trajectory
+- Synthesis Agent: hold contradictions, confidence under uncertainty + policy retrieval inseparable
+
+**RPT-1 sequence is architecturally mandatory**
+Pattern Agent calls RPT-1 via HANA SQL FIRST → structured score → THEN LangGraph agents reason OVER it. Full sequence: RPT-1 → PAL/LLM → HANA Knowledge Graph → LangGraph reasoning.
+
+**CAP / CDS vector syntax — revisit when CDS 10 releases**
+Current schema uses EMBEDDING as LargeString (JSON array). CDS 10 introduces native Vector(1536) type with built-in cosine similarity operators. When CDS 10 is available: update RegulatoryDocuments.EMBEDDING to Vector(1536), use @cds.search annotation for hybrid search, and switch to native CDS vector search instead of raw SQL. Track CDS release notes at cap.cloud.sap. File to update: db/schema.cds line ~170 (EMBEDDING field) and any vector query code in srv/.
+
+**HANA Knowledge Graph Engine ≠ standard HANA Graph Engine**
+AI-native, separate engine. SAP AI Golden Path recommended. Must use this, not standard HANA Graph.
+
+**Cost tracking in every analysis**
+totalInputTokens + totalOutputTokens → AUD cost → AuditLog → Langfuse. Part of BankingSentinelState.
+
+**DB strategy correction**
+HANA Cloud from day 1. Not SQLite-first. V5 never mentioned SQLite — that was a MJ Live pattern incorrectly inherited. HANA PAL, RPT-1, and Knowledge Graph Engine cannot be simulated in SQLite.
 
 ---
 

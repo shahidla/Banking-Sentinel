@@ -5,6 +5,7 @@
       "Bash(*)",
       "Bash(curl *)",
       "Bash(npm *)",
+      "Bash(npm run *)",
       "Bash(node *)",
       "Bash(mkdir *)",
       "Bash(mv *)",
@@ -14,7 +15,11 @@
       "Bash(ls *)",
       "Bash(cat *)",
       "Bash(unzip *)",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "Bash(cf *)",
+      "Bash(npx cds *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Get-Content *)"
     ]
   }
 }

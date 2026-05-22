@@ -1,0 +1,55 @@
+{
+  "name": "banking-sentinel",
+  "version": "1.0.0",
+  "description": "Multi-agent AI risk intelligence system on SAP BTP — TRBK connected party risk detection",
+  "main": "srv/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "dev": "cds watch",
+    "build": "cds build",
+    "deploy:hana": "cds deploy --to hana",
+    "deploy:cf": "cf push"
+  },
+  "dependencies": {
+    "@langchain/anthropic": "^1.4.0",
+    "@langchain/core": "^1.1.48",
+    "@langchain/langgraph": "^1.3.2",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.1",
+    "@sap-ai-sdk/ai-api": "^1",
+    "@sap-ai-sdk/orchestration": "^1",
+    "@sap/cds": "^8",
+    "@sap/hana-client": "^2",
+    "dotenv": "^16",
+    "express": "^4",
+    "langfuse": "^3",
+    "pg": "^8",
+    "solclientjs": "^10",
+    "uuid": "^10"
+  },
+  "devDependencies": {
+    "@sap/cds-dk": "^8",
+    "@types/node": "^22",
+    "@types/pg": "^8",
+    "@types/uuid": "^10",
+    "ts-node": "^10",
+    "tsx": "^4.22.3",
+    "typescript": "^5"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "hana",
+        "deploy-format": "hdbtable"
+      },
+      "auth": {
+        "kind": "dummy"
+      }
+    },
+    "hana": {
+      "deploy-format": "hdbtable"
+    }
+  }
+}
