@@ -1,7 +1,7 @@
 # Banking Sentinel — Project Context v5
-## Definitive Document — For Claude Code / VS Code
-## This is the ONLY file Claude Code needs. All previous versions superseded.
-## Last updated: May 2026 — Updated with SAP AI Golden Path findings
+## SUPERSEDED — See Banking-Sentinel-Context-v6.md for the current definitive document
+## v6 added: SAP AI Golden Path (RPT-1, HANA PAL, Knowledge Graph Engine), Part 15 demo scenarios, Part 17 patterns 11+12, Sapphire 2026 SAP+Anthropic partnership
+## Last updated: May 2026
 
 ---
 

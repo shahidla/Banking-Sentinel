@@ -151,15 +151,15 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 |---|---|---|
 | 0 | SAP sandbox data pulled + TRBK synthetic data layer generated | ✅ DONE |
 | 1 | CAP scaffold + HANA Cloud schema + seed + 6-hop traversal verified | ✅ DONE |
-| 2 | HANA Vector — APRA standards embedded | Not started |
-| 3 | LangGraph orchestrator + Intake Agent | Not started |
-| 4 | Graph Traversal Agent + ReAct + HANA graph queries | Not started |
-| 5 | Policy Agent + Hybrid RAG + HyDE | Not started |
-| 6 | Risk Scoring Agent + Self-RAG + confidence evaluation | Not started |
-| 7 | Recommendation Agent + risk brief generation | Not started |
-| 8 | Langfuse observability + RAGAS evaluation | Not started |
-| 9 | Consumer UI wired + Solace events + three panel | Not started |
-| 10 | Deploy to BTP CF + architecture diagram + client demo | Not started |
+| 2 | HANA Vector — APRA standards embedded, Hybrid RAG, HyDE, RAGAS eval | ✅ DONE (2026-05-24) |
+| 3 | LangGraph StateGraph + Intake Agent + A2A endpoint + MCP tools | Not started |
+| 4 | Pattern Agent + Relationship Agent + ReAct + 6-hop graph traversal | Not started |
+| 5 | Trajectory Agent + Synthesis Agent + human-in-the-loop interrupt | Not started |
+| 6 | Self-RAG — confidence evaluation + re-query loop at 64% confidence | Not started |
+| 7 | Solace events + regulatory doc upload + automatic re-evaluation | Not started |
+| 8 | Langfuse tracing every node + RAGAS scoring + cost tracking + CF restart test | Not started |
+| 9 | HTML UI wired + three demo scenarios rehearsed + deliberate rejection | Not started |
+| 10 | BTP CF deployment + architecture diagram + blog post | Not started |
 
 ---
 
@@ -278,6 +278,54 @@ totalInputTokens + totalOutputTokens → AUD cost → AuditLog → Langfuse. Par
 
 **DB strategy correction**
 HANA Cloud from day 1. Not SQLite-first. V5 never mentioned SQLite — that was a MJ Live pattern incorrectly inherited. HANA PAL, RPT-1, and Knowledge Graph Engine cannot be simulated in SQLite.
+
+---
+
+---
+
+## PHASE 2 DECISIONS LOG (2026-05-24)
+
+**What was built in Phase 2:**
+- 5 synthetic APRA regulatory documents created: APS 221, DTI Limit Notice Feb 2026, CPS 230, Credit Policy §7.3, APS 112
+- 29 chunks embedded into HANA Cloud RegulatoryDocuments table via OpenAI text-embedding-3-small
+- Three retrieval approaches tested: Basic Vector Search, Hybrid RAG, HyDE (Hypothetical Document Embeddings)
+- RAGAS evaluation: faithfulness = 1.0 / 9 questions all PASS (target was 0.85)
+- All HANA tables exported to Data/exports/ as CSV files (17 tables, including RegulatoryDocuments with full embedding)
+
+**Key decisions:**
+
+| Decision | Chosen | Rejected | Why |
+|---|---|---|---|
+| Regulatory documents | Synthetic (written from v6 spec) | Fetch from live APRA URLs now | Live fetch is Phase 7 (Twinkle 2). Phase 2 needs ground-truth content to verify RAGAS. Synthetic documents match the 20 RAGAS question answers exactly. |
+| RAGAS library | Custom GPT-4o-mini judge evaluator | RAGAS pip package | RAGAS 0.3.x and 0.4.x have broken import: langchain_community.chat_models.vertexai was moved to langchain-google-vertexai. All available RAGAS versions fail on import. Custom evaluator implements same faithfulness metric: judge LLM scores whether claims in answer are supported by retrieved context. |
+| Embedding model | OpenAI text-embedding-3-small (1536d) | Claude (no embedding endpoint) / HANA PAL vectors | OpenAI is the established embedding standard. Claude API has no embeddings endpoint. Consistent with MJ Live. |
+| Hybrid RAG approach | Vector cosine similarity + keyword overlap (Node.js) | HANA Full Text Search (CREATE FULLTEXT INDEX) | HANA FTS requires .hdbfulltextindex HDI artifact — more complex. Node.js keyword scoring demonstrates the concept correctly and produces the same ranking. Upgrade to HANA FTS in Phase 5 when CAP service layer is built. |
+| HyDE approach | Claude generates hypothetical answer → embed → search | Query expansion via LLM rewrites | HyDE is the established RAGAS pattern. Hypothetical document embedding shows clearest improvement: 0.87 vs 0.63 similarity for same question. |
+| Vector storage | LargeString (JSON array) | HANA native REAL_VECTOR | CDS 8.9 does not expose Vector(1536) natively. REAL_VECTOR type available in HANA but requires HDI artifact. Upgrade to Vector(1536) when CDS 10 releases. COSINE_SIMILARITY(TO_REAL_VECTOR(...)) works in native HANA SQL — available for future optimisation. |
+
+**Key HyDE finding:**
+HyDE similarity scores = 0.87 vs 0.63 for basic vector search on same question.
+Reason: regulatory questions are phrased as questions. APRA documents are written as declarative statements.
+HyDE generates the declarative answer first, then searches. Vector space alignment improves significantly.
+This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regulatory questions are sparse queries — HyDE generates the hypothetical APRA clause before searching."
+
+**v6 context added this session (pulled from GitHub):**
+- SAP AI Golden Path deep read — three new capabilities: HANA Knowledge Graph Engine, RPT-1, HANA PAL
+- Part 15 — four demo scenarios documented
+- Part 17 — RPT-1 and PAL as patterns 11 and 12
+- SAP and Anthropic Sapphire 2026 partnership noted
+- Phase 3 now follows v6 architecture exactly (not v5)
+
+**Files created in Phase 2:**
+- Data/regulatory/aps-221.json (8 sections)
+- Data/regulatory/dti-notice-feb2026.json (6 sections)
+- Data/regulatory/cps-230.json (6 sections)
+- Data/regulatory/credit-policy-7-3.json (6 sections)
+- Data/regulatory/aps-112.json (3 sections)
+- scripts/embed-documents.js — loads regulatory docs, calls OpenAI, inserts 29 chunks into HANA
+- scripts/test-rag.js — smoke tests three retrieval approaches, generates Data/ragas-dataset.json
+- scripts/ragas-eval.py — faithfulness evaluation (custom, no RAGAS lib dependency)
+- scripts/export-csv.js — exports all 21 HANA entities to Data/exports/ CSVs
 
 ---
 

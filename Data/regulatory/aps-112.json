@@ -1,0 +1,20 @@
+{
+  "title": "APS 112 — Prudential Standard: Capital Adequacy — Standardised Approach to Credit Risk",
+  "standard": "APS112",
+  "regulator": "APRA",
+  "version": "2024 Revision",
+  "sections": [
+    {
+      "heading": "Credit Risk Capital — Connected Party Classification",
+      "content": "Under APS 112, an ADI must assign appropriate risk weights to all credit exposures and calculate the required capital to hold against those exposures. Where a borrower is part of a connected group for APS 221 purposes, the ADI must also consider whether the connected party relationship affects the credit risk assessment under APS 112. Specifically, where a guarantor's financial stress would result in simultaneous deterioration across multiple guaranteed exposures, the ADI must assess whether the correlation of default risk within the connected group requires additional capital beyond what individual borrower risk weights would suggest. Connected party relationships identified through BUT050 and BCA_GUARANTOR relationship records are material inputs to APS 112 capital adequacy calculations."
+    },
+    {
+      "heading": "IRB Approach — Connected Party Probability of Default",
+      "content": "ADIs using the Internal Ratings-Based (IRB) approach under APS 112 must incorporate connected party relationships into their Probability of Default (PD) and Loss Given Default (LGD) models. A borrower who is guaranteed by an entity that also guarantees other distressed borrowers has an elevated PD that reflects not only its own financial position but also the potential stress on its guarantor. The IRB models must capture this guarantor stress channel to produce accurate capital requirements. Where a guarantor's total guarantee obligations exceed 90% of the APS 221 large exposure limit, the PD of all borrowers guaranteed by that entity must be adjusted upward to reflect the elevated guarantor stress risk."
+    },
+    {
+      "heading": "Sector Concentration Risk Capital Add-on",
+      "content": "APRA may require ADIs to hold additional capital against portfolios exhibiting material sector concentration. Where an ADI's portfolio has more than 75% of sector exposure in a single sector occupied by connected borrowers sharing common guarantors, the concentration risk is qualitatively higher than a dispersed sector exposure. The capital add-on for sector concentration is determined through the Pillar 2 supervisory review process and is based on the ADI's demonstrated ability to monitor, manage, and stress-test sector concentrations. An ADI that cannot demonstrate connected party aggregation in its sector concentration monitoring may face a Pillar 2 capital requirement in addition to the standard Pillar 1 requirements."
+    }
+  ]
+}

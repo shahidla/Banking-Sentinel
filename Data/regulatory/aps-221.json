@@ -1,0 +1,40 @@
+{
+  "title": "APS 221 — Prudential Standard: Large Exposures",
+  "standard": "APS221",
+  "regulator": "APRA",
+  "version": "2024 Revision",
+  "sections": [
+    {
+      "heading": "Definition of Large Exposure",
+      "content": "A large exposure is defined as the total aggregate exposure of an Authorised Deposit-taking Institution (ADI) to a single counterparty or group of connected counterparties that equals or exceeds 10% of the ADI's Tier 1 capital. An ADI must not have a large exposure that exceeds 25% of its Tier 1 capital to any single counterparty or group of connected counterparties without prior APRA approval. Large exposure limits apply to the gross credit exposure before the application of credit risk mitigants, including guarantees and collateral, unless those mitigants are explicitly recognised under APS 221."
+    },
+    {
+      "heading": "Connected Counterparties — Definition",
+      "content": "A group of connected counterparties consists of two or more natural persons or legal entities that are linked in such a way that financial distress in one would likely cause financial distress in another. Entities are considered connected where: (a) one entity controls another; (b) entities are under common ownership or common management; (c) a family trust structure exists where beneficiaries are counterparties of the ADI; (d) one entity guarantees the obligations of another entity to the ADI; or (e) entities share key personnel or board members in a manner that could result in coordinated financial distress. The substance of the relationship governs, not its legal form."
+    },
+    {
+      "heading": "Guarantor Exposure Aggregation",
+      "content": "Where a guarantor guarantees the obligations of multiple borrowers to the ADI, the total exposure to all guaranteed borrowers must be attributed to the guarantor for large exposure calculation purposes. The combined exposure of all borrowers guaranteed by the same guarantor, together with any direct exposure to the guarantor, constitutes the group exposure for APS 221 purposes. This aggregation applies regardless of whether each individual borrower falls within the single counterparty limit. An ADI that identifies a common guarantor covering multiple borrowers must immediately calculate and monitor the total group exposure against the large exposure limit."
+    },
+    {
+      "heading": "Family Trust Structures",
+      "content": "Family trust structures present particular concentration risk because beneficial interests are often not disclosed in standard loan applications. Where an ADI identifies that two or more borrowers share a common family trust structure — as trustee, beneficiary, or guarantor — their combined exposure must be treated as a connected group for APS 221 purposes. The relationship type FAMILY_TRUST_MEMBER in SAP TRBK BUT050 relationship records captures such connections. An ADI that identifies multiple borrowers linked through a family trust must aggregate all guarantor-supported exposures within that trust structure when assessing APS 221 compliance."
+    },
+    {
+      "heading": "Monitoring Thresholds and Board Notification",
+      "content": "An ADI must implement a tiered monitoring framework for large exposures. Where the aggregate exposure to a connected group reaches 75% of the applicable large exposure limit, the matter must be reported to the ADI's Risk Committee within five business days. Where the aggregate exposure to a connected group reaches or exceeds 90% of the applicable large exposure limit, the ADI's Board must be formally notified within three business days. The notification must include: the identity of the connected group, total exposure amount, applicable limit, utilisation percentage, and a proposed management action plan. Failure to notify the Board at the 90% threshold constitutes a material compliance deficiency under APS 221."
+    },
+    {
+      "heading": "Large Exposure Limits — Single and Group",
+      "content": "The large exposure limit for a single counterparty must not exceed 25% of the ADI's Tier 1 capital at any point in time. For groups of connected counterparties, the same 25% limit applies to the aggregate exposure across all members of the connected group. An ADI may set internal limits below the APRA maximum — internal limits do not alter the APRA reporting and notification obligations. Where an ADI's systems identify that a borrower's guarantor network creates a connected group exposure, both the single counterparty exposure and the total group exposure must be assessed against their respective limits simultaneously."
+    },
+    {
+      "heading": "Breach Reporting and Remediation",
+      "content": "An APS 221 breach occurs when the exposure to a single counterparty or connected group exceeds 100% of the applicable large exposure limit. An ADI that identifies a breach must: (a) notify APRA within 5 business days of identification; (b) provide a written explanation of how the breach occurred; (c) submit a remediation plan within 15 business days; and (d) implement the remediation plan within the timeline agreed with APRA. A connected group exposure of 129% of the applicable limit represents a significant breach requiring immediate APRA notification and emergency board review. Failure to identify and report a breach in a timely manner attracts additional regulatory enforcement action under the Banking Act 1959."
+    },
+    {
+      "heading": "Six-Hop Relationship Traversal Requirement",
+      "content": "APRA expects ADIs to implement systems capable of identifying connected counterparty relationships that extend beyond immediate contractual links. Connected party relationships can span multiple degrees of separation: a borrower's guarantor may be linked through trust structures to additional guarantors who support other borrowers. An ADI relying solely on individual loan assessments without traversing the full relationship network is not compliant with APS 221 connected counterparty identification requirements. Systems must be capable of traversing at least six degrees of relationship to identify all members of a connected counterparty group and aggregate their exposures accurately."
+    }
+  ]
+}

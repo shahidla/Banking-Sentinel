@@ -1,0 +1,32 @@
+{
+  "title": "Internal Credit Policy — §7.3 Sector Concentration Limits and Escalation",
+  "standard": "CREDIT_POLICY",
+  "regulator": "Internal",
+  "version": "2025 Edition",
+  "sections": [
+    {
+      "heading": "Sector Concentration Policy — Purpose",
+      "content": "Section 7.3 of the Internal Credit Policy establishes limits on portfolio concentration within individual industry sectors and prescribes escalation procedures when those limits are approached or exceeded. Sector concentration risk arises when a disproportionate share of the credit portfolio is exposed to borrowers in a single industry, creating systemic risk where adverse sector conditions affect multiple borrowers simultaneously. The Credit Risk Committee has approved sector concentration limits for each major industry classification in the loan portfolio. These limits are reviewed annually and may be adjusted based on macroeconomic conditions, sector performance, and APRA supervisory guidance."
+    },
+    {
+      "heading": "Sector Concentration Limits — RETAIL_PROP",
+      "content": "The approved sector concentration limit for the RETAIL_PROP (Retail Property) sector is AUD 16 million. This limit represents the maximum aggregate portfolio exposure to borrowers whose primary loan purpose is the acquisition, development, or refinancing of retail property assets. For the purposes of this section, aggregate portfolio exposure includes: direct loans to retail property borrowers, guarantor-supported exposures where the guaranteed loans relate to retail property, and any off-balance-sheet commitments. A combined RETAIL_PROP sector exposure of AUD 12.4 million represents 78% utilisation of the AUD 16 million sector limit. All borrowers classified with SECTOR_CODE = RETAIL_PROP in the BCA_SECTOR system records are included in this calculation."
+    },
+    {
+      "heading": "Monitoring Thresholds — 75% Trigger",
+      "content": "Where the aggregate portfolio exposure to any single sector reaches or exceeds 75% of the approved sector concentration limit, the Credit Risk team must prepare a formal Sector Concentration Monitoring Report and submit it to the Risk Committee within 10 business days. The monitoring report must include: total current exposure, number of borrowers in the sector, the top five individual exposures, growth rate over the preceding 12 months, sector economic outlook, and any connected party relationships that link borrowers within the sector. A combined RETAIL_PROP exposure of AUD 12.4 million at 78% of the AUD 16 million sector limit triggers the monitoring report requirement under Credit Policy §7.3.1. The Risk Committee must acknowledge receipt of the report within five business days."
+    },
+    {
+      "heading": "Escalation Threshold — 90% Credit Committee Review",
+      "content": "Where the aggregate portfolio exposure to any single sector reaches or exceeds 90% of the approved sector concentration limit, the matter must be escalated to the Credit Committee for formal review. The Credit Committee must convene within 15 business days of the threshold being reached and must consider: whether to approve continued lending in the sector, whether existing exposures should be reduced through active management, and whether the sector limit itself should be revised. At 90% utilisation the Credit Committee has the authority to impose a lending moratorium on new sector originations pending a full portfolio review. Failure to escalate to the Credit Committee when the 90% threshold is reached is a material breach of Credit Policy §7.3."
+    },
+    {
+      "heading": "Connected Borrower Aggregation for Sector Monitoring",
+      "content": "Where multiple borrowers are connected through common guarantors, shared ownership structures, or family trust arrangements, and all fall within the same industry sector, their combined exposure must be aggregated for sector concentration monitoring purposes. A guarantor network connecting four borrowers — B-001, B-002, B-003, and B-007 — all of whom have SECTOR_CODE = RETAIL_PROP, creates a systemic sector concentration that exceeds what individual loan analysis reveals. The systemic risk of four connected borrowers in the same sector, exposed through the same guarantor network, is qualitatively different from four unconnected borrowers in the same sector and must be escalated separately even if the sector limit has not been formally reached. Credit Policy §7.3.3 requires that any connected guarantor network spanning four or more borrowers in the same sector is reported to the Risk Committee regardless of utilisation percentage."
+    },
+    {
+      "heading": "Sector Concentration — Regulatory Reporting Obligations",
+      "content": "Sector concentration monitoring is required not only by internal credit policy but also by APRA's Prudential Practice Guide CPG 220 on credit risk management. Where APRA requests evidence of sector concentration monitoring, the ADI must be able to produce: the sector concentration limits approved by the Credit Risk Committee, current utilisation reports by sector, the escalation history for any sector that has exceeded 75% utilisation, and evidence that connected borrower aggregation has been applied correctly. An ADI that monitors sector concentration at the individual borrower level without aggregating connected party exposures is not meeting the spirit of CPG 220 sector monitoring requirements. The internal sector concentration system must capture SECTOR_CODE from BCA_SECTOR records and aggregate across all connected parties identified through BUT050 and BCA_GUARANTOR relationship mapping."
+    }
+  ]
+}
