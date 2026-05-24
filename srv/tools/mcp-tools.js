@@ -93,33 +93,44 @@ async function hana_vector_search({ query, topK = 5, useHyDE = false, standard =
 // ─── TOOL 3: hana_graph_traverse ────────────────────────────────────────────
 // AI: Multi-hop graph traversal — the core of ReAct loop in Relationship Agent
 // Banking: 30100001 → BUT050 → guarantor → BUT050 → parent entity (6 hops = APS 221 group found)
-// SAP: BFS traversal over BUT050 edges via CAP SELECT (cds.run = HDI technical user).
-//      Graph workspace BP_RELATIONSHIP_GRAPH deployed as HDI artifact (hdbgraphworkspace).
-//      Production upgrade: swap to GRAPH_TABLE SQL function once GA in HANA Cloud tier.
+// SAP: Trial equivalent of HANA KGE — GraphDB (RDF triple store) + SPARQL property paths.
+//      Same SPARQL query runs on HANA KGE in production — one endpoint change to swap.
+//      Seed: npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid
+
+const BASE_URI = 'urn:banking-sentinel:';
+
+async function sparqlQuery(sparql) {
+  const endpoint = `${process.env.GRAPHDB_ENDPOINT}/repositories/${process.env.GRAPHDB_REPOSITORY}`;
+  const auth = Buffer.from(`${process.env.GRAPHDB_USERNAME}:${process.env.GRAPHDB_PASSWORD}`).toString('base64');
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/sparql-query', 'Accept': 'application/sparql-results+json', 'Authorization': `Basic ${auth}` },
+    body: sparql
+  });
+  if (!res.ok) throw new Error(`GraphDB SPARQL error ${res.status}: ${(await res.text()).substring(0, 200)}`);
+  return res.json();
+}
 
 async function hana_graph_traverse({ startNode, depth = 6 }) {
   const maxDepth = Math.min(depth, 8);
-  const visited = new Set([startNode]);
-  const traversalRows = [];
-  let frontier = [startNode];
-
-  // BFS over BUT050 edges — each round-trip = one hop level
-  for (let hop = 1; hop <= maxDepth && frontier.length > 0; hop++) {
-    const connections = await cds.run(
-      SELECT.from('bankingsentinel.BUT050')
-        .where({ PARTNER1: { in: frontier } })
-        .columns('PARTNER1', 'PARTNER2', 'RELTYP')
-    );
-    const nextFrontier = [];
-    for (const c of connections) {
-      traversalRows.push({ PARTNER: c.PARTNER2, REL_TYPE: c.RELTYP, HOP: hop });
-      if (!visited.has(c.PARTNER2)) {
-        visited.add(c.PARTNER2);
-        nextFrontier.push(c.PARTNER2);
+  const sparql = `
+    PREFIX bs: <${BASE_URI}>
+    SELECT DISTINCT ?partnerId ?reltyp WHERE {
+      <${BASE_URI}partner/${startNode}> bs:relatedTo{1,${maxDepth}} ?node .
+      ?node bs:partnerId ?partnerId .
+      OPTIONAL {
+        <${BASE_URI}partner/${startNode}> ?rel ?node .
+        BIND(STRAFTER(STR(?rel), "relatedTo/") AS ?reltyp)
       }
     }
-    frontier = nextFrontier;
-  }
+  `;
+
+  const result = await sparqlQuery(sparql);
+  const traversalRows = result.results.bindings.map((b, i) => ({
+    PARTNER:   b.partnerId.value,
+    REL_TYPE:  b.reltyp?.value || 'RELATED',
+    HOP:       1
+  }));
 
   const connectedPartners = traversalRows.map(r => r.PARTNER);
   const allPartners = [...new Set([startNode, ...connectedPartners])];
