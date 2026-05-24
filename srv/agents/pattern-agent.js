@@ -13,7 +13,7 @@ async function fetchCustomerData(customerId) {
   const [loansResult, dtiResult, paymentsResult] = await Promise.allSettled([
     cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId }).limit(1)),
-    cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ PARTNER: customerId }).limit(100)),
+    cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId }).limit(100)),
   ]);
 
   const loans    = loansResult.status    === 'fulfilled' ? loansResult.value    : [];

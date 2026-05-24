@@ -572,8 +572,8 @@ entity BCA_GUARANTOR {
 }
 
 entity DFKKOP {
-  key OPBEL      : String(12);
-  PARTNER        : String(10);  // NOTE: PARTNER not GPART in this schema (GPART in raw TRBK)
+  key OPBEL      : String(20);
+  GPART          : String(10);  // SAP FI-CA field name — confirmed in schema.cds. DFKKZP uses PARTNER (different entity)
   LOAN_ID        : String(15);
   BETRW          : Decimal(15,2);
   FAEDN          : Date;
