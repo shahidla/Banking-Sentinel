@@ -434,23 +434,23 @@ Job: Look at the full customer picture holistically. RPT-1 quantifies the risk s
 TRBK access: Loans, BCA_DTI, DFKKOP, BCA_COLLATERAL via cds.run().
 Output: riskScore, riskLevel, confidence, signal, rpt1/pal/llm sub-objects, combined anomalies.
 
-**Agent 3 — Relationship Node** (Phase 4 stub — ReAct loop in Phase 4)
+**Agent 3 — Relationship Node** (LIVE — Phase 4b)
 Reasoning: Relationship ambiguity.
 Job: Traverse HANA Knowledge Graph Engine to find connected parties using SPARQL. Reason about NATURE and STRENGTH of each connection. Parent-subsidiary carries full exposure. Family trust requires reasoning not a rule.
-TRBK access: BUT050, BCA_GUARANTOR via hana_graph_traverse MCP tool. Up to 8 hops.
-Output: weighted relationship map, confidence per connection type, total group exposure.
+TRBK access: BUT050, BCA_GUARANTOR via hana_graph_traverse MCP tool. Up to 8 hops via GraphDB SPARQL.
+Output: weighted relationship map, confidence per connection type, total group exposure, aps221Pct, finding.
 
-**Agent 4 — Trajectory Node** (Phase 5 stub)
+**Agent 4 — Trajectory Node** (LIVE — Phase 5)
 Reasoning: Threshold proximity plus conflicting signals.
 Job: Resolve conflicting signals — DTI 5.9 today but income contract expires in 3 months, effective future DTI 9.2. Time-to-breach estimation.
 TRBK access: BCA_DTI, BCA_LOAN_SCHED, DFKKOP via hana_relational_query + apra_threshold_check.
 Output: forward-looking risk position, time-to-breach in days, conflicting signals resolved.
 
-**Agent 5 — Synthesis Node** (Phase 5 stub)
+**Agent 5 — Synthesis Node** (LIVE — Phase 5)
 Reasoning: Confidence under uncertainty PLUS policy retrieval.
 Job: Take outputs from all four nodes. Retrieve APRA regulatory documents via HANA Vector. Hold contradictions. Acknowledge unknowns. Generate risk brief with confidence per finding. Fires human-in-the-loop interrupt before outputting.
 TRBK access: RegulatoryDocuments (HANA Vector) via hana_vector_search MCP tool.
-Output: APRA-ready risk brief with score, level, findings, recommendations, evidence trail, uncertainties.
+Output: APRA-ready risk brief with score, level, findings, recommendations, evidence trail, uncertainties. Persisted to RiskAssessments HANA table.
 
 ### MCP Tool Layer
 

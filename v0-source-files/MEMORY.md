@@ -145,7 +145,7 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 
 ---
 
-## BUILD PHASES — CURRENT STATUS
+## BUILD PHASES — CURRENT STATUS (updated 2026-05-25)
 
 | Phase | What | Status |
 |---|---|---|
@@ -153,13 +153,14 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | 1 | CAP scaffold + HANA Cloud schema + seed + 6-hop traversal verified | ✅ DONE |
 | 2 | HANA Vector — APRA standards embedded, Hybrid RAG, HyDE, RAGAS eval | ✅ DONE (2026-05-24) |
 | 3 | LangGraph StateGraph + Intake Agent + A2A endpoint + MCP tools | ✅ DONE (2026-05-24) |
-| 4 | Pattern Agent + Relationship Agent + ReAct + 6-hop graph traversal | Not started |
-| 5 | Trajectory Agent + Synthesis Agent + human-in-the-loop interrupt | Not started |
-| 6 | Self-RAG — confidence evaluation + re-query loop at 64% confidence | Not started |
-| 7 | Solace events + regulatory doc upload + automatic re-evaluation | Not started |
-| 8 | Langfuse tracing every node + RAGAS scoring + cost tracking + CF restart test | Not started |
-| 9 | HTML UI wired + three demo scenarios rehearsed + deliberate rejection | Not started |
-| 10 | BTP CF deployment + architecture diagram + blog post | Not started |
+| 4 | Pattern Agent — RPT-1 (rpt.cloud.sap) + PAL Isolation Forest EXPLAIN + LLM simultaneously | ✅ DONE (2026-05-24) |
+| 4b | Relationship Agent — ReAct loop (max 6 steps), GraphDB SPARQL graph traversal, APS 221 check | ✅ DONE (2026-05-24) |
+| 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop (interruptBefore humanApproval) | ✅ DONE (2026-05-24) |
+| 6 | Self-RAG — real confidence evaluation + re-query loop (stub in stubs.js) | 🔲 NEXT |
+| 7 | Solace events + regulatory doc upload (Twinkle 2) + automatic re-evaluation | 🔲 PENDING |
+| 8 | Langfuse tracing every node + RAGAS scoring + cost tracking + CF restart test | 🔲 PENDING |
+| 9 | HTML UI wired to A2A + Solace topics + demo scenarios rehearsed + deliberate rejection | 🔲 PENDING |
+| 10 | BTP CF deployment + architecture diagram + demo video + blog post | 🔲 PENDING |
 
 ---
 
@@ -374,6 +375,99 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 - srv/tools/mcp-tools.js — 5 MCP tools (functions, not real MCP server yet)
 - srv/guardrails/validate.js — validateAgentOutput() guardrails
 - srv/server.js — CAP server: bootstrap A2A endpoint, LangGraph graph init, Langfuse, AuditLog
+
+---
+
+## PHASE 4 DECISIONS LOG (2026-05-24)
+
+**What was built:**
+- Pattern Agent (`srv/agents/pattern-agent.js`) — RPT-1 + PAL Isolation Forest EXPLAIN + LLM all run simultaneously (never gated by ENV switch)
+- RPT-1: POST to `rpt.cloud.sap/api/predict`. In-context learning with [PREDICT] placeholder. Tested live — HTTP 200, HIGH confidence 0.98
+- PAL: Anonymous DO block via `_SYS_AFL.PAL_ISOLATION_FOREST` + `_SYS_AFL.PAL_ISOLATION_FOREST_EXPLAIN`. LABEL=-1 = outlier. REASON_CODE = feature attribution
+- LLM: claude-haiku-4-5-20251001 (fast), returns JSON `{anomalies: [...]}`
+- Combined anomaly list forwarded to Synthesis: PAL outlier texts + LLM narrative texts
+- `patternAssessment` shape: `{riskScore, riskLevel, confidence, signal, rpt1, pal, llm, anomalies}`
+- Routing: score < 30 → low_risk → skip Relationship + Trajectory; score >= 30 → high_risk → full pipeline
+
+**Key decisions Phase 4:**
+
+| Decision | Chosen | Rejected | Why |
+|---|---|---|---|
+| All three methods | Always run simultaneously | ENV switch gate | Educational popup requires all three outputs. ANOMALY_DETECTION_MODE is UI display preference only, not execution gate |
+| RPT-1 endpoint | rpt.cloud.sap consumer API (Bearer SAP_RPT_API_KEY) | SAP AI Core | AI Core not available on BTP trial |
+| PAL call pattern | Anonymous DO block via cds.run() | hana-ml Python | Node.js project. cds.run() with raw SQL DO block works cleanly via HDI technical user |
+| PAL param table | PARAM_NAME, INT_VALUE, DOUBLE_VALUE, STRING_VALUE | Positional params | PAL spec requires named parameter table — confirmed from AFL documentation |
+
+**Bug found and fixed 2026-05-25:** `pattern-agent.js` used `{ GPART: customerId }` in DFKKOP query. GPART is the raw TRBK field name — in this CDS schema the field is mapped to `PARTNER`. Fix: changed to `{ PARTNER: customerId }`. This caused DFKKOP payments to return empty for all customers.
+
+---
+
+## PHASE 4b DECISIONS LOG (2026-05-24)
+
+**What was built:**
+- Relationship Agent (`srv/agents/relationship-agent.js`) — ReAct loop, max 6 steps
+- Tools available to agent: hana_graph_traverse (SPARQL over GraphDB), exposure_calculator, apra_threshold_check
+- Agent returns: `{ relationshipMap: { nodes, edges, groupExposure, aps221Pct, confidence, finding } }`
+- LLM bound with tools via `.bindTools(TOOLS)` — Claude tool use format
+
+**Graph engine hierarchy followed (SAP AI Golden Path replacement rule):**
+1. HANA KGE Triple Store (SPARQL) → NOT on BTP trial (not in Additional Features)
+2. HANA GRAPH_TABLE SQL function → NOT on BTP trial ("incorrect syntax near MATCH" on all variants; preview feature only)
+3. GraphDB (Graphwise sandbox) → **IMPLEMENTED** — true RDF triple store, same W3C SPARQL standard as KGE
+
+**GraphDB implementation:**
+- Graphwise sandbox (free, expires every 7 days): `https://t5f027c83a0e2488da5e.sandbox.graphwise.ai`
+- Repository: `banking-sentinel` | 4035 RDF triples | 1000 partners | 12 BUT050 relationships
+- SPARQL traversal from 30100003 finds 7 connected parties including TrustCo Holdings (4 hops)
+- Hop counts via UNION of fixed-length paths (SPARQL property paths don't return path depth)
+- Production swap: change GRAPHDB_ENDPOINT to HANA KGE endpoint — SPARQL queries are identical
+- **Restore after 7-day sandbox expiry:** `npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid`
+
+**BUT050 enrichment — Twinkle 1 chain (run enrich-but050.js):**
+```
+30100003 →[FAMILY_TRUST_MEMBER]→ 30910005 →[FAMILY_TRUST_MEMBER]→ 30910006
+         →[SUBSIDIARY]→ 30910009 (TrustCo Group) →[PARENT_COMPANY]→ 30910010 (TrustCo Holdings)
+```
+30100001 and 30100002 also connected to TrustCo Group → APS 221 connected party group breach.
+
+**Admin UI:** `/admin` → tab "GraphDB (KGE)" shows: triple count, live SPARQL traversal from 30100003, sample RDF triples.
+
+**HANA BP_RELATIONSHIP_GRAPH workspace** (`db/src/BP_RELATIONSHIP_GRAPH.hdbgraphworkspace`) deployed as HDI artifact — production upgrade path when GRAPH_TABLE goes GA.
+
+---
+
+## PHASE 5 DECISIONS LOG (2026-05-24)
+
+**What was built:**
+- Trajectory Agent (`srv/agents/trajectory-agent.js`) — BCA_DTI.INCOME_EXPIRY → forward DTI calculation; conflicting signal resolution
+- Synthesis Agent (`srv/agents/synthesis-agent.js`) — HANA Vector search on APRA docs + APRA-ready risk brief; persists to RiskAssessments HANA table
+- Human Approval Node (`srv/agents/human-approval.js`) — pass-through node after LangGraph interruptBefore halt
+- `interruptBefore: ['humanApproval']` wired in banking-sentinel.js compilation
+- PostgresSaver checkpointer wired throughout — state survives CF restarts
+
+**Key decisions Phase 5:**
+
+| Decision | Chosen | Rejected | Why |
+|---|---|---|---|
+| Forward DTI model | total_debt / (income × days_remaining/365) | Simple current DTI | Models actual servicing burden after contract expiry, not just today's ratio |
+| Synthesis model | claude-haiku-4-5-20251001 (800 tokens) | claude-opus for final brief | Keep cost low for prototype. Phase 9 upgrade to claude-opus-4-7 for client demo |
+| Risk brief persistence | INSERT into RiskAssessments with session_id | In-memory only | APRA CPS 230 auditability — every assessment must be logged |
+| HyDE in synthesis | useHyDE: false | HyDE enabled | Synthesis builds its own rich query from all agent signals — HyDE adds latency without enough benefit here |
+
+**Full pipeline confirmed LIVE (2026-05-24):**
+intake → pattern → relationship → trajectory → selfRagCheck → [interrupt] → humanApproval → synthesis → END
+
+---
+
+## KNOWN ISSUES / WATCH LIST
+
+| Issue | Severity | Status |
+|---|---|---|
+| PAL requires AFL__SYS_AFL_AFLPAL_EXECUTE privilege on HDI technical user | Medium | Grant via HANA Cloud Cockpit if PAL fails |
+| GraphDB sandbox expires every 7 days | Medium | Run seed-graphdb.js restore script |
+| selfRagCheckNode is a STUB — does not do real confidence re-query | High | Phase 6 work |
+| synthesis-agent uses claude-haiku not claude-opus-4-7 | Low | Upgrade for demo in Phase 9 |
+| Solace events not yet wired (no real-time UI updates) | High | Phase 7 work |
 
 ---
 
