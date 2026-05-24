@@ -1,6 +1,6 @@
 # Banking Sentinel — Project Memory
 ## For Claude Code — New Conversation Handoff
-## Last updated: 2026-05-22 (Session 3)
+## Last updated: 2026-05-25 (Session 5 — Phase 6 complete, Phase 7 in progress)
 
 ---
 
@@ -156,8 +156,8 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | 4 | Pattern Agent — RPT-1 (rpt.cloud.sap) + PAL Isolation Forest EXPLAIN + LLM simultaneously | ✅ DONE (2026-05-24) |
 | 4b | Relationship Agent — ReAct loop (max 6 steps), GraphDB SPARQL graph traversal, APS 221 check | ✅ DONE (2026-05-24) |
 | 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop (interruptBefore humanApproval) | ✅ DONE (2026-05-24) |
-| 6 | Self-RAG — real confidence evaluation + re-query loop (stub in stubs.js) | 🔲 NEXT |
-| 7 | Solace events + regulatory doc upload (Twinkle 2) + automatic re-evaluation | 🔲 PENDING |
+| 6 | Self-RAG — real LLM confidence evaluation (4 dimensions) + targeted re-query loop | ✅ DONE (2026-05-25) |
+| 7 | Solace events (graph.stream) + Twinkle 2 (APRA sync) + reset endpoint | 🔶 IN PROGRESS (2026-05-25) |
 | 8 | Langfuse tracing every node + RAGAS scoring + cost tracking + CF restart test | 🔲 PENDING |
 | 9 | HTML UI wired to A2A + Solace topics + demo scenarios rehearsed + deliberate rejection | 🔲 PENDING |
 | 10 | BTP CF deployment + architecture diagram + demo video + blog post | 🔲 PENDING |
@@ -398,7 +398,7 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 | PAL call pattern | Anonymous DO block via cds.run() | hana-ml Python | Node.js project. cds.run() with raw SQL DO block works cleanly via HDI technical user |
 | PAL param table | PARAM_NAME, INT_VALUE, DOUBLE_VALUE, STRING_VALUE | Positional params | PAL spec requires named parameter table — confirmed from AFL documentation |
 
-**Bug found and fixed 2026-05-25:** `pattern-agent.js` used `{ GPART: customerId }` in DFKKOP query. GPART is the raw TRBK field name — in this CDS schema the field is mapped to `PARTNER`. Fix: changed to `{ PARTNER: customerId }`. This caused DFKKOP payments to return empty for all customers.
+**Bug investigated 2026-05-25:** Initially "fixed" DFKKOP query from `{ GPART: customerId }` to `{ PARTNER: customerId }`. This was WRONG. Schema.cds clearly defines DFKKOP with `GPART: String(10)` (SAP FI-CA field name). DFKKZP uses `PARTNER`, not DFKKOP. Reverted to `{ GPART: customerId }`. GPART is correct.
 
 ---
 
@@ -459,15 +459,88 @@ intake → pattern → relationship → trajectory → selfRagCheck → [interru
 
 ---
 
+## PHASE 6 DECISIONS LOG (2026-05-25)
+
+**What was built:**
+- Real Self-RAG: `srv/agents/self-rag.js` — LLM (claude-haiku-4-5-20251001) evaluates its own output across 4 dimensions
+- 4 dimensions: graph completeness, signal consistency, conflicting signals, evidence trail
+- Output: `{ overallConfidence: 0.0-1.0, gaps: [], reQueryHint: "...", reasoning: "..." }`
+- `checkConfidence()` reads `selfRagEvaluation.overallConfidence` — threshold 0.70, max 2 re-queries
+- Relationship Agent: detects re-query run via `requeryCount > 0`, uses targeted prompt with `reQueryHint`
+- Re-query prompt: "Previous traversal incomplete. Focus: [reQueryHint]. Previous nodes found: [...]"
+- `state.js` updated: added `selfRagEvaluation` and `reQueryHint` Annotation fields
+- `stubs.js` cleaned: all stubs promoted to real implementations. File exports empty object.
+- `scripts/enrich-synthetic-data.js`: 80 DFKKOP rows for PAL baseline + 15 BCA_DTI rows for RPT-1 diversity
+- PostgresSaver: `connectionTimeoutMillis: 5000` to fail fast when Supabase is paused (local dev safety)
+
+**Key decisions Phase 6:**
+
+| Decision | Chosen | Rejected | Why |
+|---|---|---|---|
+| Self-RAG LLM | claude-haiku-4-5-20251001 (400 tokens max) | claude-sonnet | Low cost — this is a meta-evaluation call, not primary reasoning |
+| Confidence threshold | 0.70 | 0.75, 0.80 | Matches v6 architecture spec. Not too tight, not too loose. |
+| Re-query max | 2 | 3, unlimited | Prevents infinite loop. After 2 re-queries, proceed regardless. |
+| reQueryHint format | Natural language instruction | Structured JSON | Relationship Agent receives it as part of system prompt — natural language is cleaner |
+| PAL synthetic data | 70 on-time + 10 minor-late DFKKOP rows | No synthetic data | PAL Isolation Forest is unsupervised — needs a "normal" distribution baseline. 5 overdue rows alone not enough. |
+| RPT-1 synthetic data | 15 BCA_DTI rows spanning DTI 1.2–7.8 | No synthetic data | RPT-1 in-context learning needs diverse label examples (LOW/MEDIUM/HIGH/BREACH) |
+
+---
+
+## PHASE 7 DECISIONS LOG (2026-05-25)
+
+**What was built (Phase 7 — in progress):**
+- `srv/events/solace-publisher.js` (NEW) — centralized Solace publisher, 5 topic functions, fire-and-forget pattern
+- `srv/server.js` (UPDATED) — replaced `graph.invoke()` with `graph.stream()` for per-node Solace events
+- `srv/rag/apra-embedder.js` (NEW) — Twinkle 2: PDF → chunks (800 chars, 100 overlap) → OpenAI embeddings → HANA RegulatoryDocuments
+- Added `POST /a2a/sync-apra` endpoint — triggers embedAndStoreApraDoc + publishRegulatoryUpdate event
+- Added `POST /a2a/reset` endpoint — publishes banking/session/reset → UI clears all panels
+- Added `pdf-parse` and `openai` to package.json (npm installed)
+- Removed old inline `publishApprovalEvent()` from server.js — replaced by centralized `publishHumanApproval()`
+
+**Event flow (Phase 7):**
+```
+graph.stream() → yields after each node
+  → after each node: publishPipelineStatus(sessionId, nodeName, 'complete')   → banking/pipeline/status
+  → on interrupt: publishHumanApproval(sessionId, {...})                       → banking/human/approval
+  → after synthesis: publishRiskFindings(sessionId, synthesisResult)          → banking/risk/findings
+  → on /a2a/sync-apra: publishRegulatoryUpdate(sessionId, docTitle, chunkCount) → banking/regulatory/update
+  → on /a2a/reset: publishSessionReset(sessionId)                             → banking/session/reset
+```
+
+**Producer vs Consumer:**
+| Role | Who |
+|------|-----|
+| Producer (publishes all events) | Banking Sentinel server (srv/server.js) |
+| Consumer (subscribes and updates UI) | Banking-Sentinel-AustralianBank.html — all 5 Solace topics |
+
+**graph.stream() vs graph.invoke():**
+- `invoke()` = run everything, return at end. No mid-pipeline visibility.
+- `stream(streamMode: 'updates')` = yields `{ nodeName: nodeState }` after each node completes. Server publishes per-node Solace events immediately.
+
+**Key decisions Phase 7:**
+
+| Decision | Chosen | Rejected | Why |
+|---|---|---|---|
+| Publisher location | Centralized `srv/events/solace-publisher.js` | Inline per-agent | DRY. One connect/send/disconnect function. All 5 topics from one place. |
+| Delivery mode | DIRECT (fire-and-forget) | PERSISTENT (guaranteed delivery) | UI events are display-only. A missed event just means a panel doesn't update. Pipeline cannot block on UI delivery. |
+| stream mode | `streamMode: 'updates'` | `streamMode: 'values'` | 'updates' yields only changed fields per node (smaller). 'values' yields full state every time. |
+| PDF chunking | 800 chars, 100 overlap | 500/50, 1000/200 | Balances context window (too large = noisy retrieval) and boundary loss (overlap preserves split sentences) |
+| Embedding model | text-embedding-3-small (1536d) | text-embedding-ada-002 | Same model used in Phase 2 — consistency required for cosine similarity. Different models = incomparable vectors. |
+
+**Pending for Phase 7 completion:**
+- HTML UI (`Banking-Sentinel-AustralianBank.html`) — wire Solace subscriptions to update all 3 panels live
+- Test full stream: send query → watch per-agent events arrive in browser
+
+---
+
 ## KNOWN ISSUES / WATCH LIST
 
 | Issue | Severity | Status |
 |---|---|---|
 | PAL requires AFL__SYS_AFL_AFLPAL_EXECUTE privilege on HDI technical user | Medium | Grant via HANA Cloud Cockpit if PAL fails |
 | GraphDB sandbox expires every 7 days | Medium | Run seed-graphdb.js restore script |
-| selfRagCheckNode is a STUB — does not do real confidence re-query | High | Phase 6 work |
 | synthesis-agent uses claude-haiku not claude-opus-4-7 | Low | Upgrade for demo in Phase 9 |
-| Solace events not yet wired (no real-time UI updates) | High | Phase 7 work |
+| HTML UI not yet wired to Solace (no real-time panel updates) | High | Phase 7 remaining work |
 
 ---
 

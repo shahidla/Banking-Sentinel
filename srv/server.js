@@ -8,6 +8,13 @@ require('dotenv').config();
 const cds     = require('@sap/cds');
 const express = require('express');
 const { v4: uuid } = require('uuid');
+const {
+  publishPipelineStatus,
+  publishRiskFindings,
+  publishHumanApproval,
+  publishRegulatoryUpdate,
+  publishSessionReset
+} = require('./events/solace-publisher');
 
 let graph = null;
 let langfuse = null;
@@ -57,47 +64,6 @@ async function logToAuditLog(sessionId, query, response, state) {
   } catch (e) {
     console.error('[Server] AuditLog insert failed:', e.message);
   }
-}
-
-// ── Solace publisher — fires when graph pauses for human approval ──────────
-// AI: Event-driven notification — UI subscribes to Solace topic, shows pause indicator
-// Banking: CPS 230 requires audit trail of human review decisions
-// SAP: solclientjs (already in package.json) — same Solace broker used by MJ Live
-async function publishApprovalEvent(payload) {
-  const solace = require('solclientjs');
-  return new Promise((resolve) => {
-    try {
-      const factoryProps = new solace.SolclientFactoryProperties();
-      factoryProps.profile = solace.SolclientFactoryProfiles.version10;
-      solace.SolclientFactory.init(factoryProps);
-
-      const session = solace.SolclientFactory.createSession({
-        url:      process.env.SOLACE_URL,
-        vpnName:  process.env.SOLACE_VPN,
-        userName: process.env.SOLACE_USERNAME,
-        password: process.env.SOLACE_PASSWORD
-      });
-
-      session.on(solace.SessionEventCode.UP_NOTICE, () => {
-        const msg = solace.SolclientFactory.createMessage();
-        msg.setDestination(solace.SolclientFactory.createTopicDestination('banking/human/approval'));
-        msg.setBinaryAttachment(JSON.stringify(payload));
-        msg.setDeliveryMode(solace.MessageDeliveryModeType.DIRECT);
-        session.send(msg);
-        console.log('  [Server] Solace event published → banking/human/approval');
-        session.disconnect();
-        resolve();
-      });
-      session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, (e) => {
-        console.warn('  [Server] Solace publish failed:', e.message || e);
-        resolve(); // non-fatal
-      });
-      session.connect();
-    } catch (e) {
-      console.warn('  [Server] Solace publisher error:', e.message);
-      resolve(); // non-fatal
-    }
-  });
 }
 
 // ── CAP bootstrap ──────────────────────────────────────────────────────────
@@ -154,16 +120,28 @@ cds.on('bootstrap', async (app) => {
         configurable: { thread_id: sessionId }
       };
 
-      const finalState = await graph.invoke(initialState, config);
+      // ── graph.stream() — yields after each node, enabling real-time Solace events ──
+      // AI: Stream replaces invoke() — same execution, but we get per-node state updates
+      // Banking: UI Panel 2 shows live pipeline progress ("Relationship Agent... running")
+      // SAP: Each node completion → publishPipelineStatus → UI subscriber updates instantly
+      let finalState = { ...initialState };
+      for await (const chunk of await graph.stream(initialState, { ...config, streamMode: 'updates' })) {
+        const [nodeName, nodeState] = Object.entries(chunk)[0];
+        finalState = { ...finalState, ...nodeState };
+        await publishPipelineStatus(sessionId, nodeName, 'complete', {
+          customerId: finalState.intent?.customerId || initialState.customerId,
+          riskScore:  finalState.patternAssessment?.riskScore,
+          riskLevel:  finalState.patternAssessment?.riskLevel
+        });
+      }
 
       // Check if graph paused at humanApproval (interruptBefore)
       const checkpoint = await graph.getState(config);
       const interrupted = checkpoint.next && checkpoint.next.includes('humanApproval');
 
       if (interrupted) {
-        // Publish Solace event so UI shows pause indicator + Approve button
-        await publishApprovalEvent({
-          sessionId,
+        // Publish Solace event — UI shows pause indicator + Approve button
+        await publishHumanApproval(sessionId, {
           customerId:         finalState.intent?.customerId,
           riskLevel:          finalState.patternAssessment?.riskLevel,
           riskScore:          finalState.patternAssessment?.riskScore,
@@ -191,6 +169,11 @@ cds.on('bootstrap', async (app) => {
           },
           id
         });
+      }
+
+      // Publish risk findings if synthesis completed
+      if (finalState.synthesisResult) {
+        await publishRiskFindings(sessionId, finalState.synthesisResult);
       }
 
       // Determine the response based on which path was taken
@@ -261,8 +244,18 @@ cds.on('bootstrap', async (app) => {
     const config = { configurable: { thread_id: sessionId } };
 
     try {
-      // Resume graph from interruptBefore checkpoint — humanApproval node runs, then synthesis
-      const finalState = await graph.invoke(null, config);
+      // Resume graph from interruptBefore — stream so UI gets synthesis progress event
+      let finalState = {};
+      for await (const chunk of await graph.stream(null, { ...config, streamMode: 'updates' })) {
+        const [nodeName, nodeState] = Object.entries(chunk)[0];
+        finalState = { ...finalState, ...nodeState };
+        await publishPipelineStatus(sessionId, nodeName, 'complete', {});
+      }
+
+      // Publish final risk findings to UI Panel 3
+      if (finalState.synthesisResult) {
+        await publishRiskFindings(sessionId, finalState.synthesisResult);
+      }
 
       // Log approval to RiskAssessments
       try {
@@ -298,6 +291,56 @@ cds.on('bootstrap', async (app) => {
         id: null
       });
     }
+  });
+
+  // ── Twinkle 2 — Regulatory Document Sync ─────────────────────────────────
+  // AI: RAG knowledge base update — fetch PDF, chunk, embed, store in HANA Vector
+  // Banking: New APRA standard published → risk officer uploads it → applies immediately
+  //          No code change, no redeployment — knowledge base updates at runtime
+  // SAP: POST body: { docTitle, standard, pdfUrl or pdfBase64 }
+  //      Embeddings stored in RegulatoryDocuments entity. Synthesis retrieves on next query.
+  app.post('/a2a/sync-apra', async (req, res) => {
+    const { docTitle, standard, pdfUrl, pdfBase64 } = req.body || {};
+    const sessionId = req.body.sessionId || uuid();
+
+    if (!docTitle || !standard) {
+      return res.status(400).json({ error: 'docTitle and standard are required' });
+    }
+    if (!pdfUrl && !pdfBase64) {
+      return res.status(400).json({ error: 'pdfUrl or pdfBase64 is required' });
+    }
+
+    console.log(`\n[A2A] /sync-apra | standard: ${standard} | doc: ${docTitle}`);
+
+    try {
+      const { embedAndStoreApraDoc } = require('./rag/apra-embedder');
+      const chunkCount = await embedAndStoreApraDoc({ docTitle, standard, pdfUrl, pdfBase64 });
+
+      await publishRegulatoryUpdate(sessionId, docTitle, standard, chunkCount);
+
+      console.log(`[A2A] /sync-apra complete | ${chunkCount} chunks embedded | event published`);
+      res.json({
+        status: 'ok',
+        docTitle,
+        standard,
+        chunkCount,
+        message: `${chunkCount} chunks embedded in HANA Vector. Synthesis will use on next query.`
+      });
+    } catch (err) {
+      console.error(`[A2A] /sync-apra error: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Session Reset ─────────────────────────────────────────────────────────
+  // AI: Demo reset — clears UI state for next scenario via Solace event
+  // Banking: Clean slate before each demo run — no stale findings from previous analysis
+  // SAP: UI subscribes to banking/session/reset and resets all three panels on receipt
+  app.post('/a2a/reset', async (req, res) => {
+    const { sessionId = uuid() } = req.body || {};
+    console.log(`\n[A2A] /reset | session: ${sessionId}`);
+    await publishSessionReset(sessionId);
+    res.json({ status: 'ok', sessionId, message: 'Session reset event published' });
   });
 
   // Health check
