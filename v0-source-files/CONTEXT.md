@@ -1,7 +1,8 @@
 # Banking Sentinel — Project Context v5
 ## SUPERSEDED — See Banking-Sentinel-Context-v6.md for the current definitive document
 ## v6 added: SAP AI Golden Path (RPT-1, HANA PAL, Knowledge Graph Engine), Part 15 demo scenarios, Part 17 patterns 11+12, Sapphire 2026 SAP+Anthropic partnership
-## Last updated: May 2026
+## Phase 3 complete (2026-05-24): LangGraph StateGraph + Intake + SimpleQuery + Rejection + A2A endpoint — all three routes verified
+## Last updated: 2026-05-24
 
 ---
 

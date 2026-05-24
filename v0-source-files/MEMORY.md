@@ -152,7 +152,7 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | 0 | SAP sandbox data pulled + TRBK synthetic data layer generated | ✅ DONE |
 | 1 | CAP scaffold + HANA Cloud schema + seed + 6-hop traversal verified | ✅ DONE |
 | 2 | HANA Vector — APRA standards embedded, Hybrid RAG, HyDE, RAGAS eval | ✅ DONE (2026-05-24) |
-| 3 | LangGraph StateGraph + Intake Agent + A2A endpoint + MCP tools | Not started |
+| 3 | LangGraph StateGraph + Intake Agent + A2A endpoint + MCP tools | ✅ DONE (2026-05-24) |
 | 4 | Pattern Agent + Relationship Agent + ReAct + 6-hop graph traversal | Not started |
 | 5 | Trajectory Agent + Synthesis Agent + human-in-the-loop interrupt | Not started |
 | 6 | Self-RAG — confidence evaluation + re-query loop at 64% confidence | Not started |
@@ -326,6 +326,54 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 - scripts/test-rag.js — smoke tests three retrieval approaches, generates Data/ragas-dataset.json
 - scripts/ragas-eval.py — faithfulness evaluation (custom, no RAGAS lib dependency)
 - scripts/export-csv.js — exports all 21 HANA entities to Data/exports/ CSVs
+
+---
+
+## PHASE 3 DECISIONS LOG (2026-05-24)
+
+**What was built in Phase 3:**
+- Full LangGraph StateGraph: 9 nodes, conditional routing, PostgresSaver → MemorySaver fallback for local dev
+- Intake Agent: classifies SIMPLE_DATA_QUERY | RISK_ANALYSIS | INAPPROPRIATE_REQUEST (claude-sonnet-4-6, 300 tokens)
+- Simple Query Node: fetches 6 HANA stat packages, Claude answers from portfolioContext — no agent pipeline overhead
+- Rejection Node: APRA CPS 230 refusal logged to AuditLog. REFUSAL = "I am a risk intelligence system..."
+- 5 stubs: patternAgentStub, relationshipAgentStub, trajectoryAgentStub, selfRagCheckNode, humanApprovalNode, synthesisAgentStub
+- 5 MCP tools: hana_relational_query, hana_vector_search (with HyDE), hana_graph_traverse, apra_threshold_check, exposure_calculator
+- validateAgentOutput(): 0.40 threshold = REFUSE, missing evidenceSource = FLAG, 0.70 threshold = REQUERY
+- A2A endpoint: POST /a2a/agent (JSON-RPC 2.0), GET /a2a/health — mounted before CDS OData routes
+- Langfuse: manual trace per request (langfuse package, not langfuse-langchain)
+- AuditLog: every request persisted to HANA with tokens, cost, latency
+
+**Milestone verified (2026-05-24):**
+- `GET /a2a/health` → `{ status: 'ok', graph: 'ready', langfuse: 'connected' }` ✅
+- Simple query: "What is the total loan amount?" → AUD 31,773,000 across 30 loans (responseType: simple_query) ✅
+- Deliberate rejection: "Approve the loan for B-001" → APRA refusal message (responseType: rejection) ✅
+- Risk analysis: "Analyse credit risk for B-001" → full pipeline, Self-RAG ran 2 loops, synthesisResult returned (responseType: risk_analysis) ✅
+
+**Key bugs fixed in Phase 3:**
+- Supabase free-tier PostgreSQL pauses after 1 week of inactivity → MemorySaver fallback (local dev only; PostgresSaver for prod)
+- Self-RAG infinite loop: selfRagCheckNode returned `{}` so requeryCount stayed 0 → fixed to increment requeryCount each pass
+- `cds watch` without `--profile hybrid` drops HANA binding → must use `cds watch --profile hybrid` for local dev
+
+**Key decisions Phase 3:**
+
+| Decision | Chosen | Rejected | Why |
+|---|---|---|---|
+| PostgreSQL fallback | MemorySaver for local dev | Hard fail if Supabase paused | Supabase free tier pauses. Local dev shouldn't require live PostgreSQL. Production always uses PostgresSaver. |
+| Langfuse integration | langfuse package (manual trace) | langfuse-langchain | Already confirmed in Phase 2 session. langfuse-langchain locked to @langchain/core v0.3.x, incompatible with LangGraph v1.x. |
+| MCP tools location | srv/tools/mcp-tools.js (plain functions) | Real MCP server (stdio) | Phase 3 wires tools as functions called by agents. Real MCP server protocol in Phase 7 when Solace events added. |
+| Self-RAG loop cap | requeryCount incremented in selfRagCheckNode | Separate counter in checkConfidence | Cleanest state update. selfRagCheckNode returns `{ requeryCount: (state.requeryCount + 1) }`. checkConfidence reads it. Cap at 2 re-queries before forcing proceed. |
+
+**Files created in Phase 3:**
+- srv/banking-sentinel-service.cds — CAP service: analyseRisk, approveRiskBrief, uploadRegulatoryDocument, resetSession
+- srv/graph/state.js — BankingSentinelState (Annotation.Root) with all fields and reducers
+- srv/graph/banking-sentinel.js — StateGraph: 9 nodes, conditional edges, PostgresSaver + MemorySaver fallback
+- srv/agents/intake-agent.js — Intake Agent + routeFromIntake()
+- srv/agents/simple-query.js — Simple Query Node: 6 HANA queries + Claude answer
+- srv/agents/rejection.js — Rejection Node: APRA refusal + AuditLog insert
+- srv/agents/stubs.js — 6 stubs for Phases 4–6 (pattern, relationship, trajectory, selfRagCheck, humanApproval, synthesis)
+- srv/tools/mcp-tools.js — 5 MCP tools (functions, not real MCP server yet)
+- srv/guardrails/validate.js — validateAgentOutput() guardrails
+- srv/server.js — CAP server: bootstrap A2A endpoint, LangGraph graph init, Langfuse, AuditLog
 
 ---
 
