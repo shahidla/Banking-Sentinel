@@ -26,7 +26,7 @@ INAPPROPRIATE_REQUEST — Any request to take an action the system must not take
   Action keywords: approve, reject, delete, modify, override, grant, create, update, authorise, sign off
   Examples: "Approve the loan for B-001", "Delete B-003's record", "Override the risk flag"
 
-CUSTOMER_ID extraction: Look for patterns like B-001, B-002, G-001, G-002, BP followed by numbers, or partner numbers like 30100001.
+CUSTOMER_ID extraction: Partner IDs are 8-digit SAP BP numbers like 30100001, 30100002, 30100003. Extract exactly as stated — do not reformat or shorten them.
 
 Respond with JSON only, no explanation:
 {

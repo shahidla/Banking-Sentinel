@@ -98,7 +98,10 @@ async function verify() {
 
   await check(
     'RETAIL_PROP loans exist in portfolio',
-    SELECT.from('bankingsentinel.Loans').where({ SECTOR_CODE: 'RETAIL_PROP' }),
+    SELECT.from('bankingsentinel.Loans as L')
+      .join('bankingsentinel.BCA_SECTOR as S')
+      .on('L.PARTNER = S.PARTNER')
+      .where({ 'S.SECTOR_CODE': 'RETAIL_PROP' }),
     rows => rows.length >= 2
   );
 

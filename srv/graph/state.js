@@ -50,8 +50,17 @@ const BankingSentinelState = Annotation.Root({
       riskScore:   number      — 0-100 from RPT-1 tabular scoring
       riskLevel:   string      — LOW / MEDIUM / HIGH / CRITICAL
       confidence:  number      — 0.0-1.0
-      anomalies:   string[]    — payment pattern anomalies from PAL
       signal:      string      — concerning / stable / unclear
+      anomalies:   string[]    — combined PAL + LLM anomaly texts for Synthesis
+
+      rpt1: { score, category, confidence, success, error? }
+        — SAP tabular foundation model output (rpt.cloud.sap consumer API)
+
+      pal: { findings: [{ id, score, label, reasonCode }], anomalyCount, success, error }
+        — HANA PAL Isolation Forest: label -1=outlier, 1=inlier, reasonCode=feature attribution
+
+      llm: { anomalies: string[], tokensIn, tokensOut }
+        — Claude narrative anomaly detection (APRA CPS 230 human-readable justification)
     }
   */
 

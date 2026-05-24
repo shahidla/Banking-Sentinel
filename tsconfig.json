@@ -4,7 +4,6 @@
     "module": "commonjs",
     "lib": ["ES2022"],
     "outDir": "./gen/srv",
-    "rootDir": "./srv",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,

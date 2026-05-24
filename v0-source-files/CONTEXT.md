@@ -2,6 +2,7 @@
 ## SUPERSEDED — See Banking-Sentinel-Context-v6.md for the current definitive document
 ## v6 added: SAP AI Golden Path (RPT-1, HANA PAL, Knowledge Graph Engine), Part 15 demo scenarios, Part 17 patterns 11+12, Sapphire 2026 SAP+Anthropic partnership
 ## Phase 3 complete (2026-05-24): LangGraph StateGraph + Intake + SimpleQuery + Rejection + A2A endpoint — all three routes verified
+## Phase 4 complete (2026-05-24): Pattern Agent (Agent 2) — RPT-1 (rpt.cloud.sap consumer API) + PAL Isolation Forest EXPLAIN (HANA AFL, real CALL not SQL) + LLM (Claude claude-sonnet-4-6) all running simultaneously. Combined anomaly output for Synthesis. rpt1/pal/llm sub-objects in patternAssessment for educational popup side-by-side display. Routing: score<30→low_risk→synthesis, score≥30→high_risk→relationship. PAL requires AFL__SYS_AFL_AFLPAL_EXECUTE on HDI technical user; graceful fallback to RPT-1+LLM if PAL unavailable.
 ## Last updated: 2026-05-24
 
 ---

@@ -1,38 +1,9 @@
 // Banking Sentinel — Agent Stubs for Phases 4–6
-// These nodes exist in the graph topology now so the full routing is in place.
-// Phase 4: patternAgent + relationshipAgent (ReAct loop + HANA graph traversal)
+// Phase 4: relationshipAgent (ReAct loop + HANA graph traversal) — pattern-agent.js is now LIVE
 // Phase 5: trajectoryAgent + synthesisAgent (conflicting signals + HANA vector + human-in-the-loop)
 // Phase 6: selfRagCheckNode (confidence evaluation + re-query loop)
 
 'use strict';
-
-// ─── PATTERN AGENT STUB (Phase 4) ───────────────────────────────────────────
-// AI: Pattern recognition across incomplete data — something feels wrong before any rule fires
-// Banking: DTI 7.2, income expiry in 3 months, 81 days overdue — individually borderline,
-//          together = HIGH risk that a rules-based system misses
-// SAP: Calls RPT-1 via Generative AI Hub API + HANA PAL for payment anomaly detection
-
-async function patternAgentStub(state) {
-  console.log(`  [Pattern] STUB — Phase 4 will implement RPT-1 + HANA PAL. Defaulting score 50.`);
-  return {
-    patternAssessment: {
-      riskScore:  50,
-      riskLevel:  'MEDIUM',
-      confidence: 0.50,
-      anomalies:  [],
-      signal:     'unclear',
-      note:       'Phase 4 stub — RPT-1 tabular scoring + HANA PAL anomaly detection not yet implemented'
-    }
-  };
-}
-
-// Routing function: low_risk (<30) skips Relationship + Trajectory agents
-// High_risk (>=30) runs full pipeline — greyed-out in Panel 2 for low risk customers
-function routeAfterPattern(state) {
-  const score = state.patternAssessment?.riskScore ?? 50;
-  console.log(`  [Pattern→Route] Score ${score} → ${score < 30 ? 'low_risk (skip graph traversal)' : 'high_risk (full pipeline)'}`);
-  return score < 30 ? 'low_risk' : 'high_risk';
-}
 
 // ─── RELATIONSHIP AGENT STUB (Phase 4) ──────────────────────────────────────
 // AI: Relationship ambiguity — nature and strength of connections, not just existence
@@ -132,8 +103,6 @@ async function synthesisAgentStub(state) {
 }
 
 module.exports = {
-  patternAgentStub,
-  routeAfterPattern,
   relationshipAgentStub,
   trajectoryAgentStub,
   selfRagCheckNode,

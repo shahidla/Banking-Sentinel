@@ -15,9 +15,8 @@ const { BankingSentinelState }  = require('./state');
 const { intakeAgent, routeFromIntake } = require('../agents/intake-agent');
 const { simpleQueryNode }       = require('../agents/simple-query');
 const { rejectionNode }         = require('../agents/rejection');
+const { patternAgent, routeAfterPattern } = require('../agents/pattern-agent');
 const {
-  patternAgentStub,
-  routeAfterPattern,
   relationshipAgentStub,
   trajectoryAgentStub,
   selfRagCheckNode,
@@ -50,7 +49,7 @@ async function createBankingSentinelGraph() {
     .addNode('intake',       intakeAgent)           // Phase 3: LIVE
     .addNode('simpleQuery',  simpleQueryNode)        // Phase 3: LIVE
     .addNode('rejection',    rejectionNode)          // Phase 3: LIVE
-    .addNode('pattern',      patternAgentStub)       // Phase 4: stub
+    .addNode('pattern',      patternAgent)            // Phase 4: LIVE
     .addNode('relationship', relationshipAgentStub)  // Phase 4: stub (ReAct loop)
     .addNode('trajectory',   trajectoryAgentStub)    // Phase 5: stub
     .addNode('selfRagCheck', selfRagCheckNode)       // Phase 6: stub

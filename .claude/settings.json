@@ -3,23 +3,7 @@
     "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(*)",
-      "Bash(curl *)",
-      "Bash(npm *)",
-      "Bash(npm run *)",
-      "Bash(node *)",
-      "Bash(mkdir *)",
-      "Bash(mv *)",
-      "Bash(cp *)",
-      "Bash(git *)",
-      "Bash(git push *)",
-      "Bash(ls *)",
-      "Bash(cat *)",
-      "Bash(unzip *)",
-      "Bash(powershell *)",
-      "Bash(cf *)",
-      "Bash(npx cds *)",
-      "Bash(Get-ChildItem *)",
-      "Bash(Get-Content *)"
+      "PowerShell(*)"
     ]
   }
 }
