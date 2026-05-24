@@ -47,7 +47,7 @@ async function logToAuditLog(sessionId, query, response, state) {
                   state.intent?.isInappropriateRequest ? 'rejection' : 'risk_analysis',
       QUERY:      query,
       RESPONSE:   typeof response === 'object' ? JSON.stringify(response) : String(response),
-      MODEL:      'claude-sonnet-4-6',
+      MODEL:      process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
       TOKENS_IN:  state.totalInputTokens || 0,
       TOKENS_OUT: state.totalOutputTokens || 0,
       COST_AUD:   calculateCostAUD(state.totalInputTokens || 0, state.totalOutputTokens || 0),
@@ -57,6 +57,47 @@ async function logToAuditLog(sessionId, query, response, state) {
   } catch (e) {
     console.error('[Server] AuditLog insert failed:', e.message);
   }
+}
+
+// ── Solace publisher — fires when graph pauses for human approval ──────────
+// AI: Event-driven notification — UI subscribes to Solace topic, shows pause indicator
+// Banking: CPS 230 requires audit trail of human review decisions
+// SAP: solclientjs (already in package.json) — same Solace broker used by MJ Live
+async function publishApprovalEvent(payload) {
+  const solace = require('solclientjs');
+  return new Promise((resolve) => {
+    try {
+      const factoryProps = new solace.SolclientFactoryProperties();
+      factoryProps.profile = solace.SolclientFactoryProfiles.version10;
+      solace.SolclientFactory.init(factoryProps);
+
+      const session = solace.SolclientFactory.createSession({
+        url:      process.env.SOLACE_URL,
+        vpnName:  process.env.SOLACE_VPN,
+        userName: process.env.SOLACE_USERNAME,
+        password: process.env.SOLACE_PASSWORD
+      });
+
+      session.on(solace.SessionEventCode.UP_NOTICE, () => {
+        const msg = solace.SolclientFactory.createMessage();
+        msg.setDestination(solace.SolclientFactory.createTopicDestination('banking/human/approval'));
+        msg.setBinaryAttachment(JSON.stringify(payload));
+        msg.setDeliveryMode(solace.MessageDeliveryModeType.DIRECT);
+        session.send(msg);
+        console.log('  [Server] Solace event published → banking/human/approval');
+        session.disconnect();
+        resolve();
+      });
+      session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, (e) => {
+        console.warn('  [Server] Solace publish failed:', e.message || e);
+        resolve(); // non-fatal
+      });
+      session.connect();
+    } catch (e) {
+      console.warn('  [Server] Solace publisher error:', e.message);
+      resolve(); // non-fatal
+    }
+  });
 }
 
 // ── CAP bootstrap ──────────────────────────────────────────────────────────
@@ -115,6 +156,43 @@ cds.on('bootstrap', async (app) => {
 
       const finalState = await graph.invoke(initialState, config);
 
+      // Check if graph paused at humanApproval (interruptBefore)
+      const checkpoint = await graph.getState(config);
+      const interrupted = checkpoint.next && checkpoint.next.includes('humanApproval');
+
+      if (interrupted) {
+        // Publish Solace event so UI shows pause indicator + Approve button
+        await publishApprovalEvent({
+          sessionId,
+          customerId:         finalState.intent?.customerId,
+          riskLevel:          finalState.patternAssessment?.riskLevel,
+          riskScore:          finalState.patternAssessment?.riskScore,
+          anomalyCount:       finalState.patternAssessment?.anomalies?.length || 0,
+          forwardPosition:    finalState.trajectoryAnalysis?.forwardPosition,
+          daysToExpiry:       finalState.trajectoryAnalysis?.daysToExpiry,
+          conflictingSignals: finalState.trajectoryAnalysis?.conflictingSignals || [],
+          requestedAt:        new Date().toISOString()
+        });
+
+        trace?.update({ output: 'awaiting_human_approval', metadata: { sessionId, latencyMs: Date.now() - startTime } });
+        await langfuse?.flushAsync?.();
+
+        return res.json({
+          jsonrpc: '2.0',
+          result: {
+            sessionId,
+            status:       'awaiting_approval',
+            responseType: 'human_approval_required',
+            riskLevel:    finalState.patternAssessment?.riskLevel,
+            riskScore:    finalState.patternAssessment?.riskScore,
+            message:      'Risk analysis paused — risk officer approval required before final brief is generated. POST /a2a/approve to resume.',
+            tokensIn:     finalState.totalInputTokens,
+            tokensOut:    finalState.totalOutputTokens
+          },
+          id
+        });
+      }
+
       // Determine the response based on which path was taken
       let answer, responseType;
       if (finalState.intent?.isInappropriateRequest) {
@@ -126,7 +204,7 @@ cds.on('bootstrap', async (app) => {
       } else {
         answer = finalState.synthesisResult
           ? JSON.stringify(finalState.synthesisResult)
-          : 'Risk analysis pipeline executed — full synthesis in Phase 5';
+          : 'Risk analysis pipeline executed';
         responseType = 'risk_analysis';
       }
 
@@ -165,6 +243,59 @@ cds.on('bootstrap', async (app) => {
         jsonrpc: '2.0',
         error: { code: -32603, message: err.message },
         id
+      });
+    }
+  });
+
+  // ── Human Approval Resume ─────────────────────────────────────────────────
+  // AI: Resumes the paused LangGraph execution from the humanApproval checkpoint
+  // Banking: Risk officer hits Approve — graph continues to Synthesis and produces the APRA brief
+  // SAP: Uses same thread_id (sessionId) to load checkpoint from PostgresSaver and resume
+  app.post('/a2a/approve', async (req, res) => {
+    const { sessionId, approvedBy = 'risk_officer' } = req.body || {};
+    if (!sessionId) {
+      return res.status(400).json({ jsonrpc: '2.0', error: { code: -32600, message: 'sessionId required' }, id: null });
+    }
+
+    console.log(`\n[A2A] /approve | session: ${sessionId} | approvedBy: ${approvedBy}`);
+    const config = { configurable: { thread_id: sessionId } };
+
+    try {
+      // Resume graph from interruptBefore checkpoint — humanApproval node runs, then synthesis
+      const finalState = await graph.invoke(null, config);
+
+      // Log approval to RiskAssessments
+      try {
+        await cds.run(
+          UPDATE('bankingsentinel.RiskAssessments')
+            .set({ APPROVED_BY: approvedBy, APPROVED_AT: new Date().toISOString() })
+            .where({ SESSION_ID: sessionId })
+        );
+      } catch (e) {
+        console.warn('[Server] RiskAssessments approval update failed:', e.message);
+      }
+
+      const synthesis = finalState.synthesisResult;
+      console.log(`[A2A] /approve complete | score:${synthesis?.riskScore} level:${synthesis?.riskLevel}`);
+
+      res.json({
+        jsonrpc: '2.0',
+        result: {
+          sessionId,
+          approvedBy,
+          status:          'completed',
+          synthesisResult: synthesis,
+          tokensIn:        finalState.totalInputTokens,
+          tokensOut:       finalState.totalOutputTokens
+        },
+        id: uuid()
+      });
+    } catch (err) {
+      console.error(`[A2A] /approve error: ${err.message}`);
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: { code: -32603, message: err.message },
+        id: null
       });
     }
   });

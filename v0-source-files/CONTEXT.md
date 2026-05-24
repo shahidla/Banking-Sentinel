@@ -1,10 +1,13 @@
 # Banking Sentinel — Project Context (Live Working Document)
-## Based on v6 — updated with actual Phase 3 + Phase 4 build decisions
+## Based on v6 — updated with actual Phase 3 + Phase 4 + Phase 4b + Phase 5 build decisions
 ## BACKUP: Banking-Sentinel-Context-v6.md is the original design document — DO NOT MODIFY IT
 ## This file (CONTEXT.md) is the single source of truth for Claude Code — it is v6 content + actual build decisions
-## Differences from v6: (1) RPT-1 uses rpt.cloud.sap consumer API, not SAP AI Hub (trial limitation); (2) All three (RPT-1 + PAL + LLM) always run simultaneously — no PAL/LLM ENV switch gate
+## Differences from v6: (1) RPT-1 uses rpt.cloud.sap consumer API, not SAP AI Hub (trial limitation); (2) All three (RPT-1 + PAL + LLM) always run simultaneously — no PAL/LLM ENV switch gate; (3) Graph traversal uses BFS via CAP SELECT not GRAPH_TABLE (GRAPH_TABLE is a preview feature not yet GA in this HANA tier); (4) KGE/Triple Store not available on BTP trial
 ## Phase 3 complete (2026-05-24): LangGraph StateGraph + Intake + SimpleQuery + Rejection + A2A endpoint — all three routes verified
 ## Phase 4 complete (2026-05-24): Pattern Agent — RPT-1 (rpt.cloud.sap consumer API) + PAL Isolation Forest EXPLAIN (real HANA AFL CALL) + LLM (claude-sonnet-4-6) all running simultaneously. Combined anomaly output for Synthesis. rpt1/pal/llm sub-objects in patternAssessment for educational popup side-by-side display.
+## Phase 4b complete (2026-05-24): Relationship Agent — ReAct loop (max 6 steps), hana_graph_traverse (BFS over BUT050), exposure_calculator, apra_threshold_check. Returns relationshipMap {nodes, edges, groupExposure, aps221Pct, confidence, finding}.
+## Phase 5 complete (2026-05-24): Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt (interruptBefore: humanApproval). PostgresSaver checkpointer wired. Full pipeline LIVE end-to-end.
+## Graph Engine decision (2026-05-24): KGE (Triple Store) NOT on BTP trial. GRAPH_TABLE SQL function NOT supported (preview feature only in this tier). Workspace BP_RELATIONSHIP_GRAPH deployed as HDI artifact — production upgrade path. Traversal implemented as BFS over BUT050 via cds.run() SELECT — identical multi-hop result.
 ## Last updated: 2026-05-24
 
 ---
@@ -314,19 +317,19 @@ Production swap: Register agent in Joule via capability YAML. The /a2a/agent end
 ### LangGraph Graph Topology
 
 ```javascript
-// srv/graph/banking-sentinel.js — CURRENT STATE (Phase 4 complete)
+// srv/graph/banking-sentinel.js — CURRENT STATE (Phase 5 complete — full pipeline LIVE)
 const graph = new StateGraph(BankingSentinelState)
 
 // Nodes
-.addNode('intake',       intakeAgent)           // LIVE
-.addNode('simpleQuery',  simpleQueryNode)        // LIVE
-.addNode('rejection',    rejectionNode)          // LIVE
-.addNode('pattern',      patternAgent)           // LIVE — all three methods
-.addNode('relationship', relationshipAgentStub)  // Phase 4 stub (ReAct loop)
-.addNode('trajectory',   trajectoryAgentStub)    // Phase 5 stub
-.addNode('selfRagCheck', selfRagCheckNode)       // Phase 6 stub
-.addNode('humanApproval',humanApprovalNode)      // Phase 5 stub (interrupt here)
-.addNode('synthesis',    synthesisAgentStub)     // Phase 5 stub
+.addNode('intake',       intakeAgent)      // LIVE
+.addNode('simpleQuery',  simpleQueryNode)  // LIVE
+.addNode('rejection',    rejectionNode)    // LIVE
+.addNode('pattern',      patternAgent)     // LIVE — RPT-1 + PAL + LLM simultaneously
+.addNode('relationship', relationshipAgent) // LIVE — ReAct loop, BFS graph traversal
+.addNode('trajectory',   trajectoryAgent)  // LIVE — forward DTI, conflicting signals
+.addNode('selfRagCheck', selfRagCheckNode) // Phase 6 stub
+.addNode('humanApproval',humanApprovalNode) // LIVE — interruptBefore fires here
+.addNode('synthesis',    synthesisAgent)   // LIVE — HANA Vector + APRA risk brief
 
 // Entry point
 graph.setEntryPoint('intake')
@@ -360,8 +363,11 @@ graph.addConditionalEdges('selfRagCheck', checkConfidence, {
 graph.addEdge('humanApproval', 'synthesis')
 graph.addEdge('synthesis', END)
 
-// Phase 5 will add: interruptBefore: ['humanApproval']
-graph.compile({ checkpointer })
+// Compiled with PostgresSaver checkpointer + interruptBefore humanApproval
+graphInstance = graph.compile({
+  checkpointer,
+  interruptBefore: ['humanApproval']
+});
 ```
 
 **Routing logic:**
@@ -826,17 +832,27 @@ For every pattern: AI meaning, banking meaning, SAP meaning.
 | 2 | HANA Vector + Hybrid RAG + HyDE + RAGAS evaluation | ✅ COMPLETE |
 | 3 | LangGraph StateGraph + Intake + SimpleQuery + Rejection + A2A endpoint | ✅ COMPLETE (2026-05-24) |
 | 4 | Pattern Agent — RPT-1 + PAL Isolation Forest + LLM simultaneously | ✅ COMPLETE (2026-05-24) |
-| 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt | 🔲 NEXT |
-| 6 | Self-RAG — real confidence evaluation + re-query loop | 🔲 PENDING |
+| 4b | Relationship Agent — ReAct loop, BFS graph traversal, exposure + APS 221 check | ✅ COMPLETE (2026-05-24) |
+| 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt | ✅ COMPLETE (2026-05-24) |
+| 6 | Self-RAG — real confidence evaluation + re-query loop | 🔲 NEXT |
 | 7 | Solace events + risk state change + regulatory document upload (Twinkle 2) | 🔲 PENDING |
 | 8 | Langfuse tracing every node + RAGAS scoring + cost per analysis + CF restart test | 🔲 PENDING |
 | 9 | HTML UI wired to A2A + all five Solace topics + demo rehearsed | 🔲 PENDING |
 | 10 | CF deployment + architecture diagram + demo video + blog post | 🔲 PENDING |
 
-**Phase 5 specifics:**
+**Graph Engine — Actual Decision (2026-05-24):**
+- KGE (Triple Store): NOT available on BTP trial (requires dedicated feature enablement in HANA Cloud Central)
+- GRAPH_TABLE SQL function: NOT supported in this HANA tier (preview feature, not GA yet)
+  - `CREATE GRAPH WORKSPACE` works (Property Graph Engine is present and functional)
+  - `SELECT ... FROM GRAPH_TABLE(...)` fails: "incorrect syntax near 'MATCH'" — all syntax variants tested
+- Traversal implementation: **BFS via CAP SELECT over BUT050** — identical multi-hop result, uses HDI technical user correctly
+- Workspace BP_RELATIONSHIP_GRAPH: stays deployed as HDI artifact — production upgrade path when GRAPH_TABLE goes GA
+- Admin UI `/admin` now has third tab "Graph Engine" showing workspace status + live BFS traversal
+
+**Phase 5 implemented:**
 - trajectoryAgent: BCA_DTI.INCOME_EXPIRY → forward DTI calculation; conflicting signal resolution
 - synthesisAgent: HANA Vector search on APRA docs + APRA-ready risk brief with confidence per finding
-- humanApproval: LangGraph interrupt() + Solace banking/human/approval event + HTML UI pause indicator + Approve button
+- humanApproval: LangGraph interruptBefore(['humanApproval']) + resume via approveRiskBrief action
 
 ---
 

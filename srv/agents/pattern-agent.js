@@ -181,7 +181,7 @@ async function runPalAnomalyDetection(data) {
 // SAP: claude-sonnet-4-6 via @langchain/anthropic — returns JSON anomaly list
 async function runLlmAnomalyDetection(data, customerId) {
   const llm = new ChatAnthropic({
-    model:     'claude-sonnet-4-6',
+    model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
     maxTokens: 400
   });

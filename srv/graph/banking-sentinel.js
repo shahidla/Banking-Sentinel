@@ -16,14 +16,11 @@ const { intakeAgent, routeFromIntake } = require('../agents/intake-agent');
 const { simpleQueryNode }       = require('../agents/simple-query');
 const { rejectionNode }         = require('../agents/rejection');
 const { patternAgent, routeAfterPattern } = require('../agents/pattern-agent');
-const {
-  relationshipAgentStub,
-  trajectoryAgentStub,
-  selfRagCheckNode,
-  checkConfidence,
-  humanApprovalNode,
-  synthesisAgentStub
-} = require('../agents/stubs');
+const { relationshipAgent } = require('../agents/relationship-agent');
+const { trajectoryAgent }   = require('../agents/trajectory-agent');
+const { synthesisAgent }    = require('../agents/synthesis-agent');
+const { humanApprovalNode } = require('../agents/human-approval');
+const { selfRagCheckNode, checkConfidence } = require('../agents/stubs');
 
 let graphInstance = null;
 
@@ -50,11 +47,11 @@ async function createBankingSentinelGraph() {
     .addNode('simpleQuery',  simpleQueryNode)        // Phase 3: LIVE
     .addNode('rejection',    rejectionNode)          // Phase 3: LIVE
     .addNode('pattern',      patternAgent)            // Phase 4: LIVE
-    .addNode('relationship', relationshipAgentStub)  // Phase 4: stub (ReAct loop)
-    .addNode('trajectory',   trajectoryAgentStub)    // Phase 5: stub
-    .addNode('selfRagCheck', selfRagCheckNode)       // Phase 6: stub
-    .addNode('humanApproval',humanApprovalNode)      // Phase 5: stub (interrupt here)
-    .addNode('synthesis',    synthesisAgentStub);    // Phase 5: stub
+    .addNode('relationship', relationshipAgent)        // Phase 4b: LIVE — ReAct loop + HANA Graph
+    .addNode('trajectory',   trajectoryAgent)         // Phase 5: LIVE
+    .addNode('selfRagCheck', selfRagCheckNode)        // Phase 6: stub
+    .addNode('humanApproval',humanApprovalNode)       // Phase 5: LIVE (interruptBefore fires before this node)
+    .addNode('synthesis',    synthesisAgent);         // Phase 5: LIVE
 
   // ── Entry point ──
   graph.setEntryPoint('intake');
@@ -98,7 +95,7 @@ async function createBankingSentinelGraph() {
 
   graphInstance = graph.compile({
     checkpointer,
-    // Phase 5 will add: interruptBefore: ['humanApproval']
+    interruptBefore: ['humanApproval']  // Phase 5: halt before human approval node; resume via POST /a2a/approve
   });
 
   console.log('  [Graph] Banking Sentinel StateGraph compiled — all nodes and edges registered');

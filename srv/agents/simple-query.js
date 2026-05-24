@@ -68,7 +68,7 @@ async function simpleQueryNode(state) {
 - Top sectors: ${topSectors}${borrowerData}`;
 
   const llm = new ChatAnthropic({
-    model: 'claude-sonnet-4-6',
+    model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey: process.env.ANTHROPIC_API_KEY,
     maxTokens: 400
   });

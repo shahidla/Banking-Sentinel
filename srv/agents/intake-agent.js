@@ -37,7 +37,7 @@ Respond with JSON only, no explanation:
 
 async function intakeAgent(state) {
   const llm = new ChatAnthropic({
-    model: 'claude-sonnet-4-6',
+    model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey: process.env.ANTHROPIC_API_KEY,
     maxTokens: 300
   });

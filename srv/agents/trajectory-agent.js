@@ -1,0 +1,143 @@
+// Banking Sentinel — Trajectory Agent (Agent 3)
+// AI: Threshold proximity + conflicting signals — the "where is this heading?" reasoning type
+// Banking: DTI 7.2 today + income contract expires 60 days → effective DTI goes critical imminently
+// SAP: BCA_DTI.INCOME_EXPIRY drives forward DTI; LoanSchedule confirms payment obligations during expiry window
+
+'use strict';
+const cds = require('@sap/cds');
+
+const APRA_DTI_LIMIT         = 6.0;
+const INCOME_EXPIRY_WARN_DAYS = 180; // flag if income expires within 6 months
+
+async function trajectoryAgent(state) {
+  const customerId = state.intent?.customerId || state.customerId;
+  console.log(`  [Trajectory] Analysing forward position: ${customerId}`);
+
+  if (!customerId) {
+    return {
+      trajectoryAnalysis: {
+        currentDti: null, futureDti: null, daysToExpiry: null,
+        timeToBreach: null, conflictingSignals: [], forwardPosition: 'UNKNOWN'
+      }
+    };
+  }
+
+  // Fetch DTI data
+  const dtiRows = await cds.run(
+    SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId }).limit(1)
+  );
+  const dti = dtiRows[0] || null;
+
+  if (!dti) {
+    console.warn(`  [Trajectory] No DTI data for ${customerId}`);
+    return {
+      trajectoryAnalysis: {
+        currentDti: null, futureDti: null, daysToExpiry: null,
+        timeToBreach: null,
+        conflictingSignals: ['No DTI data found — trajectory assessment incomplete'],
+        forwardPosition: 'UNKNOWN'
+      }
+    };
+  }
+
+  const currentDti   = parseFloat(dti.DTI_RATIO)    || 0;
+  const totalDebt    = parseFloat(dti.TOTAL_DEBT)    || 0;
+  const annualIncome = parseFloat(dti.ANNUAL_INCOME) || 0;
+  const breachFlag   = dti.BREACH_FLAG || false;
+
+  // ── Forward DTI: model income loss at contract expiry ─────────────────────
+  // If income expires in N days, only N/365 of annual income remains this year.
+  // Effective DTI = total debt / (income × remaining fraction)
+  // This reveals the annualised servicing burden after the contract ends.
+  let daysToExpiry = null;
+  let futureDti    = null;
+
+  if (dti.INCOME_EXPIRY) {
+    const expiryDate = new Date(dti.INCOME_EXPIRY);
+    const today      = new Date();
+    daysToExpiry     = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
+
+    if (daysToExpiry > 0 && daysToExpiry < INCOME_EXPIRY_WARN_DAYS && annualIncome > 0) {
+      const effectiveIncome = annualIncome * (daysToExpiry / 365);
+      futureDti = parseFloat((totalDebt / effectiveIncome).toFixed(2));
+    }
+  }
+
+  // ── Conflicting signals ────────────────────────────────────────────────────
+  const conflictingSignals = [];
+  const patternRiskLevel   = state.patternAssessment?.riskLevel;
+  const patternSignal      = state.patternAssessment?.signal;
+  const patternAnomalies   = state.patternAssessment?.anomalies?.length || 0;
+
+  if (breachFlag && patternRiskLevel === 'LOW') {
+    conflictingSignals.push('DTI breach flag active but Pattern Agent scored LOW risk — possible data lag');
+  }
+  if (!breachFlag && (patternRiskLevel === 'HIGH' || patternRiskLevel === 'CRITICAL')) {
+    conflictingSignals.push(`RPT-1 scored ${patternRiskLevel} risk but no formal DTI breach on record — early warning signal`);
+  }
+  if (daysToExpiry !== null && daysToExpiry < 90) {
+    conflictingSignals.push(`Income contract expires in ${daysToExpiry} days — primary servicing income at risk`);
+  }
+  if (daysToExpiry !== null && daysToExpiry < 90 && breachFlag) {
+    conflictingSignals.push('Active APRA DTI breach combined with imminent income loss — compounding risk event');
+  }
+  if (patternSignal === 'concerning' && !breachFlag) {
+    conflictingSignals.push(`${patternAnomalies} statistical anomalies flagged but no regulatory breach recorded — off-balance-sheet exposure possible`);
+  }
+  if (futureDti !== null && futureDti > APRA_DTI_LIMIT * 1.5) {
+    conflictingSignals.push(`Forward DTI of ${futureDti.toFixed(1)}× projected — ${((futureDti / APRA_DTI_LIMIT - 1) * 100).toFixed(0)}% above APRA limit post-expiry`);
+  }
+
+  // ── Scheduled payment obligations during expiry window ───────────────────
+  try {
+    const loanRows = await cds.run(
+      SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId }).columns('LOAN_ID')
+    );
+    if (loanRows.length > 0 && daysToExpiry !== null && daysToExpiry < INCOME_EXPIRY_WARN_DAYS) {
+      const loanIds          = loanRows.map(l => l.LOAN_ID);
+      const upcomingPayments = await cds.run(
+        SELECT.from('bankingsentinel.LoanSchedule').where({ LOAN_ID: { in: loanIds } }).limit(20)
+      );
+      if (upcomingPayments.length > 0) {
+        const totalDue = upcomingPayments.reduce((s, p) => s + (parseFloat(p.AMOUNT_DUE) || 0), 0);
+        conflictingSignals.push(`AUD ${totalDue.toLocaleString()} in scheduled payments fall within income expiry window`);
+      }
+    }
+  } catch (e) {
+    console.warn('  [Trajectory] LoanSchedule fetch failed:', e.message);
+  }
+
+  // ── Time to breach ─────────────────────────────────────────────────────────
+  let timeToBreach = null;
+  if (breachFlag) {
+    timeToBreach = 0;  // already in breach
+  } else if (futureDti !== null && futureDti > APRA_DTI_LIMIT) {
+    timeToBreach = daysToExpiry; // breach projected at income expiry
+  }
+
+  // ── Forward position ───────────────────────────────────────────────────────
+  let forwardPosition;
+  const isDeteriograting = breachFlag
+    || (futureDti !== null && futureDti > APRA_DTI_LIMIT)
+    || (daysToExpiry !== null && daysToExpiry < 90);
+  const isStable = !breachFlag
+    && currentDti < APRA_DTI_LIMIT * 0.80
+    && (daysToExpiry === null || daysToExpiry > INCOME_EXPIRY_WARN_DAYS);
+
+  forwardPosition = isDeteriograting ? 'DETERIORATING' : isStable ? 'STABLE' : 'DETERIORATING';
+
+  console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
+
+  return {
+    trajectoryAnalysis: {
+      currentDti,
+      futureDti,
+      daysToExpiry,
+      timeToBreach,
+      conflictingSignals,
+      forwardPosition
+    }
+  };
+}
+
+module.exports = { trajectoryAgent };

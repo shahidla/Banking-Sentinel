@@ -47,7 +47,7 @@ async function getEmbedding(text) {
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ model: 'text-embedding-3-small', input: text })
+    body: JSON.stringify({ model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small', input: text })
   });
   if (!response.ok) throw new Error(`OpenAI embedding error ${response.status}`);
   const data = await response.json();
@@ -63,7 +63,7 @@ async function hana_vector_search({ query, topK = 5, useHyDE = false, standard =
   // SAP: Pre-processing step before HANA Vector query (will become a LangGraph node in Phase 5)
   if (useHyDE) {
     const { ChatAnthropic } = require('@langchain/anthropic');
-    const llm = new ChatAnthropic({ model: 'claude-sonnet-4-6', maxTokens: 200 });
+    const llm = new ChatAnthropic({ model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001', maxTokens: 200 });
     const hydeResponse = await llm.invoke([{
       role: 'user',
       content: `Generate a precise APRA regulatory document excerpt that would directly answer: "${query}". Include exact thresholds and timeframes. 120 words max.`
@@ -92,49 +92,75 @@ async function hana_vector_search({ query, topK = 5, useHyDE = false, standard =
 
 // ─── TOOL 3: hana_graph_traverse ────────────────────────────────────────────
 // AI: Multi-hop graph traversal — the core of ReAct loop in Relationship Agent
-// Banking: B-001 → BKKN → BCA_GUARANTOR → G-001 → BUT050 → G-002 (6 hops = APS 221 group found)
-// SAP: HANA Knowledge Graph Engine (SPARQL) — Phase 4 implementation
-//      Phase 3 stub: sequential CDS queries (same logic, no SPARQL syntax)
+// Banking: 30100001 → BUT050 → guarantor → BUT050 → parent entity (6 hops = APS 221 group found)
+// SAP: BFS traversal over BUT050 edges via CAP SELECT (cds.run = HDI technical user).
+//      Graph workspace BP_RELATIONSHIP_GRAPH deployed as HDI artifact (hdbgraphworkspace).
+//      Production upgrade: swap to GRAPH_TABLE SQL function once GA in HANA Cloud tier.
 
-async function hana_graph_traverse({ startNode, nodeType = 'BusinessPartner', depth = 6, filters = {} }) {
-  // Phase 3 stub — returns direct relationships via SQL joins
-  // Full HANA Knowledge Graph Engine SPARQL implementation in Phase 4
-  const results = {
-    nodes: [startNode],
-    edges: [],
-    groupExposure: 0,
-    aps221Pct: 0,
-    hops: 0,
-    note: 'Phase 3 stub — HANA Knowledge Graph Engine SPARQL in Phase 4'
-  };
+async function hana_graph_traverse({ startNode, depth = 6 }) {
+  const maxDepth = Math.min(depth, 8);
+  const visited = new Set([startNode]);
+  const traversalRows = [];
+  let frontier = [startNode];
 
-  // Get guarantors for this partner
-  const guarantors = await cds.run(
-    SELECT.from('bankingsentinel.BCA_GUARANTOR')
-      .where(`LOAN_ID IN (SELECT LOAN_ID FROM bankingsentinel_BKKN WHERE GPART = '${startNode}')`)
-  );
-
-  for (const g of guarantors) {
-    results.nodes.push(g.GUARANTOR_PARTNER);
-    results.edges.push({ from: startNode, to: g.GUARANTOR_PARTNER, type: 'GUARANTEED_BY', hop: 1 });
-    results.groupExposure += parseFloat(g.COVER_AMOUNT || 0);
+  // BFS over BUT050 edges — each round-trip = one hop level
+  for (let hop = 1; hop <= maxDepth && frontier.length > 0; hop++) {
+    const connections = await cds.run(
+      SELECT.from('bankingsentinel.BUT050')
+        .where({ PARTNER1: { in: frontier } })
+        .columns('PARTNER1', 'PARTNER2', 'RELTYP')
+    );
+    const nextFrontier = [];
+    for (const c of connections) {
+      traversalRows.push({ PARTNER: c.PARTNER2, REL_TYPE: c.RELTYP, HOP: hop });
+      if (!visited.has(c.PARTNER2)) {
+        visited.add(c.PARTNER2);
+        nextFrontier.push(c.PARTNER2);
+      }
+    }
+    frontier = nextFrontier;
   }
 
-  // Check BUT050 for connected parties
-  const connected = await cds.run(
-    SELECT.from('bankingsentinel.BUT050').where({ PARTNER1: startNode })
+  const connectedPartners = traversalRows.map(r => r.PARTNER);
+  const allPartners = [...new Set([startNode, ...connectedPartners])];
+
+  // Enrich with guarantor connections (BCA_GUARANTOR edge: loan → guarantor BP)
+  const loanRows = await cds.run(
+    SELECT.from('bankingsentinel.Loans')
+      .where({ PARTNER: { in: allPartners } })
+      .columns('LOAN_ID', 'PARTNER')
   );
-  for (const c of connected) {
-    if (!results.nodes.includes(c.PARTNER2)) results.nodes.push(c.PARTNER2);
-    results.edges.push({ from: c.PARTNER1, to: c.PARTNER2, type: c.RELTYP, hop: 2 });
+  const loanIds = loanRows.map(l => l.LOAN_ID);
+
+  let guarantors = [];
+  if (loanIds.length > 0) {
+    guarantors = await cds.run(
+      SELECT.from('bankingsentinel.BCA_GUARANTOR')
+        .where({ LOAN_ID: { in: loanIds }, STATUS: 'ACTIVE' })
+    );
+    guarantors.forEach(g => {
+      if (!allPartners.includes(g.GUARANTOR_PARTNER)) allPartners.push(g.GUARANTOR_PARTNER);
+    });
   }
 
-  // APS 221 utilisation
-  const limits = await cds.run(SELECT.from('bankingsentinel.ExposureLimits').where({ LIMIT_TYPE: 'GROUP' }));
-  if (limits[0]) results.aps221Pct = (results.groupExposure / limits[0].LIMIT_AUD) * 100;
+  const edges = [
+    ...traversalRows.map(r => ({ from: startNode, to: r.PARTNER, type: r.REL_TYPE, hop: r.HOP })),
+    ...guarantors.map(g => ({ from: g.LOAN_ID, to: g.GUARANTOR_PARTNER, type: 'GUARANTOR', hop: 1 }))
+  ];
 
-  results.hops = results.edges.length;
-  return results;
+  const groupExposure = guarantors.reduce((sum, g) => sum + parseFloat(g.COVER_AMOUNT || 0), 0);
+
+  let aps221Pct = 0;
+  try {
+    const limits = await cds.run(SELECT.from('bankingsentinel.ExposureLimits').where({ LIMIT_TYPE: 'GROUP' }));
+    if (limits[0]) aps221Pct = (groupExposure / parseFloat(limits[0].LIMIT_AUD)) * 100;
+  } catch (e) { /* ExposureLimits not present locally */ }
+
+  const maxHop = traversalRows.length > 0 ? Math.max(...traversalRows.map(r => r.HOP || 0)) : 0;
+
+  console.log(`  [GraphTraverse] nodes:${allPartners.length} edges:${edges.length} guarantors:${guarantors.length} groupExposure:${groupExposure} aps221Pct:${aps221Pct.toFixed(1)}%`);
+
+  return { nodes: allPartners, edges, groupExposure, aps221Pct, hops: maxHop };
 }
 
 // ─── TOOL 4: apra_threshold_check ───────────────────────────────────────────
