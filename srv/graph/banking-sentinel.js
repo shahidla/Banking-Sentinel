@@ -8,7 +8,8 @@
 
 'use strict';
 require('dotenv').config();
-const { StateGraph, END, MemorySaver } = require('@langchain/langgraph');
+const { StateGraph, END }       = require('@langchain/langgraph');
+const { PostgresSaver }         = require('@langchain/langgraph-checkpoint-postgres');
 const { Pool }                  = require('pg');
 const { BankingSentinelState }  = require('./state');
 const { intakeAgent, routeFromIntake } = require('../agents/intake-agent');
@@ -33,20 +34,14 @@ async function createBankingSentinelGraph() {
   // ── PostgreSQL state persistence ───────────────────────────────────────────
   // AI: Temporal Memory pattern — state survives CF restarts and deployments
   // Banking: Human-in-the-loop approvals must survive server restarts (CPS 230)
-  // SAP: Supabase PostgreSQL on free tier → BTP PostgreSQL Hyperscaler Option in production
-  //      Falls back to MemorySaver for local dev when Supabase is paused
-  let checkpointer;
-  try {
-    const { PostgresSaver } = require('@langchain/langgraph-checkpoint-postgres');
-    const pgPool = new Pool({ connectionString: process.env.POSTGRES_URL, connectionTimeoutMillis: 5000 });
-    const pgSaver = new PostgresSaver(pgPool);
-    await pgSaver.setup();
-    checkpointer = pgSaver;
-    console.log('  [Graph] PostgresSaver initialised — agent state will survive CF restarts');
-  } catch (e) {
-    console.warn(`  [Graph] PostgreSQL unavailable (${e.code || e.message}) — falling back to MemorySaver (local dev only)`);
-    checkpointer = new MemorySaver();
-  }
+  // SAP: BTP PostgreSQL Hyperscaler Option — managed, always-on, same platform as HANA
+  const pgPool = new Pool({
+    connectionString: process.env.POSTGRES_URL,
+    ssl: { rejectUnauthorized: false }  // BTP PostgreSQL uses Amazon RDS certs
+  });
+  const checkpointer = new PostgresSaver(pgPool);
+  await checkpointer.setup();
+  console.log('  [Graph] PostgresSaver initialised — agent state will survive CF restarts');
 
   // ── StateGraph definition ──────────────────────────────────────────────────
   const graph = new StateGraph(BankingSentinelState)

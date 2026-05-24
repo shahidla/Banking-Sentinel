@@ -67,6 +67,10 @@ cds.on('bootstrap', async (app) => {
   // Parse JSON bodies
   app.use(express.json());
 
+  // Data browser UI
+  const { mountAdminUI } = require('./admin');
+  mountAdminUI(app);
+
   // Initialise LangGraph graph (connects to PostgreSQL for state persistence)
   const { createBankingSentinelGraph } = require('./graph/banking-sentinel');
   graph = await createBankingSentinelGraph();
