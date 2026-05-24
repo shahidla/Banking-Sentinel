@@ -78,16 +78,35 @@ async function relationshipAgent(state) {
     };
   }
 
+  const isRequery   = (state.requeryCount ?? 0) > 0;
+  const reQueryHint = state.reQueryHint || null;
+  const prevNodes   = state.relationshipMap?.nodes || [];
+
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
     maxTokens: 1000
   }).bindTools(TOOLS);
 
-  const messages = [
-    {
-      role:    'system',
-      content: `You are a banking risk analyst performing connected party graph traversal for APS 221 compliance.
+  // ── System prompt: first run vs targeted re-query ─────────────────────────
+  // AI: Re-query prompt is more specific — Self-RAG identified what was missing
+  // Banking: First pass = broad sweep. Re-query = targeted investigation of identified gap.
+  // SAP: reQueryHint from selfRagCheckNode guides where to traverse and what to recalculate
+  const systemPrompt = isRequery && reQueryHint
+    ? `You are a banking risk analyst performing a TARGETED RE-QUERY. The previous traversal was incomplete.
+
+Self-RAG quality evaluation identified this gap: "${reQueryHint}"
+
+Previous traversal found these nodes: ${prevNodes.join(', ') || 'none'}
+
+Your goal: investigate the identified gap specifically. Do not just repeat the previous traversal.
+- Start traversal from entities found in the previous pass that were not yet explored deeper
+- Recalculate group exposure including any newly discovered entities
+- Check APS 221 threshold with the updated total
+
+Return your final summary as JSON:
+{"nodes": [...], "edges": [...], "groupExposure": <AUD>, "aps221Pct": <pct>, "confidence": <0.0-1.0>, "finding": "<one sentence>"}`
+    : `You are a banking risk analyst performing connected party graph traversal for APS 221 compliance.
 Your goal: find ALL entities connected to the start customer (direct and indirect), calculate their total group exposure, and check it against APRA APS 221 limits.
 
 Steps:
@@ -98,12 +117,19 @@ Steps:
 5. When you have a complete picture, stop calling tools and summarise
 
 Return your final summary as JSON:
-{"nodes": [...], "edges": [...], "groupExposure": <AUD>, "aps221Pct": <pct>, "confidence": <0.0-1.0>, "finding": "<one sentence>"}`
-    },
-    {
-      role:    'user',
-      content: `Perform connected party traversal for customer ${customerId}. Find all connected entities via BUT050 relationship table and BCA_GUARANTOR table. Calculate total APS 221 group exposure.`
-    }
+{"nodes": [...], "edges": [...], "groupExposure": <AUD>, "aps221Pct": <pct>, "confidence": <0.0-1.0>, "finding": "<one sentence>"}`;
+
+  const userPrompt = isRequery && reQueryHint
+    ? `Re-query for customer ${customerId}. Focus: ${reQueryHint}. Previous nodes: ${prevNodes.join(', ') || 'none'}. Find what was missed and recalculate APS 221 group exposure.`
+    : `Perform connected party traversal for customer ${customerId}. Find all connected entities via BUT050 relationship table and BCA_GUARANTOR table. Calculate total APS 221 group exposure.`;
+
+  if (isRequery) {
+    console.log(`  [Relationship] RE-QUERY run — hint: "${(reQueryHint || '').substring(0, 80)}..."`);
+  }
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user',   content: userPrompt   }
   ];
 
   let steps    = 0;

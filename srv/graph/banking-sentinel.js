@@ -10,6 +10,7 @@
 require('dotenv').config();
 const { StateGraph, END }       = require('@langchain/langgraph');
 const { PostgresSaver }         = require('@langchain/langgraph-checkpoint-postgres');
+const { MemorySaver }           = require('@langchain/langgraph');
 const { Pool }                  = require('pg');
 const { BankingSentinelState }  = require('./state');
 const { intakeAgent, routeFromIntake } = require('../agents/intake-agent');
@@ -20,7 +21,7 @@ const { relationshipAgent } = require('../agents/relationship-agent');
 const { trajectoryAgent }   = require('../agents/trajectory-agent');
 const { synthesisAgent }    = require('../agents/synthesis-agent');
 const { humanApprovalNode } = require('../agents/human-approval');
-const { selfRagCheckNode, checkConfidence } = require('../agents/stubs');
+const { selfRagCheckNode, checkConfidence } = require('../agents/self-rag');
 
 let graphInstance = null;
 
@@ -30,14 +31,23 @@ async function createBankingSentinelGraph() {
   // ── PostgreSQL state persistence ───────────────────────────────────────────
   // AI: Temporal Memory pattern — state survives CF restarts and deployments
   // Banking: Human-in-the-loop approvals must survive server restarts (CPS 230)
-  // SAP: BTP PostgreSQL Hyperscaler Option — managed, always-on, same platform as HANA
-  const pgPool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: { rejectUnauthorized: false }  // BTP PostgreSQL uses Amazon RDS certs
-  });
-  const checkpointer = new PostgresSaver(pgPool);
-  await checkpointer.setup();
-  console.log('  [Graph] PostgresSaver initialised — agent state will survive CF restarts');
+  // SAP: BTP PostgreSQL Hyperscaler Option in production. Supabase free tier pauses after
+  //      inactivity — MemorySaver fallback for local dev only. Never use MemorySaver on CF.
+  let checkpointer;
+  try {
+    const pgPool = new Pool({
+      connectionString:        process.env.POSTGRES_URL,
+      ssl:                     { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000   // fail fast if Supabase is paused
+    });
+    const pgCheckpointer = new PostgresSaver(pgPool);
+    await pgCheckpointer.setup();
+    checkpointer = pgCheckpointer;
+    console.log('  [Graph] PostgresSaver initialised — agent state will survive CF restarts');
+  } catch (e) {
+    checkpointer = new MemorySaver();
+    console.warn(`  [Graph] PostgresSaver unavailable (${e.message.substring(0, 60)}) — MemorySaver active (local dev only)`);
+  }
 
   // ── StateGraph definition ──────────────────────────────────────────────────
   const graph = new StateGraph(BankingSentinelState)
@@ -49,7 +59,7 @@ async function createBankingSentinelGraph() {
     .addNode('pattern',      patternAgent)            // Phase 4: LIVE
     .addNode('relationship', relationshipAgent)        // Phase 4b: LIVE — ReAct loop + HANA Graph
     .addNode('trajectory',   trajectoryAgent)         // Phase 5: LIVE
-    .addNode('selfRagCheck', selfRagCheckNode)        // Phase 6: stub
+    .addNode('selfRagCheck', selfRagCheckNode)        // Phase 6: LIVE — real LLM confidence evaluation
     .addNode('humanApproval',humanApprovalNode)       // Phase 5: LIVE (interruptBefore fires before this node)
     .addNode('synthesis',    synthesisAgent);         // Phase 5: LIVE
 

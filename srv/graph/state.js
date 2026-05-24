@@ -119,6 +119,25 @@ const BankingSentinelState = Annotation.Root({
   // SAP: LangGraph conditional edge after selfRagCheck node; max 2 re-queries to avoid infinite loop
   requeryCount: Annotation({ reducer: (x, y) => (y !== undefined ? y : (x ?? 0)), default: () => 0 }),
 
+  // AI: Self-RAG evaluation output — real LLM quality assessment of all agent outputs
+  // Banking: "Graph traversal found 3 nodes but zero exposure — traversal stopped early"
+  // SAP: Written by self-rag.js selfRagCheckNode; read by checkConfidence routing function
+  selfRagEvaluation: Annotation({ reducer: last }),
+  /*
+    selfRagEvaluation shape:
+    {
+      overallConfidence: number      — LLM-evaluated confidence (0.0-1.0), authoritative for routing
+      gaps:              string[]    — specific evidence gaps identified
+      reQueryHint:       string      — targeted instruction for Relationship Agent re-query
+      reasoning:         string      — one sentence explaining the confidence level
+    }
+  */
+
+  // AI: Targeted re-query instruction — Self-RAG tells Relationship Agent what to look for deeper
+  // Banking: "Start from TrustCo Group (30910009) — previous traversal didn't reach parent entities"
+  // SAP: Written by selfRagCheckNode; read by relationshipAgent on re-query runs
+  reQueryHint: Annotation({ reducer: last }),
+
   // ── Observability ──────────────────────────────────────────────────────────
   // AI: LLMOps — token usage accumulates across all agent nodes
   // Banking: Cost per analysis — stored in AuditLog, visible in Langfuse
