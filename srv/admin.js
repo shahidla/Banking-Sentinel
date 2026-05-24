@@ -70,7 +70,7 @@ const HTML = `<!DOCTYPE html>
 <div class="tabs">
   <div class="tab active" onclick="switchTab('hana')">HANA Cloud</div>
   <div class="tab" onclick="switchTab('pg')">PostgreSQL (LangGraph)</div>
-  <div class="tab" onclick="switchTab('graph')">Graph Engine</div>
+  <div class="tab" onclick="switchTab('graph')">GraphDB (KGE)</div>
 </div>
 
 <div class="layout">
@@ -112,10 +112,10 @@ const HTML = `<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Graph Engine panel -->
+    <!-- GraphDB KGE panel -->
     <div class="panel" id="panel-graph">
       <div class="info-bar">
-        <h2>HANA Property Graph Engine</h2>
+        <h2>GraphDB — Knowledge Graph (KGE Equivalent)</h2>
         <button class="refresh-btn" onclick="loadGraph()">↻ Refresh</button>
       </div>
       <div class="data-area">
@@ -245,35 +245,35 @@ async function loadGraph() {
     }
     let html = '';
 
-    // Workspaces
-    html += '<div class="pg-section"><h3>Graph Workspaces (SYS.GRAPH_WORKSPACES)</h3>';
-    html += '<div class="purpose">HANA Property Graph Engine workspaces. BP_RELATIONSHIP_GRAPH enables multi-hop traversal on BUT050 (connected parties). Deployed via db/src/BP_RELATIONSHIP_GRAPH.hdbgraphworkspace HDI artifact.</div>';
-    html += d.workspaces.length === 0
-      ? '<div class="empty">No workspaces found. Run: cds deploy --to hana to deploy BP_RELATIONSHIP_GRAPH.</div>'
-      : renderTable(d.workspaces);
+    // GraphDB status
+    html += '<div class="pg-section"><h3>GraphDB Repository Status</h3>';
+    html += '<div class="purpose">GraphDB (RDF triple store + SPARQL) — KGE equivalent for trial. Same SPARQL queries run on HANA KGE in production. Sandbox expires every 7 days — restore with: npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid</div>';
+    html += renderTable([{
+      'Endpoint':        d.endpoint,
+      'Repository':      d.repository,
+      'Total Triples':   d.tripleCount,
+      'Partners (nodes)': d.partnerCount,
+      'Relations (edges)': d.relationCount,
+      'Status':          d.tripleCount > 0 ? 'LIVE' : 'EMPTY — run seed script'
+    }]);
     html += '</div>';
 
-    // Traversal
-    html += '<div class="pg-section"><h3>Live Traversal — Partner ${DEMO_PARTNER} (depth 6)</h3>';
-    html += '<div class="purpose">GRAPH_TABLE query on BP_RELATIONSHIP_GRAPH. Finds all connected parties reachable from the demo customer up to 6 hops. Each row = one connected partner, their relationship type, and the hop distance.</div>';
+    // SPARQL traversal
+    html += '<div class="pg-section"><h3>Live SPARQL Traversal — Partner 30100003 (depth 6)</h3>';
+    html += '<div class="purpose">SPARQL property path query on GraphDB. Finds all connected parties reachable from demo partner up to 6 hops. In production this query runs identically on HANA KGE. Twinkle 1: TrustCo Holdings discovered at hop 4.</div>';
     if (d.traversalError) {
       html += '<div class="error">' + d.traversalError + '</div>';
-      html += '<div class="empty" style="padding:12px;text-align:left;color:#64748b;font-size:13px;">Workspace not yet deployed. Run: <code style="color:#60a5fa">cds deploy --to hana</code> to create the graph workspace, then re-run the traversal.</div>';
     } else if (d.traversal.length === 0) {
-      html += '<div class="empty">No connected parties found for this partner (no BUT050 edges).</div>';
+      html += '<div class="empty">No connected parties found — GraphDB may need re-seeding.</div>';
     } else {
       html += renderTable(d.traversal);
     }
     html += '</div>';
 
-    // Edge + vertex counts
-    html += '<div class="pg-section"><h3>Graph Tables — Edge and Vertex Counts</h3>';
-    html += '<div class="purpose">BUT050 = edge table (connected party relationships). BusinessPartners = vertex table (borrowers, guarantors, entities). Counts reflect deployed HDI data.</div>';
-    html += renderTable([{
-      'Edge Table (BUT050)': d.edgeCount + ' rows',
-      'Vertex Table (BusinessPartners)': d.vertexCount + ' rows',
-      'Workspace Status': d.workspaces.length > 0 ? 'DEPLOYED' : 'NOT DEPLOYED'
-    }]);
+    // Sample triples
+    html += '<div class="pg-section"><h3>Sample RDF Triples</h3>';
+    html += '<div class="purpose">RDF triple store — every fact is stored as subject → predicate → object. BUT050 relationships become typed triples. BusinessPartners become RDF resources with properties.</div>';
+    html += d.sampleTriples.length > 0 ? renderTable(d.sampleTriples) : '<div class="empty">No triples found.</div>';
     html += '</div>';
 
     document.getElementById('graph-content').innerHTML = html;
@@ -321,32 +321,83 @@ function mountAdminUI(app) {
   });
 
   app.get('/admin/api/graph', async (req, res) => {
-    try {
-      const workspaces = await cds.run(`SELECT WORKSPACE_NAME, SCHEMA_NAME FROM SYS.GRAPH_WORKSPACES`).catch(() => []);
-      const edgeCount   = await cds.run(SELECT.from('bankingsentinel.BUT050')).then(r => r.length).catch(() => 0);
-      const vertexCount = await cds.run(SELECT.from('bankingsentinel.BusinessPartners')).then(r => r.length).catch(() => 0);
+    const endpoint   = process.env.GRAPHDB_ENDPOINT;
+    const repository = process.env.GRAPHDB_REPOSITORY;
+    const auth = Buffer.from(`${process.env.GRAPHDB_USERNAME}:${process.env.GRAPHDB_PASSWORD}`).toString('base64');
+    const BASE_URI = 'urn:banking-sentinel:';
 
+    const sparql = async (query) => {
+      const r = await fetch(`${endpoint}/repositories/${repository}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sparql-query', 'Accept': 'application/sparql-results+json', 'Authorization': `Basic ${auth}` },
+        body: query
+      });
+      if (!r.ok) throw new Error(`GraphDB ${r.status}: ${(await r.text()).substring(0, 200)}`);
+      return r.json();
+    };
+
+    try {
+      // Triple count
+      const countResult = await sparql(`SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }`);
+      const tripleCount = countResult.results.bindings[0]?.n?.value || 0;
+
+      // Partner count
+      const partnerResult = await sparql(`PREFIX bs: <${BASE_URI}> SELECT (COUNT(?p) AS ?n) WHERE { ?p bs:type bs:BusinessPartner }`);
+      const partnerCount = partnerResult.results.bindings[0]?.n?.value || 0;
+
+      // Relation count
+      const relResult = await sparql(`PREFIX bs: <${BASE_URI}> SELECT (COUNT(*) AS ?n) WHERE { ?s bs:relatedTo ?o }`);
+      const relationCount = relResult.results.bindings[0]?.n?.value || 0;
+
+      // SPARQL traversal from demo partner (depth 6)
       let traversal = [], traversalError = null;
       try {
-        traversal = await cds.run(`
-          SELECT "PARTNER", "REL_TYPE", "HOP"
-          FROM GRAPH_TABLE ("BP_RELATIONSHIP_GRAPH"
-            MATCH
-              (v IS "BANKINGSENTINEL_BUSINESSPARTNERS" WHERE v."PARTNER" = '${DEMO_PARTNER}')
-              -[e IS "BANKINGSENTINEL_BUT050"*1..6]->
-              (u IS "BANKINGSENTINEL_BUSINESSPARTNERS")
-            COLUMNS (
-              u."PARTNER" AS "PARTNER",
-              e."RELTYP"  AS "REL_TYPE",
-              $edge_count AS "HOP"
-            )
-          )
+        const hopClauses = [];
+        let path = 'bs:relatedTo';
+        for (let h = 1; h <= 6; h++) {
+          hopClauses.push(`{ <${BASE_URI}partner/${DEMO_PARTNER}> ${path} ?node . BIND(${h} AS ?hop) }`);
+          path += '/bs:relatedTo';
+        }
+        const tResult = await sparql(`
+          PREFIX bs: <${BASE_URI}>
+          SELECT ?partnerId (MIN(?hop) AS ?minHop) ?reltyp WHERE {
+            ${hopClauses.join('\n            UNION\n            ')}
+            ?node bs:partnerId ?partnerId .
+            OPTIONAL {
+              <${BASE_URI}partner/${DEMO_PARTNER}> ?rel ?node .
+              FILTER(STRSTARTS(STR(?rel), "${BASE_URI}relatedTo/"))
+              BIND(STRAFTER(STR(?rel), "relatedTo/") AS ?reltyp)
+            }
+            FILTER(?partnerId != "${DEMO_PARTNER}")
+          }
+          GROUP BY ?partnerId ?reltyp
         `);
-      } catch (e) {
-        traversalError = e.message.substring(0, 300);
-      }
+        traversal = tResult.results.bindings.map(b => ({
+          PARTNER:   b.partnerId.value,
+          REL_TYPE:  b.reltyp?.value || 'RELATED',
+          HOP:       parseInt(b.minHop.value)
+        })).sort((a, b) => a.HOP - b.HOP);
+      } catch (e) { traversalError = e.message.substring(0, 300); }
 
-      res.json({ workspaces, edgeCount, vertexCount, traversal, traversalError });
+      // Sample triples
+      const sampleResult = await sparql(`
+        PREFIX bs: <${BASE_URI}>
+        SELECT ?subject ?predicate ?object WHERE {
+          ?subject bs:relatedTo ?object .
+          ?subject bs:partnerId ?s .
+          ?object  bs:partnerId ?o .
+          BIND(STRAFTER(STR(?subject), "partner/") AS ?subject)
+          BIND("relatedTo" AS ?predicate)
+          BIND(STRAFTER(STR(?object), "partner/") AS ?object)
+        } LIMIT 15
+      `).catch(() => ({ results: { bindings: [] } }));
+      const sampleTriples = sampleResult.results.bindings.map(b => ({
+        Subject:   b.subject.value,
+        Predicate: b.predicate.value,
+        Object:    b.object.value
+      }));
+
+      res.json({ endpoint, repository, tripleCount, partnerCount, relationCount, traversal, traversalError, sampleTriples });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

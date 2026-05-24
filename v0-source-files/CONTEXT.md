@@ -7,7 +7,8 @@
 ## Phase 4 complete (2026-05-24): Pattern Agent — RPT-1 (rpt.cloud.sap consumer API) + PAL Isolation Forest EXPLAIN (real HANA AFL CALL) + LLM (claude-sonnet-4-6) all running simultaneously. Combined anomaly output for Synthesis. rpt1/pal/llm sub-objects in patternAssessment for educational popup side-by-side display.
 ## Phase 4b complete (2026-05-24): Relationship Agent — ReAct loop (max 6 steps), hana_graph_traverse (BFS over BUT050), exposure_calculator, apra_threshold_check. Returns relationshipMap {nodes, edges, groupExposure, aps221Pct, confidence, finding}.
 ## Phase 5 complete (2026-05-24): Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt (interruptBefore: humanApproval). PostgresSaver checkpointer wired. Full pipeline LIVE end-to-end.
-## Graph Engine decision (2026-05-24): KGE (Triple Store) NOT on BTP trial. GRAPH_TABLE SQL function NOT supported (preview feature only in this tier). Workspace BP_RELATIONSHIP_GRAPH deployed as HDI artifact — production upgrade path. Traversal implemented as BFS over BUT050 via cds.run() SELECT — identical multi-hop result.
+## Graph Engine decision (2026-05-24): KGE (Triple Store) NOT on BTP trial. GRAPH_TABLE SQL function NOT supported (preview feature only in this tier). Workspace BP_RELATIONSHIP_GRAPH deployed as HDI artifact — production upgrade path when GRAPH_TABLE goes GA.
+## KGE equivalent (2026-05-24): GraphDB (Graphwise sandbox) — RDF triple store + SPARQL. Same SPARQL queries run on HANA KGE in production (one endpoint change). 4035 triples loaded: 1000 BusinessPartners + 12 BUT050 relationships. SPARQL traversal from 30100003 finds 7 connected parties including TrustCo Holdings (4 hops). Sandbox expires every 7 days — restore with: npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid
 ## Last updated: 2026-05-24
 
 ---
@@ -840,14 +841,35 @@ For every pattern: AI meaning, banking meaning, SAP meaning.
 | 9 | HTML UI wired to A2A + all five Solace topics + demo rehearsed | 🔲 PENDING |
 | 10 | CF deployment + architecture diagram + demo video + blog post | 🔲 PENDING |
 
-**Graph Engine — Actual Decision (2026-05-24):**
-- KGE (Triple Store): NOT available on BTP trial (requires dedicated feature enablement in HANA Cloud Central)
-- GRAPH_TABLE SQL function: NOT supported in this HANA tier (preview feature, not GA yet)
-  - `CREATE GRAPH WORKSPACE` works (Property Graph Engine is present and functional)
-  - `SELECT ... FROM GRAPH_TABLE(...)` fails: "incorrect syntax near 'MATCH'" — all syntax variants tested
-- Traversal implementation: **BFS via CAP SELECT over BUT050** — identical multi-hop result, uses HDI technical user correctly
-- Workspace BP_RELATIONSHIP_GRAPH: stays deployed as HDI artifact — production upgrade path when GRAPH_TABLE goes GA
-- Admin UI `/admin` now has third tab "Graph Engine" showing workspace status + live BFS traversal
+**Graph Engine — Final Decision (2026-05-24):**
+
+Hierarchy followed (SAP AI Golden Path replacement rule):
+1. **KGE + SPARQL** → NOT on trial (Triple Store feature not enabled in HANA Cloud Central)
+2. **HANA Property Graph + GRAPH_TABLE** → NOT on trial (preview feature — "incorrect syntax near MATCH" on all variants)
+3. **GraphDB + SPARQL** → **IMPLEMENTED** (open source RDF triple store, same W3C SPARQL standard as KGE)
+
+GraphDB implementation:
+- Graphwise sandbox (free, 7-day rotation): `https://t5f027c83a0e2488da5e.sandbox.graphwise.ai`
+- Repository: `banking-sentinel` | 4035 RDF triples | 1000 partners | 12 BUT050 relationships
+- SPARQL traversal from 30100003 finds 7 connected parties including TrustCo Holdings (4 hops)
+- `hana_graph_traverse` MCP tool queries GraphDB via SPARQL property paths with accurate hop counts
+- Production swap: change GRAPHDB_ENDPOINT to HANA KGE endpoint — SPARQL queries are identical
+
+BUT050 enrichment — Pattern 1 (Twinkle 1 chain):
+```
+30100003 →[FAMILY_TRUST_MEMBER]→ 30910005 →[FAMILY_TRUST_MEMBER]→ 30910006
+→[SUBSIDIARY]→ 30910009 (TrustCo Group) →[PARENT_COMPANY]→ 30910010 (TrustCo Holdings)
+```
+30100001 and 30100002 also connected to TrustCo Group → connected party group for APS 221.
+
+Restore GraphDB after sandbox expiry (every 7 days):
+`npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid`
+
+HANA workspace (production upgrade path):
+- `db/src/BP_RELATIONSHIP_GRAPH.hdbgraphworkspace` deployed via HDI
+- When GRAPH_TABLE goes GA: swap SPARQL query for single GRAPH_TABLE SQL statement
+
+Admin UI: `/admin` → tab "GraphDB (KGE)" shows repository status, triple counts, live SPARQL traversal, sample RDF triples
 
 **Phase 5 implemented:**
 - trajectoryAgent: BCA_DTI.INCOME_EXPIRY → forward DTI calculation; conflicting signal resolution

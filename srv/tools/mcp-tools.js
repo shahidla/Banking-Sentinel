@@ -113,23 +113,37 @@ async function sparqlQuery(sparql) {
 
 async function hana_graph_traverse({ startNode, depth = 6 }) {
   const maxDepth = Math.min(depth, 8);
+  const startUri = `${BASE_URI}partner/${startNode}`;
+
+  // Build UNION of fixed-length paths — each arm binds its hop count
+  // SPARQL property path {1,N} doesn't return path length, so we enumerate explicitly
+  const hopClauses = [];
+  let path = 'bs:relatedTo';
+  for (let h = 1; h <= maxDepth; h++) {
+    hopClauses.push(`{ <${startUri}> ${path} ?node . BIND(${h} AS ?hop) }`);
+    path += '/bs:relatedTo';
+  }
+
   const sparql = `
     PREFIX bs: <${BASE_URI}>
-    SELECT DISTINCT ?partnerId ?reltyp WHERE {
-      <${BASE_URI}partner/${startNode}> bs:relatedTo{1,${maxDepth}} ?node .
+    SELECT ?partnerId (MIN(?hop) AS ?minHop) ?reltyp WHERE {
+      ${hopClauses.join('\n      UNION\n      ')}
       ?node bs:partnerId ?partnerId .
       OPTIONAL {
-        <${BASE_URI}partner/${startNode}> ?rel ?node .
+        <${startUri}> ?rel ?node .
+        FILTER(STRSTARTS(STR(?rel), "${BASE_URI}relatedTo/"))
         BIND(STRAFTER(STR(?rel), "relatedTo/") AS ?reltyp)
       }
+      FILTER(?partnerId != "${startNode}")
     }
+    GROUP BY ?partnerId ?reltyp
   `;
 
   const result = await sparqlQuery(sparql);
-  const traversalRows = result.results.bindings.map((b, i) => ({
-    PARTNER:   b.partnerId.value,
-    REL_TYPE:  b.reltyp?.value || 'RELATED',
-    HOP:       1
+  const traversalRows = result.results.bindings.map(b => ({
+    PARTNER:  b.partnerId.value,
+    REL_TYPE: b.reltyp?.value || 'RELATED',
+    HOP:      parseInt(b.minHop.value)
   }));
 
   const connectedPartners = traversalRows.map(r => r.PARTNER);

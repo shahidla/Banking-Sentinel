@@ -24,6 +24,7 @@
     "dotenv": "^16",
     "express": "^4",
     "langfuse": "^3",
+    "neo4j-driver": "^6.0.1",
     "pg": "^8",
     "solclientjs": "^10",
     "uuid": "^10"
