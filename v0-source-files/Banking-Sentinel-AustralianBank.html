@@ -575,15 +575,18 @@ function getCompletionHtml(e) {
     case 'rejection':
       return `<span class="r">Request rejected</span> · Outside risk intelligence scope`;
     case 'pattern': {
-      const lvlCol = { CRITICAL:'r', HIGH:'r', MEDIUM:'w', LOW:'g' }[e.riskLevel] || 'w';
-      const sig = e.signal ? ` · Signal: <span class="h">${e.signal}</span>` : '';
-      const pc  = e.patternConf != null ? ` · <span class="h">${Math.round(e.patternConf * 100)}% confidence</span>` : '';
+      const lvlCol  = { CRITICAL:'r', HIGH:'r', MEDIUM:'w', LOW:'g' }[e.riskLevel] || 'w';
+      const est     = e.rpt1Success === false ? ' <span style="font-size:9px;color:var(--mid)">(est.)</span>' : '';
+      const rpt1Txt = `RPT-1: <span class="${lvlCol}">${e.riskLevel || '—'} ${e.riskScore != null ? e.riskScore : '—'}</span>${est}`;
+      const palTxt  = `PAL: <span class="h">${e.palCount ?? 0} anomal${(e.palCount === 1) ? 'y' : 'ies'}</span>`;
+      const llmTxt  = `LLM: <span class="h">${e.signal || '—'}</span>`;
+      const confTxt = e.patternConf != null ? ` · <span class="h">${Math.round(e.patternConf * 100)}% conf</span>` : '';
       const anomalyHtml = (e.anomalies || []).length > 0
         ? '<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px;">' +
           e.anomalies.map(a => `<div style="font-size:10px;color:var(--mid)">· ${a}</div>`).join('') +
           '</div>'
         : '';
-      return `Score: <span class="${lvlCol}">${e.riskScore || '—'}</span> · <span class="${lvlCol}">${e.riskLevel || '—'}</span>${sig}${pc}${anomalyHtml}`;
+      return `${rpt1Txt} · ${palTxt} · ${llmTxt}${confTxt}${anomalyHtml}`;
     }
     case 'relationship': {
       const exp   = e.groupExposure ? 'AUD ' + (e.groupExposure/1e6).toFixed(2) + 'M' : '—';
