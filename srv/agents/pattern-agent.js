@@ -15,10 +15,11 @@ progressEmitter.setMaxListeners(50);
 
 // ── Step 1: Fetch customer data from HANA ────────────────────────────────────
 async function fetchCustomerData(customerId) {
-  const [loans, dtiRows, payments] = await Promise.all([
+  const [loans, dtiRows, payments, portfolio] = await Promise.all([
     cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId }).limit(1)),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId }).limit(100)),
+    cds.run(SELECT.from('bankingsentinel.DFKKOP').columns('DAYS_OVERDUE', 'BETRW').limit(500)),
   ]);
 
   let collateral = [];
@@ -27,7 +28,7 @@ async function fetchCustomerData(customerId) {
     collateral = await cds.run(SELECT.from('bankingsentinel.BCA_COLLATERAL').where({ LOAN_ID: { in: loanIds } }));
   }
 
-  return { loans, dti: dtiRows[0] || null, payments, collateral };
+  return { loans, dti: dtiRows[0] || null, payments, collateral, portfolio };
 }
 
 // ── Step 2: RPT-1 — SAP tabular foundation model (consumer API at rpt.cloud.sap) ──
@@ -89,17 +90,17 @@ async function callRpt1(data, customerId) {
   return { score, category, confidence };
 }
 
-// ── Step 3a: PAL — HANA Isolation Forest (train on portfolio, score one customer) ──
-// AI: Isolation Forest detects anomalies by measuring how easily a point is isolated
-// Banking: Train on all DFKKOP payment records, score this customer's rows
-//          PAL_ISOLATION_FOREST_EXPLAIN returns REASON_CODE — which feature drove the anomaly
-// SAP: PAL_RUN_ISOLATION_FOREST stored procedure — self-contained, reads from DFKKOP directly,
-//      returns result set to caller. No ScriptServer, no caller temp tables, no connection issue.
+// ── Step 3a: Isolation Forest — PAL (HANA native) or scikit-learn (open-source) ────────────
+// AI: Isolation Forest detects anomalies by measuring how easily a point is isolated from the rest
+// Banking: Train on portfolio payment history (TOP 500 DFKKOP), score this customer's rows
+// SAP: Switch via ANOMALY_ENGINE env var:
+//      pal    → HANA PAL _SYS_AFL.PAL_ISOLATION_FOREST (requires 3 vCPU + ScriptServer)
+//      scikit → ml/anomaly-service.py Flask service (default, works on Free Tier)
+
 async function runPalAnomalyDetection(data, customerId) {
   if (!data.payments.length) throw new Error('No payment rows for this customer to score');
 
   const rows = await cds.run(`CALL "PAL_RUN_ISOLATION_FOREST"(?)`, [customerId]);
-
   if (!rows || rows.length === 0) throw new Error('PAL returned no results — check DFKKOP rows for this customer');
 
   return rows.map(r => ({
@@ -108,6 +109,53 @@ async function runPalAnomalyDetection(data, customerId) {
     label:      r.LABEL,
     reasonCode: r.REASON_CODE || null
   }));
+}
+
+async function runScikitAnomalyDetection(data, customerId) {
+  if (!data.payments.length) throw new Error('No payment rows for this customer to score');
+
+  const url = process.env.SCIKIT_SERVICE_URL || 'http://localhost:5001';
+
+  const portfolio = data.portfolio.map(r => ({
+    days_overdue: Number(r.DAYS_OVERDUE) || 0,
+    amount:       Math.abs(Number(r.BETRW) || 0)
+  }));
+
+  const payments = data.payments.map((r, i) => ({
+    id:           `P${i + 1}`,
+    days_overdue: Number(r.DAYS_OVERDUE) || 0,
+    amount:       Math.abs(Number(r.BETRW) || 0)
+  }));
+
+  const response = await fetch(`${url}/anomaly`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ portfolio, payments }),
+    signal:  AbortSignal.timeout(15000)
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Scikit anomaly service HTTP ${response.status}: ${text}`);
+  }
+
+  const result = await response.json();
+  console.log(`  [Pattern/scikit] trained_on:${result.trained_on} scored:${result.scored}`);
+
+  return result.results.map(r => ({
+    id:         r.id,
+    score:      Number(r.score),
+    label:      r.label,
+    reasonCode: r.reason_code || null
+  }));
+}
+
+async function runAnomalyDetection(data, customerId) {
+  const engine = (process.env.ANOMALY_ENGINE || 'scikit').toLowerCase();
+  console.log(`  [Pattern/anomaly] engine:${engine}`);
+  return engine === 'pal'
+    ? runPalAnomalyDetection(data, customerId)
+    : runScikitAnomalyDetection(data, customerId);
 }
 
 // ── Step 3b: LLM — Claude narrative anomaly detection ────────────────────────
@@ -179,7 +227,7 @@ async function patternAgent(state) {
 
   const palPromise = (async () => {
     try {
-      const findings = await runPalAnomalyDetection(data, customerId);
+      const findings = await runAnomalyDetection(data, customerId);
       const outliers = findings.filter(f => f.label === -1);
       console.log(`  [Pattern/PAL] outliers:${outliers.length} / ${findings.length} payment rows scored`);
       progressEmitter.emit('progress', { sessionId: sid, source: 'pal', anomalyCount: outliers.length, success: true });
