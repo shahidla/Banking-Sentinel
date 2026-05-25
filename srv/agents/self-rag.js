@@ -96,16 +96,8 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
     evaluation = null;
   }
 
-  // Fallback: raw agent confidence scores if LLM response is malformed
   if (!evaluation || typeof evaluation.overallConfidence !== 'number') {
-    const patConf = pattern.confidence ?? 1;
-    const relConf = rel.confidence    ?? 1;
-    evaluation = {
-      overallConfidence: Math.min(patConf, relConf),
-      gaps:              ['LLM quality evaluation failed — using raw agent confidence scores'],
-      reQueryHint:       'Re-traverse from all connected entities found in first pass — check for missing parent entities and guarantor networks',
-      reasoning:         'Fallback: raw agent confidence scores used'
-    };
+    throw new Error('Self-RAG: LLM did not return a valid JSON evaluation with overallConfidence');
   }
 
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;

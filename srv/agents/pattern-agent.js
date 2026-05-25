@@ -6,29 +6,25 @@
 
 'use strict';
 const cds = require('@sap/cds');
+const { EventEmitter } = require('events');
 const { startSpan, endSpan } = require('../observability/langfuse-client');
 const { ChatAnthropic } = require('@langchain/anthropic');
 
+const progressEmitter = new EventEmitter();
+progressEmitter.setMaxListeners(50);
+
 // ── Step 1: Fetch customer data from HANA ────────────────────────────────────
 async function fetchCustomerData(customerId) {
-  const [loansResult, dtiResult, paymentsResult] = await Promise.allSettled([
+  const [loans, dtiRows, payments] = await Promise.all([
     cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId }).limit(1)),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId }).limit(100)),
   ]);
 
-  const loans    = loansResult.status    === 'fulfilled' ? loansResult.value    : [];
-  const dtiRows  = dtiResult.status      === 'fulfilled' ? dtiResult.value      : [];
-  const payments = paymentsResult.status === 'fulfilled' ? paymentsResult.value : [];
-
   let collateral = [];
   if (loans.length > 0) {
     const loanIds = loans.map(l => l.LOAN_ID);
-    try {
-      collateral = await cds.run(SELECT.from('bankingsentinel.BCA_COLLATERAL').where({ LOAN_ID: { in: loanIds } }));
-    } catch (e) {
-      console.warn('  [Pattern] Collateral fetch failed:', e.message);
-    }
+    collateral = await cds.run(SELECT.from('bankingsentinel.BCA_COLLATERAL').where({ LOAN_ID: { in: loanIds } }));
   }
 
   return { loans, dti: dtiRows[0] || null, payments, collateral };
@@ -93,85 +89,23 @@ async function callRpt1(data, customerId) {
   return { score, category, confidence };
 }
 
-// ── Step 2 fallback: HANA-derived estimate when RPT-1 is unavailable ─────────
-function estimateScoreFromData(data) {
-  const dtiScore     = Math.min(((parseFloat(data.dti?.DTI_RATIO) || 0) / 6.0) * 35, 35);
-  const maxOverdue   = Math.max(...data.payments.map(p => p.DAYS_OVERDUE || 0), 0);
-  const overdueScore = Math.min((maxOverdue / 180) * 35, 35);
-  const breachScore  = data.dti?.BREACH_FLAG ? 20 : 0;
-  const loanScore    = Math.min(data.loans.length * 3, 10);
-  return { score: Math.round(dtiScore + overdueScore + breachScore + loanScore), category: null, confidence: null };
-}
-
 // ── Step 3a: PAL — HANA Isolation Forest (train on portfolio, score one customer) ──
 // AI: Isolation Forest detects anomalies by measuring how easily a point is isolated
 // Banking: Train on all DFKKOP payment records, score this customer's rows
 //          PAL_ISOLATION_FOREST_EXPLAIN returns REASON_CODE — which feature drove the anomaly
-// SAP: _SYS_AFL.PAL_ISOLATION_FOREST (train) → _SYS_AFL.PAL_ISOLATION_FOREST_EXPLAIN (score)
-//      Requires AFL__SYS_AFL_AFLPAL_EXECUTE privilege on the HDI technical user
-async function runPalAnomalyDetection(data) {
-  // Train on full portfolio DFKKOP (no ID column — PAL_ISOLATION_FOREST requirement)
-  const allPayments = await cds.run(
-    SELECT.from('bankingsentinel.DFKKOP').columns('DAYS_OVERDUE', 'BETRW').limit(500)
-  );
-  if (allPayments.length < 2) throw new Error('Insufficient portfolio DFKKOP rows for PAL training');
-
+// SAP: PAL_RUN_ISOLATION_FOREST stored procedure — self-contained, reads from DFKKOP directly,
+//      returns result set to caller. No ScriptServer, no caller temp tables, no connection issue.
+async function runPalAnomalyDetection(data, customerId) {
   if (!data.payments.length) throw new Error('No payment rows for this customer to score');
 
-  // Build inline training data (UNION ALL from fetched rows, no ID column)
-  const trainUnion = allPayments.map(p =>
-    `SELECT CAST(${parseFloat(p.DAYS_OVERDUE) || 0} AS DOUBLE) AS "DAYS_OVERDUE", ` +
-    `CAST(${parseFloat(p.BETRW) || 0} AS DOUBLE) AS "AMOUNT" FROM DUMMY`
-  ).join('\nUNION ALL ');
+  const rows = await cds.run(`CALL "PAL_RUN_ISOLATION_FOREST"(?)`, [customerId]);
 
-  // Build scoring data (ID as first column — PAL_ISOLATION_FOREST_EXPLAIN requirement)
-  const scoreUnion = data.payments.map((p, i) =>
-    `SELECT CAST('P${i + 1}' AS NVARCHAR(20)) AS "ID", ` +
-    `CAST(${parseFloat(p.DAYS_OVERDUE) || 0} AS DOUBLE) AS "DAYS_OVERDUE", ` +
-    `CAST(${parseFloat(p.BETRW) || 0} AS DOUBLE) AS "AMOUNT" FROM DUMMY`
-  ).join('\nUNION ALL ');
+  if (!rows || rows.length === 0) throw new Error('PAL returned no results — check DFKKOP rows for this customer');
 
-  // Param table column names match PAL spec: PARAM_NAME, INT_VALUE, DOUBLE_VALUE, STRING_VALUE
-  const sql = `
-    DO BEGIN
-      lt_train = ${trainUnion};
-
-      lt_train_param =
-        SELECT CAST('SEED' AS NVARCHAR(256)) AS "PARAM_NAME",
-               CAST(42 AS INTEGER)            AS "INT_VALUE",
-               CAST(NULL AS DOUBLE)            AS "DOUBLE_VALUE",
-               CAST(NULL AS NVARCHAR(100))     AS "STRING_VALUE"
-        FROM DUMMY;
-
-      CALL _SYS_AFL.PAL_ISOLATION_FOREST(:lt_train, :lt_train_param, lt_model);
-
-      lt_score = ${scoreUnion};
-
-      -- EXPLAIN: LABEL = -1 for outliers, 1 for inliers. REASON_CODE = feature attribution.
-      lt_explain_param =
-        SELECT CAST('CONTAMINATION' AS NVARCHAR(256)) AS "PARAM_NAME",
-               CAST(NULL AS INTEGER)                   AS "INT_VALUE",
-               CAST(0.1 AS DOUBLE)                     AS "DOUBLE_VALUE",
-               CAST(NULL AS NVARCHAR(100))              AS "STRING_VALUE"
-        FROM DUMMY
-        UNION ALL
-        SELECT CAST('EXPLAIN_SCOPE' AS NVARCHAR(256)),
-               CAST(1 AS INTEGER),
-               CAST(NULL AS DOUBLE),
-               CAST(NULL AS NVARCHAR(100))
-        FROM DUMMY;
-
-      CALL _SYS_AFL.PAL_ISOLATION_FOREST_EXPLAIN(:lt_score, :lt_model, :lt_explain_param, lt_result);
-
-      SELECT "ID", "SCORE", "LABEL", "REASON_CODE" FROM :lt_result;
-    END;
-  `;
-
-  const rows = await cds.run(sql);
-  return (rows || []).map(r => ({
+  return rows.map(r => ({
     id:         r.ID,
     score:      Number(r.SCORE),
-    label:      r.LABEL,        // -1 = outlier (anomaly), 1 = inlier (normal)
+    label:      r.LABEL,
     reasonCode: r.REASON_CODE || null
   }));
 }
@@ -221,59 +155,70 @@ async function patternAgent(state) {
   const span = startSpan(state.traceId, 'pattern-agent', { customerId });
   console.log(`  [Pattern] Analysing: ${customerId}`);
 
-  if (!customerId) {
-    console.warn('  [Pattern] No customerId — returning MEDIUM default');
-    return {
-      patternAssessment: {
-        riskScore: 50, riskLevel: 'MEDIUM', confidence: 0.30, signal: 'unclear',
-        rpt1:      { score: 50, category: null, confidence: null, success: false },
-        pal:       { findings: [], anomalyCount: 0, success: false, error: 'No customerId' },
-        llm:       { anomalies: [], tokensIn: 0, tokensOut: 0 },
-        anomalies: []
-      }
-    };
-  }
+  if (!customerId) throw new Error('Pattern Agent: no customerId in state — intake agent must extract it');
 
   // Step 1 — fetch customer data
   const data = await fetchCustomerData(customerId);
   console.log(`  [Pattern] Fetched — loans:${data.loans.length} payments:${data.payments.length} collateral:${data.collateral.length}`);
 
-  // Step 2 — RPT-1 risk score
-  let rpt1Result  = { score: 50, category: null, confidence: null, success: false };
-  try {
-    const r        = await callRpt1(data, customerId);
-    rpt1Result     = { ...r, success: true };
-    console.log(`  [Pattern/RPT-1] score:${r.score} category:${r.category} confidence:${r.confidence}`);
-  } catch (e) {
-    const est      = estimateScoreFromData(data);
-    rpt1Result     = { ...est, success: false, error: e.message };
-    console.warn(`  [Pattern/RPT-1] unavailable (${e.message}) — estimated:${est.score}`);
-  }
+  // Steps 2-4 — RPT-1, PAL, LLM all run in parallel. Each emits a progress event
+  // the moment it settles so the UI can bold each result as it arrives.
+  const sid = state.sessionId;
 
-  // Step 3 — PAL Isolation Forest (always runs)
-  // AI: Train on portfolio, score customer — HANA-native, no LLM cost
-  // Banking: Statistical baseline — which payments are structurally anomalous vs the portfolio
-  let palResult = { findings: [], anomalyCount: 0, success: false, error: null };
-  try {
-    const findings = await runPalAnomalyDetection(data);
-    const outliers = findings.filter(f => f.label === -1);
-    palResult      = { findings, anomalyCount: outliers.length, success: true, error: null };
-    console.log(`  [Pattern/PAL] outliers:${outliers.length} / ${findings.length} payment rows scored`);
-  } catch (e) {
-    palResult.error = e.message;
-    console.warn(`  [Pattern/PAL] failed (${e.message})`);
-  }
+  const rpt1Promise = (async () => {
+    try {
+      const r = await callRpt1(data, customerId);
+      console.log(`  [Pattern/RPT-1] score:${r.score} category:${r.category} confidence:${r.confidence}`);
+      progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', score: r.score, category: r.category, confidence: r.confidence, success: true });
+      return { ...r, success: true };
+    } catch (e) {
+      progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', success: false, error: e.message });
+      throw e;
+    }
+  })();
 
-  // Step 4 — LLM narrative anomaly detection (always runs)
-  // AI: Reasoning over structured data to produce APRA-ready narrative
-  // Banking: CPS 230 requires human-readable justification — LLM provides this
-  let llmResult = { anomalies: [], tokensIn: 0, tokensOut: 0 };
-  try {
-    llmResult = await runLlmAnomalyDetection(data, customerId);
-    console.log(`  [Pattern/LLM] anomalies:${llmResult.anomalies.length} tokens:${llmResult.tokensIn}in/${llmResult.tokensOut}out`);
-  } catch (e) {
-    console.warn(`  [Pattern/LLM] failed (${e.message})`);
-  }
+  const palPromise = (async () => {
+    try {
+      const findings = await runPalAnomalyDetection(data, customerId);
+      const outliers = findings.filter(f => f.label === -1);
+      console.log(`  [Pattern/PAL] outliers:${outliers.length} / ${findings.length} payment rows scored`);
+      progressEmitter.emit('progress', { sessionId: sid, source: 'pal', anomalyCount: outliers.length, success: true });
+      return { findings, anomalyCount: outliers.length, success: true };
+    } catch (e) {
+      progressEmitter.emit('progress', { sessionId: sid, source: 'pal', success: false, error: e.message });
+      throw e;
+    }
+  })();
+
+  const llmPromise = (async () => {
+    try {
+      const r = await runLlmAnomalyDetection(data, customerId);
+      console.log(`  [Pattern/LLM] anomalies:${r.anomalies.length} tokens:${r.tokensIn}in/${r.tokensOut}out`);
+      progressEmitter.emit('progress', { sessionId: sid, source: 'llm', anomalyCount: r.anomalies.length, success: true });
+      return r;
+    } catch (e) {
+      progressEmitter.emit('progress', { sessionId: sid, source: 'llm', success: false, error: e.message });
+      throw e;
+    }
+  })();
+
+  // allSettled so all three emit progress events before we check failures
+  const [rpt1Settled, palSettled, llmSettled] = await Promise.allSettled([rpt1Promise, palPromise, llmPromise]);
+
+  // RPT-1 and LLM are blocking — PAL requires HANA Cloud ScriptServer (3 vCPU, not on Free Tier)
+  // PAL failure is non-fatal: upgrade to paid HANA Cloud + grant AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user
+  const failures = [
+    rpt1Settled.status === 'rejected' && `RPT-1: ${rpt1Settled.reason?.message}`,
+    llmSettled.status  === 'rejected' && `LLM: ${llmSettled.reason?.message}`
+  ].filter(Boolean);
+  if (failures.length > 0) throw new Error(`Pattern Agent failed:\n${failures.join('\n')}`);
+  if (palSettled.status === 'rejected')
+    console.warn(`  [Pattern/PAL] Skipped (ScriptServer unavailable — needs 3 vCPU paid HANA Cloud): ${palSettled.reason?.message}`);
+
+  const palResult = palSettled.status === 'fulfilled'
+    ? palSettled.value
+    : { findings: [], anomalyCount: 0, success: false, error: palSettled.reason?.message };
+  const [rpt1Result, llmResult] = [rpt1Settled.value, llmSettled.value];
 
   // Step 5 — derive combined signal and risk level
   // Combined anomaly list (used by Synthesis for APRA-ready brief)
@@ -330,4 +275,4 @@ function routeAfterPattern(state) {
   return route;
 }
 
-module.exports = { patternAgent, routeAfterPattern };
+module.exports = { patternAgent, routeAfterPattern, progressEmitter };

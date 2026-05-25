@@ -56,49 +56,48 @@ async function createBankingSentinelGraph() {
   const graph = new StateGraph(BankingSentinelState)
 
     // ── Agent nodes ──
-    .addNode('intake',       intakeAgent)           // Phase 3: LIVE
-    .addNode('simpleQuery',  simpleQueryNode)        // Phase 3: LIVE
-    .addNode('rejection',    rejectionNode)          // Phase 3: LIVE
-    .addNode('pattern',      patternAgent)            // Phase 4: LIVE
-    .addNode('relationship', relationshipAgent)        // Phase 4b: LIVE — ReAct loop + HANA Graph
-    .addNode('trajectory',   trajectoryAgent)         // Phase 5: LIVE
-    .addNode('selfRagCheck', selfRagCheckNode)        // Phase 6: LIVE — real LLM confidence evaluation
-    .addNode('humanApproval',humanApprovalNode)       // Phase 5: LIVE (interruptBefore fires before this node)
-    .addNode('synthesis',    synthesisAgent);         // Phase 5: LIVE
+    .addNode('intake',       intakeAgent)
+    .addNode('simpleQuery',  simpleQueryNode)
+    .addNode('rejection',    rejectionNode)
+    .addNode('riskStart',    () => ({}))             // pass-through — triggers fan-out to pattern + relationship
+    .addNode('pattern',      patternAgent)
+    .addNode('relationship', relationshipAgent)
+    .addNode('trajectory',   trajectoryAgent)
+    .addNode('selfRagCheck', selfRagCheckNode)
+    .addNode('humanApproval',humanApprovalNode)
+    .addNode('synthesis',    synthesisAgent);
 
   // ── Entry point ──
   graph.setEntryPoint('intake');
 
   // ── Conditional routing from Intake ──
-  // AI: Dynamic routing — not hardcoded. Agent decides which path to take.
-  // Banking: Same query interface handles risk analysis, data lookup, and refusal
   graph.addConditionalEdges('intake', routeFromIntake, {
     'simple_query':          'simpleQuery',
-    'risk_analysis':         'pattern',
+    'risk_analysis':         'riskStart',
     'inappropriate_request': 'rejection'
   });
 
-  // ── Terminals for Phase 3 ──
-  graph.addEdge('simpleQuery', END);   // simple queries end immediately
-  graph.addEdge('rejection',   END);   // refusals end immediately
+  // ── Terminals ──
+  graph.addEdge('simpleQuery', END);
+  graph.addEdge('rejection',   END);
 
-  // ── Full risk pipeline (Phases 4–6) ──
-  // AI: Conditional edge after Pattern — low risk skips graph traversal (cost saving)
-  // Banking: Low risk borrowers don't need 6-hop graph traversal. Only HIGH risk gets full treatment.
-  // SAP: UI shows greyed-out Relationship + Trajectory nodes for low risk customers in Panel 2
-  graph.addConditionalEdges('pattern', routeAfterPattern, {
-    'low_risk':  'synthesis',     // skip Relationship + Trajectory for score < 30
-    'high_risk': 'relationship'   // full pipeline for score >= 30
-  });
+  // ── Fan-out: pattern + relationship run in parallel after riskStart ──
+  // AI: Neither reads from the other — both only need customerId from Intake
+  // Banking: Relationship (graph traversal) and Pattern (RPT-1/PAL/LLM) are independent
+  graph.addEdge('riskStart', 'pattern');
+  graph.addEdge('riskStart', 'relationship');
 
-  graph.addEdge('relationship', 'trajectory');
+  // ── pattern → trajectory (trajectory reads patternAssessment) ──
+  graph.addEdge('pattern', 'trajectory');
+
+  // ── Fan-in: selfRagCheck waits for BOTH trajectory and relationship ──
   graph.addEdge('trajectory',   'selfRagCheck');
+  graph.addEdge('relationship', 'selfRagCheck');
 
-  // AI: Self-RAG loop — re-query if confidence below 0.70 (max 2 attempts)
-  // Banking: Risk officer goes back for more data if unsure. Epistemic humility.
+  // ── Self-RAG loop ──
   graph.addConditionalEdges('selfRagCheck', checkConfidence, {
-    'requery': 'relationship',   // loop back for additional graph traversal
-    'proceed': 'humanApproval'   // confidence sufficient — move to human review
+    'requery': 'relationship',
+    'proceed': 'humanApproval'
   });
 
   // AI: Human-in-the-loop interrupt() — execution halts here until resume event

@@ -135,17 +135,23 @@ Respond with JSON only:
   }
 }
 
-// ── Run full evaluation suite — fire-and-forget, non-blocking ────────────────
+// ── Run full evaluation suite — returns { faithfulness, answer_relevance } ────
 async function runRagasEvaluation(traceId, query, synthesisResult, regulatoryDocs) {
-  if (!traceId) return;
-  try {
-    await Promise.all([
-      evaluateFaithfulness(traceId, synthesisResult, regulatoryDocs),
-      evaluateAnswerRelevance(traceId, query, synthesisResult)
-    ]);
-  } catch (e) {
-    console.warn('  [RAGAS] evaluation suite failed:', e.message);
-  }
+  if (!traceId) return null;
+  const [faithSettled, relevSettled] = await Promise.allSettled([
+    evaluateFaithfulness(traceId, synthesisResult, regulatoryDocs),
+    evaluateAnswerRelevance(traceId, query, synthesisResult)
+  ]);
+  const faithResult = faithSettled.status === 'fulfilled' ? faithSettled.value : null;
+  const relevResult = relevSettled.status === 'fulfilled' ? relevSettled.value : null;
+  if (faithSettled.status === 'rejected') console.warn('  [RAGAS] faithfulness failed:', faithSettled.reason?.message);
+  if (relevSettled.status === 'rejected') console.warn('  [RAGAS] relevance failed:',    relevSettled.reason?.message);
+  const result = {
+    faithfulness:     faithResult?.faithfulness ?? null,
+    answer_relevance: relevResult?.relevance    ?? null
+  };
+  const hasAnyScore = result.faithfulness != null || result.answer_relevance != null;
+  return hasAnyScore ? result : null;
 }
 
 module.exports = { runRagasEvaluation, evaluateFaithfulness, evaluateAnswerRelevance };

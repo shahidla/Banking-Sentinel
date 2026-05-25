@@ -18,6 +18,7 @@ const {
 } = require('./events/solace-publisher');
 const { runRagasEvaluation } = require('./observability/ragas-evaluator');
 const { flush: langfuseFlush } = require('./observability/langfuse-client');
+const { progressEmitter } = require('./agents/pattern-agent');
 
 let graph = null;
 let langfuse = null;
@@ -170,9 +171,17 @@ cds.on('bootstrap', async (app) => {
       // AI: Stream replaces invoke() — same execution, but we get per-node state updates
       // Banking: UI Panel 2 shows live pipeline progress ("Relationship Agent... running")
       // SAP: Each node completion → publishPipelineStatus → UI subscriber updates instantly
+
+      // Forward pattern sub-task progress events to the SSE client for this session
+      const onPatternProgress = (evt) => {
+        if (evt.sessionId === sessionId) pushSSE(sessionId, 'pattern_progress', evt);
+      };
+      progressEmitter.on('progress', onPatternProgress);
+
       let finalState = { ...initialState };
       for await (const chunk of await graph.stream(initialState, { ...config, streamMode: 'updates' })) {
-        const [nodeName, nodeState] = Object.entries(chunk)[0];
+        // Fan-out nodes can produce multiple entries in one chunk — iterate all
+        for (const [nodeName, nodeState] of Object.entries(chunk)) {
         finalState = { ...finalState, ...nodeState };
 
         const eventData = {
@@ -189,6 +198,8 @@ cds.on('bootstrap', async (app) => {
           palCount:       finalState.patternAssessment?.pal?.anomalyCount ?? 0,
           llmCount:       finalState.patternAssessment?.llm?.anomalies?.length ?? 0,
           nodes:          finalState.relationshipMap?.nodes?.length,
+          graphNodes:     finalState.relationshipMap?.nodes,
+          graphEdges:     finalState.relationshipMap?.edges,
           groupExposure:  finalState.relationshipMap?.groupExposure,
           aps221Pct:      finalState.relationshipMap?.aps221Pct,
           relationshipFinding: finalState.relationshipMap?.finding,
@@ -207,7 +218,10 @@ cds.on('bootstrap', async (app) => {
           riskScore:  eventData.riskScore,
           riskLevel:  eventData.riskLevel
         });
-      }
+        } // end per-node loop
+      } // end stream chunk loop
+
+      progressEmitter.off('progress', onPatternProgress);
 
       // Check if graph paused at humanApproval (interruptBefore)
       const checkpoint = await graph.getState(config);
@@ -279,9 +293,12 @@ cds.on('bootstrap', async (app) => {
       // Persist to AuditLog
       await logToAuditLog(sessionId, params.query, answer, finalState, latencyMs);
 
-      // RAGAS-style quality evaluation — fire-and-forget, does not block response
+      // RAGAS-style quality evaluation — fire-and-forget, pushes SSE when done
       if (finalState.synthesisResult && traceId) {
         runRagasEvaluation(traceId, params.query, finalState.synthesisResult, finalState.retrievedDocs)
+          .then(ragasResult => {
+            if (ragasResult) pushSSE(sessionId, 'ragas_scores', ragasResult);
+          })
           .catch(e => console.warn('[RAGAS] evaluation error:', e.message));
       }
 
@@ -379,6 +396,7 @@ cds.on('bootstrap', async (app) => {
       const synthesis = finalState.synthesisResult;
       console.log(`[A2A] /approve complete | score:${synthesis?.riskScore} level:${synthesis?.riskLevel}`);
 
+      const approveCost = calculateCostAUD(finalState.totalInputTokens || 0, finalState.totalOutputTokens || 0);
       res.json({
         jsonrpc: '2.0',
         result: {
@@ -387,7 +405,8 @@ cds.on('bootstrap', async (app) => {
           status:          'completed',
           synthesisResult: synthesis,
           tokensIn:        finalState.totalInputTokens,
-          tokensOut:       finalState.totalOutputTokens
+          tokensOut:       finalState.totalOutputTokens,
+          costAUD:         approveCost
         },
         id: uuid()
       });

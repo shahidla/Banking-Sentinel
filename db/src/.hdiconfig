@@ -1,0 +1,13 @@
+{
+  "file_suffixes": {
+    "hdbprocedure": {
+      "plugin_name": "com.sap.hana.di.procedure"
+    },
+    "hdbgraphworkspace": {
+      "plugin_name": "com.sap.hana.di.graphworkspace"
+    },
+    "hdbsynonym": {
+      "plugin_name": "com.sap.hana.di.synonym"
+    }
+  }
+}

@@ -81,16 +81,7 @@ async function intakeAgent(state) {
     };
 
   } catch (err) {
-    console.error(`  [Intake] Parse error: ${err.message} — defaulting to RISK_ANALYSIS`);
-    return {
-      intent: {
-        isSimpleDataQuery:      false,
-        isRiskAnalysis:         true,
-        isInappropriateRequest: false,
-        customerId:             state.customerId || null,
-        description:            state.query
-      }
-    };
+    throw new Error(`Intake Agent failed: ${err.message}`);
   }
 }
 

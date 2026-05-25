@@ -15,14 +15,7 @@ async function trajectoryAgent(state) {
   const span = startSpan(state.traceId, 'trajectory-agent', { customerId });
   console.log(`  [Trajectory] Analysing forward position: ${customerId}`);
 
-  if (!customerId) {
-    return {
-      trajectoryAnalysis: {
-        currentDti: null, futureDti: null, daysToExpiry: null,
-        timeToBreach: null, conflictingSignals: [], forwardPosition: 'UNKNOWN'
-      }
-    };
-  }
+  if (!customerId) throw new Error('Trajectory Agent: no customerId in state');
 
   // Fetch DTI data
   const dtiRows = await cds.run(
@@ -30,17 +23,7 @@ async function trajectoryAgent(state) {
   );
   const dti = dtiRows[0] || null;
 
-  if (!dti) {
-    console.warn(`  [Trajectory] No DTI data for ${customerId}`);
-    return {
-      trajectoryAnalysis: {
-        currentDti: null, futureDti: null, daysToExpiry: null,
-        timeToBreach: null,
-        conflictingSignals: ['No DTI data found — trajectory assessment incomplete'],
-        forwardPosition: 'UNKNOWN'
-      }
-    };
-  }
+  if (!dti) throw new Error(`Trajectory Agent: no BCA_DTI record found for customer ${customerId}`);
 
   const currentDti   = parseFloat(dti.DTI_RATIO)    || 0;
   const totalDebt    = parseFloat(dti.TOTAL_DEBT)    || 0;
@@ -106,7 +89,7 @@ async function trajectoryAgent(state) {
       }
     }
   } catch (e) {
-    console.warn('  [Trajectory] LoanSchedule fetch failed:', e.message);
+    throw new Error(`Trajectory Agent: LoanSchedule query failed — ${e.message}`);
   }
 
   // ── Time to breach ─────────────────────────────────────────────────────────

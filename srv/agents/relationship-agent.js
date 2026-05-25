@@ -69,36 +69,12 @@ async function dispatchTool(name, args) {
 async function relationshipAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
   console.log(`  [Relationship] ReAct traversal starting: ${customerId}`);
-
-  // Hard timeout — if the ReAct loop or any LLM/tool call hangs, return an error
-  // instead of freezing the entire pipeline
-  const TIMEOUT_MS = 45000;
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Relationship Agent timed out after ${TIMEOUT_MS / 1000}s — GraphDB or LLM unresponsive`)), TIMEOUT_MS)
-  );
-  try {
-    return await Promise.race([runRelationshipAgent(state, customerId), timeout]);
-  } catch (e) {
-    console.error(`  [Relationship] FAILED: ${e.message}`);
-    return {
-      relationshipMap: {
-        nodes: [customerId], edges: [], groupExposure: 0, aps221Pct: 0, confidence: 0,
-        finding: `Relationship traversal failed: ${e.message}`
-      }
-    };
-  }
+  return runRelationshipAgent(state, customerId);
 }
 
 async function runRelationshipAgent(state, customerId) {
 
-  if (!customerId) {
-    return {
-      relationshipMap: {
-        nodes: [], edges: [], groupExposure: 0, aps221Pct: 0, confidence: 0.30,
-        note: 'No customerId — relationship traversal skipped'
-      }
-    };
-  }
+  if (!customerId) throw new Error('Relationship Agent: no customerId in state');
 
   const isRequery   = (state.requeryCount ?? 0) > 0;
   const reQueryHint = state.reQueryHint || null;
@@ -194,31 +170,27 @@ Return your final summary as JSON:
     return content.includes('{') && !m.tool_call_id;
   });
 
-  let relationshipMap = {
-    nodes: [customerId], edges: [], groupExposure: 0, aps221Pct: 0, confidence: 0.50,
-    finding: `Connected party traversal completed for ${customerId}`
-  };
+  if (!lastTextMsg) throw new Error('Relationship Agent: LLM did not return a JSON summary after ReAct loop');
 
-  if (lastTextMsg) {
-    const text  = typeof lastTextMsg.content === 'string' ? lastTextMsg.content : JSON.stringify(lastTextMsg.content);
-    const match = text.match(/\{[\s\S]*\}/);
-    try {
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        if (Array.isArray(parsed.nodes)) relationshipMap = { ...relationshipMap, ...parsed };
-      }
-    } catch (e) { /* keep defaults */ }
-  }
+  const text  = typeof lastTextMsg.content === 'string' ? lastTextMsg.content : JSON.stringify(lastTextMsg.content);
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Relationship Agent: no JSON found in LLM final response');
+
+  let parsed;
+  try { parsed = JSON.parse(match[0]); } catch (e) { throw new Error(`Relationship Agent: JSON parse failed — ${e.message}`); }
+  if (!Array.isArray(parsed.nodes)) throw new Error('Relationship Agent: LLM response missing nodes array');
+
+  const relationshipMap = { ...parsed };
 
   console.log(`  [Relationship] Done — nodes:${relationshipMap.nodes?.length} edges:${relationshipMap.edges?.length} groupExposure:${relationshipMap.groupExposure} aps221Pct:${relationshipMap.aps221Pct} steps:${steps}`);
 
   return {
     relationshipMap: {
-      nodes:         relationshipMap.nodes         || [customerId],
+      nodes:         relationshipMap.nodes,
       edges:         relationshipMap.edges         || [],
       groupExposure: relationshipMap.groupExposure || 0,
       aps221Pct:     relationshipMap.aps221Pct     || 0,
-      confidence:    relationshipMap.confidence    || 0.70,
+      confidence:    relationshipMap.confidence,
       finding:       relationshipMap.finding       || ''
     },
     totalInputTokens:  tokensIn,

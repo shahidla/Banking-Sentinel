@@ -10,6 +10,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
+    --H: 12px;
     --yellow: #FFD000;
     --yellow-dark: #E6BB00;
     --yellow-light: #FFF4A0;
@@ -42,11 +43,11 @@
     flex-direction: column;
   }
 
-  /* HEADER */
+  /* HEADER — 5H */
   header {
     background: var(--black);
     padding: 0 28px;
-    height: 56px;
+    height: calc(5 * var(--H));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -72,7 +73,7 @@
   .logo-tagline { font-family: var(--mono); font-size: 8px; letter-spacing: 2px; color: rgba(255,208,0,0.7); text-transform: uppercase; }
 
   .header-nav { display: flex; gap: 0; }
-  .nav-item { font-family: var(--sans); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5); padding: 0 16px; height: 56px; display: flex; align-items: center; letter-spacing: 0.5px; cursor: pointer; transition: color 0.2s; border-bottom: 3px solid transparent; }
+  .nav-item { font-family: var(--sans); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5); padding: 0 16px; height: calc(5 * var(--H)); display: flex; align-items: center; letter-spacing: 0.5px; cursor: pointer; transition: color 0.2s; border-bottom: 3px solid transparent; }
   .nav-item.active { color: var(--yellow); border-bottom-color: var(--yellow); }
   .nav-item:hover { color: var(--white); }
 
@@ -85,10 +86,11 @@
   .hpill.info { background: rgba(255,208,0,0.1); color: var(--yellow); border: 1px solid rgba(255,208,0,0.3); }
   @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
 
-  /* ALERT BAR */
+  /* ALERT BAR — 3H */
   .alert-bar {
     background: var(--red);
-    padding: 7px 28px;
+    height: calc(3 * var(--H));
+    padding: 0 28px;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -104,7 +106,7 @@
   main {
     flex: 1;
     display: grid;
-    grid-template-columns: 300px 1fr 390px;
+    grid-template-columns: 20% 50% 30%;
     overflow: hidden;
     gap: 0;
   }
@@ -228,12 +230,12 @@
   .ev-item { display: flex; gap: 8px; margin-bottom: 4px; font-family: var(--mono); font-size: 9px; color: var(--light); line-height: 1.4; }
   .ed { color: var(--yellow-dark); flex-shrink: 0; font-weight: 700; }
 
-  /* STATUS BAR */
+  /* STATUS BAR — 5H (matches header) */
   .statusbar {
-    height: 30px; background: var(--black); border-top: 3px solid var(--yellow);
+    height: calc(5 * var(--H)); background: var(--black); border-top: 3px solid var(--yellow);
     display: flex; align-items: center; padding: 0 22px; gap: 0; flex-shrink: 0;
   }
-  .sb-item { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: rgba(255,255,255,0.35); padding: 0 14px; border-right: 1px solid rgba(255,255,255,0.1); display: flex; gap: 5px; }
+  .sb-item { font-family: var(--sans); font-size: 15px; font-weight: 700; letter-spacing: 0.5px; color: var(--white); padding: 0 14px; border-right: 1px solid rgba(255,255,255,0.1); display: flex; gap: 5px; align-items: center; }
   .sb-item span { color: var(--yellow); }
   .sb-item:first-child { padding-left: 0; }
 
@@ -316,6 +318,8 @@
     </div>
     <div class="panel-body">
 
+      <div id="pipelineError" style="display:none;margin:8px 0 4px;padding:10px 14px;background:#2d1515;border:1px solid #7f1d1d;border-radius:6px;color:#fca5a5;font-size:13px;font-family:monospace;white-space:pre-wrap;word-break:break-word;"></div>
+
       <div class="agent-item" id="a1">
         <div class="an">01</div>
         <div>
@@ -328,7 +332,7 @@
         <div class="an">02</div>
         <div>
           <div class="anr">Pattern Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">RPT-1 tabular foundation model · HANA PAL Isolation Forest · LLM narrative anomalies · All three run simultaneously</div>
+          <div class="ao">RPT-1 tabular foundation model · HANA PAL Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled</div>
         </div>
       </div>
 
@@ -416,9 +420,11 @@
   <div class="sb-item">Langfuse <span id="ts">idle</span></div>
   <div class="sb-item">Tokens <span id="tc">0</span></div>
   <div class="sb-item">Latency <span id="lat">—</span></div>
-  <div class="sb-item">RAGAS <span id="rag">—</span></div>
-  <div class="sb-item">Graph Hops <span id="gh">0</span></div>
+  <div class="sb-item">Synth Conf <span id="rag">—</span></div>
+  <div class="sb-item">RAGAS <span id="ragScore">—</span></div>
+  <div class="sb-item">Connected Entities <span id="gh">0</span></div>
   <div class="sb-item">Self-RAG Re-queries <span id="rq">0</span></div>
+  <div class="sb-item">Cost <span id="costAud">—</span></div>
   <div class="sb-item">TRBK Tables <span id="tbl">—</span></div>
 </div>
 
@@ -429,6 +435,30 @@ let sessionId = null;
 let evtSource = null;
 let agentsDone = 0;
 let startTime = null;
+
+// Progressive pattern results — populated as RPT-1 / PAL / LLM each return
+const patternParts = { rpt1: null, pal: null, llm: null };
+
+function renderPatternProgress() {
+  const ao = document.querySelector('#a2 .ao');
+  if (!ao) return;
+  const pending = '<span style="color:var(--light)">…</span>';
+  const p = patternParts;
+  const rpt1Html = p.rpt1
+    ? (() => {
+        const col = { CRITICAL:'r', HIGH:'r', MEDIUM:'w', LOW:'g' }[(p.rpt1.category || '').toUpperCase()] || 'w';
+        const est = p.rpt1.success === false ? ' <span style="font-size:9px;color:var(--mid)">(est.)</span>' : '';
+        return `<b>RPT-1: <span class="${col}">${p.rpt1.category || '—'} ${p.rpt1.score ?? '—'}</span>${est}</b>`;
+      })()
+    : `RPT-1: ${pending}`;
+  const palHtml = p.pal
+    ? `<b>PAL: <span class="h">${p.pal.anomalyCount ?? 0} anomal${p.pal.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`
+    : `PAL: ${pending}`;
+  const llmHtml = p.llm
+    ? `<b>LLM: <span class="h">${p.llm.anomalyCount ?? 0} anomal${p.llm.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`
+    : `LLM: ${pending}`;
+  ao.innerHTML = `${rpt1Html} · ${palHtml} · ${llmHtml}`;
+}
 
 // Agent node name → UI element id
 const AGENT_MAP = {
@@ -442,6 +472,18 @@ const AGENT_MAP = {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function setQ(el) { document.querySelector('.query-input').value = el.textContent; }
+
+function showError(msg) {
+  document.getElementById('ts').textContent = 'error';
+  document.getElementById('ts').style.color = '#ff6666';
+  const errEl = document.getElementById('pipelineError');
+  errEl.textContent = '⚠ ' + msg;
+  errEl.style.display = 'block';
+  ['a1','a2','a3','a4','a5'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.querySelector('.as')?.textContent === 'THINKING') setAgent(id, 'idle', null);
+  });
+}
 
 function resetUI() {
   agentsDone = 0; startTime = Date.now();
@@ -461,10 +503,17 @@ function resetUI() {
   document.getElementById('cv').textContent = '0%';
   document.getElementById('ts').textContent = 'idle';
   document.getElementById('ts').style.color = '';
+  document.getElementById('pipelineError').style.display = 'none';
+  document.getElementById('pipelineError').textContent = '';
   document.getElementById('tc').textContent = '0';
   document.getElementById('lat').textContent = '—';
   document.getElementById('rq').textContent = '0';
   document.getElementById('gh').textContent = '0';
+  patternParts.rpt1 = null; patternParts.pal = null; patternParts.llm = null;
+  document.getElementById('rag').textContent = '—';
+  document.getElementById('ragScore').textContent = '—';
+  document.getElementById('ragScore').style.color = '';
+  document.getElementById('costAud').textContent = '—';
   document.getElementById('rsn').textContent = '—';
   document.getElementById('rdl').textContent = 'Awaiting Analysis';
   document.getElementById('rdd').textContent = 'Run a query to generate the risk brief';
@@ -498,6 +547,13 @@ function handleEvent(evt) {
   const e = JSON.parse(evt.data);
   if (e.type === 'connected') return;
 
+  // Progressive pattern sub-task results — each fires as soon as RPT-1 / PAL / LLM settles
+  if (e.type === 'pattern_progress') {
+    patternParts[e.source] = e;
+    renderPatternProgress();
+    return;
+  }
+
   if (startTime) document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
 
   if (e.type === 'pipeline_status') {
@@ -527,29 +583,54 @@ function handleEvent(evt) {
       return;
     }
 
+    // riskStart fan-out — activate both pattern and relationship simultaneously
+    if (e.agent === 'riskStart') {
+      setAgent('a2', 'active', null);
+      setAgent('a3', 'active', null);
+      return;
+    }
+
     const agentId = AGENT_MAP[e.agent];
     if (!agentId) return;
 
     // Set next agent as active (pipeline hint)
-    const nextMap = { intake: 'a2', pattern: 'a3', relationship: 'a4', trajectory: 'a4' };
+    const nextMap = { intake: 'a2', relationship: 'a4', trajectory: 'a4' };
     if (nextMap[e.agent]) setAgent(nextMap[e.agent], 'active', null);
+
+    // Pattern: mark complete but preserve the progressive bold .ao built by pattern_progress events
+    if (e.agent === 'pattern') {
+      setAgent('a2', 'complete', null);   // badge only — .ao already has bold progressive text
+      const ao = document.querySelector('#a2 .ao');
+      if (ao && e.patternConf != null) {
+        ao.innerHTML += ` · <span class="h">${Math.round(e.patternConf * 100)}% conf</span>`;
+      }
+      document.getElementById('rsn').textContent = e.riskScore || '—';
+      document.getElementById('rdl').textContent = (e.riskLevel || '—') + ' RISK';
+      const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
+      document.querySelector('.risk-score-block').style.background = c[e.riskLevel] || '#888';
+      return;
+    }
 
     setAgent(agentId, 'complete', getCompletionHtml(e));
 
     if (e.agent === 'relationship') {
       document.getElementById('gh').textContent = e.nodes || '?';
-      if ((e.nodes || 0) > 1) { document.getElementById('gw').style.display = 'block'; setTimeout(drawGraph, 50); }
-    }
-    if (e.agent === 'pattern') {
-      document.getElementById('rsn').textContent = e.riskScore || '—';
-      document.getElementById('rdl').textContent = (e.riskLevel || '—') + ' RISK';
-      const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
-      document.querySelector('.risk-score-block').style.background = c[e.riskLevel] || '#888';
+      if ((e.nodes || 0) >= 1) { document.getElementById('gw').style.display = 'block'; setTimeout(() => drawGraph(e.graphNodes, e.graphEdges), 50); }
     }
   }
 
   if (e.type === 'risk_findings') renderRiskBrief(e.synthesisResult);
   if (e.type === 'human_approval') document.getElementById('approveBar').style.display = 'flex';
+
+  if (e.type === 'ragas_scores') {
+    const f = e.faithfulness    != null ? e.faithfulness    : null;
+    const r = e.answer_relevance != null ? e.answer_relevance : null;
+    const avg = (f != null && r != null) ? ((f + r) / 2) : (f ?? r ?? 0);
+    const el = document.getElementById('ragScore');
+    el.textContent = avg.toFixed(2);
+    el.style.color = avg >= 0.70 ? '#2add7a' : avg >= 0.50 ? '#FFD000' : '#ff6666';
+    return;
+  }
 
   if (e.type === 'regulatory_update') {
     const b = document.getElementById('regulatoryBanner');
@@ -577,9 +658,9 @@ function getCompletionHtml(e) {
     case 'pattern': {
       const lvlCol  = { CRITICAL:'r', HIGH:'r', MEDIUM:'w', LOW:'g' }[e.riskLevel] || 'w';
       const est     = e.rpt1Success === false ? ' <span style="font-size:9px;color:var(--mid)">(est.)</span>' : '';
-      const rpt1Txt = `RPT-1: <span class="${lvlCol}">${e.riskLevel || '—'} ${e.riskScore != null ? e.riskScore : '—'}</span>${est}`;
-      const palTxt  = `PAL: <span class="h">${e.palCount ?? 0} anomal${(e.palCount === 1) ? 'y' : 'ies'}</span>`;
-      const llmTxt  = `LLM: <span class="h">${e.signal || '—'}</span>`;
+      const rpt1Txt = `<b>RPT-1:</b> <span class="${lvlCol}">${e.riskLevel || '—'} ${e.riskScore != null ? e.riskScore : '—'}</span>${est}`;
+      const palTxt  = `<b>PAL:</b> <span class="h">${e.palCount ?? 0} anomal${(e.palCount === 1) ? 'y' : 'ies'}</span>`;
+      const llmTxt  = `<b>LLM:</b> <span class="h">${e.signal || '—'}</span>`;
       const confTxt = e.patternConf != null ? ` · <span class="h">${Math.round(e.patternConf * 100)}% conf</span>` : '';
       const anomalyHtml = (e.anomalies || []).length > 0
         ? '<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px;">' +
@@ -642,15 +723,18 @@ async function runAnalysis() {
       body: JSON.stringify({ method: 'analyseRisk', params: { query, sessionId }, id: '1' })
     });
     const data = await res.json();
+    if (data.error) {
+      showError(data.error.message || 'Pipeline error');
+      return;
+    }
     const r = data.result || {};
     document.getElementById('tc').textContent = ((r.tokensIn || 0) + (r.tokensOut || 0)).toLocaleString();
+    if (r.costAUD != null) document.getElementById('costAud').textContent = 'AUD ' + r.costAUD.toFixed(4);
     if (r.status !== 'awaiting_approval') {
       document.getElementById('ts').textContent = 'complete';
     }
   } catch (err) {
-    console.error('[A2A]', err);
-    document.getElementById('ts').textContent = 'error';
-    document.getElementById('ts').style.color = '#ff6666';
+    showError(err.message || 'Network error');
   }
 }
 
@@ -669,6 +753,7 @@ async function approve() {
     const data = await res.json();
     const r = data.result || {};
     document.getElementById('tc').textContent = ((r.tokensIn || 0) + (r.tokensOut || 0)).toLocaleString();
+    if (r.costAUD != null) document.getElementById('costAud').textContent = 'AUD ' + r.costAUD.toFixed(4);
     document.getElementById('ts').textContent = 'complete';
     document.getElementById('ts').style.color = '#FFD000';
   } catch (err) {
@@ -749,31 +834,78 @@ function renderRiskBrief(s) {
 }
 
 // ── Graph canvas ──────────────────────────────────────────────────────────────
-function drawGraph() {
+function drawGraph(rawNodes, rawEdges) {
   const c = document.getElementById('graphCanvas');
   const ctx = c.getContext('2d');
   c.width = c.offsetWidth; c.height = c.offsetHeight;
-  const h = c.height;
-  const nodes = [
-    {x:50, y:h/2,    l:'30100001', s:'Borrower',  col:'#D42020', r:14},
-    {x:155,y:h/2-35, l:'L-001',    s:'Home Loan', col:'#0055B3', r:11},
-    {x:155,y:h/2+35, l:'L-002',    s:'Inv Prop',  col:'#0055B3', r:10},
-    {x:265,y:h/2-48, l:'30910005', s:'Guarantor', col:'#D42020', r:13},
-    {x:265,y:h/2+48, l:'OVERDUE',  s:'81 days',   col:'#D42020', r:9},
-    {x:360,y:h/2-28, l:'30910006', s:'Connected', col:'#C47A00', r:10},
-    {x:360,y:h/2+28, l:'30910009', s:'TrustCo',   col:'#C47A00', r:10},
-  ];
-  const edges = [[0,1],[0,2],[1,3],[2,4],[3,5],[3,6]];
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1.5;
-  edges.forEach(([a,b]) => { ctx.beginPath(); ctx.moveTo(nodes[a].x,nodes[a].y); ctx.lineTo(nodes[b].x,nodes[b].y); ctx.stroke(); });
-  nodes.forEach(n => {
-    ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
-    ctx.fillStyle = n.col+'22'; ctx.fill();
-    ctx.strokeStyle = n.col; ctx.lineWidth = 2; ctx.stroke();
+  const w = c.width, h = c.height;
+
+  // Normalise nodes to string IDs
+  const nodeIds = Array.isArray(rawNodes) && rawNodes.length > 0
+    ? rawNodes.map(String)
+    : ['Customer'];
+
+  // Normalise edges to index pairs; support both [idx,idx] and ["id","id"] forms
+  const edgePairs = [];
+  if (Array.isArray(rawEdges)) {
+    rawEdges.forEach(e => {
+      if (!Array.isArray(e) || e.length < 2) return;
+      let a = e[0], b = e[1];
+      if (typeof a === 'string') a = nodeIds.indexOf(a);
+      if (typeof b === 'string') b = nodeIds.indexOf(b);
+      if (a >= 0 && b >= 0 && a < nodeIds.length && b < nodeIds.length) edgePairs.push([a, b]);
+    });
+  }
+  // Fallback: star from node 0 if no usable edges but multiple nodes
+  if (edgePairs.length === 0 && nodeIds.length > 1) {
+    for (let i = 1; i < nodeIds.length; i++) edgePairs.push([0, i]);
+  }
+
+  // BFS depth from node 0
+  const depth = new Array(nodeIds.length).fill(0);
+  const visited = new Set([0]);
+  const queue = [0];
+  while (queue.length) {
+    const cur = queue.shift();
+    edgePairs.forEach(([a, b]) => {
+      const nb = a === cur ? b : b === cur ? a : -1;
+      if (nb >= 0 && !visited.has(nb)) { depth[nb] = depth[cur] + 1; visited.add(nb); queue.push(nb); }
+    });
+  }
+
+  const maxDepth = Math.max(...depth, 0);
+  // Group nodes by depth column
+  const cols = {};
+  nodeIds.forEach((_, i) => { const d = depth[i]; (cols[d] = cols[d] || []).push(i); });
+
+  const pos = new Array(nodeIds.length);
+  Object.entries(cols).forEach(([d, idxs]) => {
+    const xFrac = maxDepth === 0 ? 0.5 : parseInt(d) / maxDepth * 0.82 + 0.09;
+    idxs.forEach((idx, slot) => {
+      pos[idx] = { x: w * xFrac, y: h * ((slot + 1) / (idxs.length + 1)) };
+    });
+  });
+
+  const PALETTE = ['#D42020', '#0055B3', '#C47A00', '#0D7A3E', '#7B3FA0', '#D42020'];
+
+  // Edges
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1.5;
+  edgePairs.forEach(([a, b]) => {
+    if (!pos[a] || !pos[b]) return;
+    ctx.beginPath(); ctx.moveTo(pos[a].x, pos[a].y); ctx.lineTo(pos[b].x, pos[b].y); ctx.stroke();
+  });
+
+  // Nodes
+  nodeIds.forEach((id, i) => {
+    if (!pos[i]) return;
+    const r   = i === 0 ? 14 : 11;
+    const col = PALETTE[Math.min(i, PALETTE.length - 1)];
+    const lbl = id.length > 9 ? id.slice(0, 9) : id;
+    ctx.beginPath(); ctx.arc(pos[i].x, pos[i].y, r, 0, Math.PI * 2);
+    ctx.fillStyle = col + '22'; ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 8px Figtree'; ctx.textAlign = 'center';
-    ctx.fillText(n.l,n.x,n.y+2);
-    ctx.fillStyle = '#A0A0A0'; ctx.font = '7px Figtree';
-    ctx.fillText(n.s,n.x,n.y+n.r+11);
+    ctx.fillText(lbl, pos[i].x, pos[i].y + 3);
   });
 }
 </script>

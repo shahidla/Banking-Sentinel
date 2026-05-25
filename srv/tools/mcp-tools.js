@@ -176,11 +176,8 @@ async function hana_graph_traverse({ startNode, depth = 6 }) {
 
   const groupExposure = guarantors.reduce((sum, g) => sum + parseFloat(g.COVER_AMOUNT || 0), 0);
 
-  let aps221Pct = 0;
-  try {
-    const limits = await cds.run(SELECT.from('bankingsentinel.ExposureLimits').where({ LIMIT_TYPE: 'GROUP' }));
-    if (limits[0]) aps221Pct = (groupExposure / parseFloat(limits[0].LIMIT_AUD)) * 100;
-  } catch (e) { /* ExposureLimits not present locally */ }
+  const limits = await cds.run(SELECT.from('bankingsentinel.ExposureLimits').where({ LIMIT_TYPE: 'GROUP' }));
+  const aps221Pct = limits[0] ? (groupExposure / parseFloat(limits[0].LIMIT_AUD)) * 100 : 0;
 
   const maxHop = traversalRows.length > 0 ? Math.max(...traversalRows.map(r => r.HOP || 0)) : 0;
 
