@@ -30,6 +30,12 @@ function getSolaceFactory() {
 // SAP: Solace DIRECT delivery mode — same pattern as MJ Live consumer.html events
 async function publish(topic, payload) {
   return new Promise((resolve) => {
+    // Safety timeout — if Solace never connects, resolve after 8s so endpoint never hangs
+    const timer = setTimeout(() => {
+      console.warn(`  [Solace] publish timeout (${topic}) — broker did not respond in 8s`);
+      resolve(false);
+    }, 8000);
+
     try {
       const solace  = require('solclientjs');
       const factory = getSolaceFactory();
@@ -49,18 +55,24 @@ async function publish(topic, payload) {
         session.send(msg);
         console.log(`  [Solace] → ${topic}`);
         session.disconnect();
+        clearTimeout(timer);
         resolve(true);
       });
 
       session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, (e) => {
         console.warn(`  [Solace] publish failed (${topic}): ${e.infoStr || e.message || 'connection error'}`);
+        clearTimeout(timer);
         resolve(false);
       });
 
-      session.on(solace.SessionEventCode.DISCONNECTED, () => resolve(true));
+      session.on(solace.SessionEventCode.DISCONNECTED, () => {
+        clearTimeout(timer);
+        resolve(true);
+      });
       session.connect();
     } catch (e) {
       console.warn(`  [Solace] publisher error (${topic}): ${e.message}`);
+      clearTimeout(timer);
       resolve(false);
     }
   });

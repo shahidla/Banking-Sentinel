@@ -27,12 +27,18 @@ const HTML = `<!DOCTYPE html>
   .tab:hover { color: #e2e8f0; }
   .tab.active { color: #f59e0b; border-bottom-color: #f59e0b; }
   .layout { display: flex; flex: 1; overflow: hidden; }
-  .sidebar { width: 220px; background: #12141f; border-right: 1px solid #2d3148; overflow-y: auto; flex-shrink: 0; }
-  .sidebar-header { padding: 10px 14px; font-size: 12px; font-weight: 700; color: #475569; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid #2d3148; }
+  .sidebar { width: 220px; background: #12141f; border-right: 1px solid #2d3148; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+  .sidebar-header { padding: 10px 14px; font-size: 12px; font-weight: 700; color: #475569; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid #2d3148; flex-shrink: 0; }
+  .sidebar-tables { flex: 1; overflow-y: auto; }
+  .sidebar-actions { padding: 8px 10px; border-top: 1px solid #2d3148; flex-shrink: 0; }
+  .btn-clear-all { width: 100%; padding: 6px 10px; background: #3d1515; color: #fca5a5; border: 1px solid #7f1d1d; font-size: 12px; cursor: pointer; text-align: left; }
+  .btn-clear-all:hover { background: #7f1d1d; }
   .entity-btn { display: block; width: 100%; text-align: left; padding: 8px 14px; font-size: 14px; color: #94a3b8; background: none; border: none; cursor: pointer; border-left: 2px solid transparent; transition: all 0.1s; }
   .entity-btn:hover { background: #1a1d2e; color: #e2e8f0; }
   .entity-btn.active { background: #1a1d2e; color: #f59e0b; border-left-color: #f59e0b; }
   .entity-btn .count { float: right; font-size: 12px; color: #475569; }
+  .entity-btn .clr { float: right; font-size: 10px; color: #7f1d1d; margin-right: 6px; opacity: 0; transition: opacity 0.1s; }
+  .entity-btn:hover .clr { opacity: 1; }
   .main { flex: 1; overflow: auto; padding: 16px; }
   .panel { display: none; height: 100%; }
   .panel.active { display: flex; flex-direction: column; height: 100%; }
@@ -78,7 +84,20 @@ const HTML = `<!DOCTYPE html>
   <!-- HANA sidebar -->
   <div class="sidebar" id="hana-sidebar">
     <div class="sidebar-header">Tables</div>
-    ${HANA_ENTITIES.map(e => `<button class="entity-btn" id="btn-${e}" onclick="loadHana('${e}')">${e}<span class="count" id="cnt-${e}"></span></button>`).join('\n    ')}
+    <div class="sidebar-tables">
+      ${HANA_ENTITIES.map(e => `<button class="entity-btn" id="btn-${e}" onclick="loadHana('${e}')">${e}<span class="count" id="cnt-${e}"></span></button>`).join('\n      ')}
+    </div>
+  </div>
+
+  <!-- Postgres sidebar -->
+  <div class="sidebar" id="pg-sidebar" style="display:none;">
+    <div class="sidebar-header">Tables</div>
+    <div class="sidebar-tables" id="pg-table-list">
+      <div style="padding:14px;font-size:13px;color:#475569;">Loading...</div>
+    </div>
+    <div class="sidebar-actions">
+      <button class="btn-clear-all" onclick="clearAllPg()">✕ Clear All Checkpoints</button>
+    </div>
   </div>
 
   <!-- Main content -->
@@ -102,11 +121,13 @@ const HTML = `<!DOCTYPE html>
     <!-- PostgreSQL panel -->
     <div class="panel" id="panel-pg">
       <div class="info-bar">
-        <h2>PostgreSQL — LangGraph State Tables</h2>
-        <button class="refresh-btn" onclick="loadPg()">↻ Refresh</button>
+        <h2 id="pg-title">Select a table →</h2>
+        <span class="badge" id="pg-badge" style="display:none"></span>
+        <button class="refresh-btn" onclick="reloadPg()" style="display:none" id="pg-refresh">↻ Refresh</button>
       </div>
       <div class="data-area">
-        <div id="pg-loading" class="loading">Loading...</div>
+        <div class="empty" id="pg-empty">Select a table from the sidebar to view its data.</div>
+        <div id="pg-loading" class="loading" style="display:none">Loading...</div>
         <div id="pg-error" class="error" style="display:none"></div>
         <div id="pg-content"></div>
       </div>
@@ -133,11 +154,12 @@ let currentEntity = null;
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (tab==='hana'&&i===0)||(tab==='pg'&&i===1)||(tab==='graph'&&i===2)));
-  document.getElementById('hana-sidebar').style.display = tab === 'hana' ? 'block' : 'none';
+  document.getElementById('hana-sidebar').style.display = tab === 'hana' ? 'flex' : 'none';
+  document.getElementById('pg-sidebar').style.display   = tab === 'pg'   ? 'flex' : 'none';
   document.getElementById('panel-hana').classList.toggle('active', tab === 'hana');
   document.getElementById('panel-pg').classList.toggle('active', tab === 'pg');
   document.getElementById('panel-graph').classList.toggle('active', tab === 'graph');
-  if (tab === 'pg') loadPg();
+  if (tab === 'pg') loadPgSidebar();
   if (tab === 'graph') loadGraph();
 }
 
@@ -192,42 +214,80 @@ function renderTable(rows) {
   return '<table>' + head + body + '</table>';
 }
 
-async function loadPg() {
+let currentPgTable = null;
+
+async function loadPgSidebar() {
+  try {
+    const r = await fetch('/admin/api/pg');
+    const d = await r.json();
+    if (d.error) { document.getElementById('pg-table-list').innerHTML = '<div style="padding:14px;color:#fca5a5;font-size:12px;">' + d.error + '</div>'; return; }
+    const tables = Object.keys(d);
+    document.getElementById('pg-table-list').innerHTML = tables.map(t =>
+      '<button class="entity-btn" id="pgbtn-' + t + '" data-table="' + t + '">' + t +
+      (t !== 'checkpoint_migrations' ? '<span class="clr" data-table="' + t + '">✕</span>' : '') +
+      '<span class="count" id="pgcnt-' + t + '">' + d[t].count + '</span></button>'
+    ).join('');
+    document.querySelectorAll('#pg-table-list .entity-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { loadPgTable(btn.dataset.table); });
+      var clr = btn.querySelector('.clr');
+      if (clr) clr.addEventListener('click', function(e) { e.stopPropagation(); clearPgTable(e, btn.dataset.table); });
+    });
+  } catch(e) {
+    document.getElementById('pg-table-list').innerHTML = '<div style="padding:14px;color:#fca5a5;font-size:12px;">' + e.message + '</div>';
+  }
+}
+
+async function loadPgTable(table) {
+  currentPgTable = table;
+  document.querySelectorAll('[id^="pgbtn-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('pgbtn-' + table);
+  if (btn) btn.classList.add('active');
+  document.getElementById('pg-title').textContent = table;
+  document.getElementById('pg-empty').style.display = 'none';
   document.getElementById('pg-loading').style.display = 'block';
   document.getElementById('pg-error').style.display = 'none';
   document.getElementById('pg-content').innerHTML = '';
+  document.getElementById('pg-refresh').style.display = 'inline';
   try {
     const r = await fetch('/admin/api/pg');
     const d = await r.json();
     document.getElementById('pg-loading').style.display = 'none';
-    if (d.error) {
-      document.getElementById('pg-error').textContent = d.error;
-      document.getElementById('pg-error').style.display = 'block';
-      return;
-    }
-    const tables = Object.keys(d);
-    if (tables.length === 0) {
-      document.getElementById('pg-content').innerHTML = '<div class="empty">No tables found in PostgreSQL.</div>';
-      return;
-    }
-    const TABLE_PURPOSE = {
-      checkpoints:           'Full agent state snapshot saved after each LangGraph node completes. Keyed by thread_id + checkpoint_id. Used to resume interrupted workflows (e.g. human-in-the-loop approval across server restarts).',
-      checkpoint_writes:     'Intermediate channel writes recorded during node execution before the checkpoint is finalised. Enables partial replay if a node crashes mid-run.',
-      checkpoint_blobs:      'Large binary state values (e.g. embeddings, serialised objects) stored separately from the main checkpoint row to keep checkpoint queries fast.',
-      checkpoint_migrations: 'Schema version tracking for PostgresSaver. Each row = one applied migration. Ensures setup() is idempotent across deployments.'
-    };
-    document.getElementById('pg-content').innerHTML = tables.map(t =>
-      '<div class="pg-section">' +
-      '<h3>' + t + ' <span style="color:#475569;font-size:11px;">(' + d[t].count + ' rows)</span></h3>' +
-      (TABLE_PURPOSE[t] ? '<div class="purpose">' + TABLE_PURPOSE[t] + '</div>' : '') +
-      renderTable(d[t].rows) +
-      '</div>'
-    ).join('');
+    if (d.error) { document.getElementById('pg-error').textContent = d.error; document.getElementById('pg-error').style.display = 'block'; return; }
+    const td = d[table];
+    if (!td) { document.getElementById('pg-content').innerHTML = '<div class="empty">Table not found.</div>'; return; }
+    const badge = document.getElementById('pg-badge');
+    badge.textContent = td.count + ' rows';
+    badge.className = 'badge ' + (td.count > 0 ? 'green' : '');
+    badge.style.display = 'inline';
+    document.getElementById('pg-content').innerHTML = td.rows.length === 0
+      ? '<div class="empty">No data in this table.</div>'
+      : renderTable(td.rows);
   } catch(e) {
     document.getElementById('pg-loading').style.display = 'none';
     document.getElementById('pg-error').textContent = e.message;
     document.getElementById('pg-error').style.display = 'block';
   }
+}
+
+function reloadPg() { if (currentPgTable) loadPgTable(currentPgTable); }
+
+async function clearPgTable(evt, table) {
+  evt.stopPropagation();
+  if (!confirm('Clear all rows from "' + table + '"?')) return;
+  try {
+    await fetch('/admin/api/pg/clear/' + table, { method: 'DELETE' });
+    await loadPgSidebar();
+    if (currentPgTable === table) loadPgTable(table);
+  } catch(e) { alert(e.message); }
+}
+
+async function clearAllPg() {
+  if (!confirm('Clear all checkpoint data? This cannot be undone.')) return;
+  try {
+    await fetch('/admin/api/pg/clear', { method: 'DELETE' });
+    await loadPgSidebar();
+    if (currentPgTable) loadPgTable(currentPgTable);
+  } catch(e) { alert(e.message); }
 }
 
 async function loadGraph() {
@@ -298,7 +358,23 @@ loadCounts();
 </body>
 </html>`;
 
+// Restrict all /admin routes to localhost + optionally an ADMIN_TOKEN in env
+function adminGuard(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress || '';
+  const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  const token = process.env.ADMIN_TOKEN;
+  if (token) {
+    const provided = (req.headers['x-admin-token'] || req.query.token || '').trim();
+    if (provided !== token) return res.status(401).json({ error: 'Unauthorized' });
+  } else if (!isLocal) {
+    return res.status(403).json({ error: 'Admin only accessible from localhost' });
+  }
+  next();
+}
+
 function mountAdminUI(app) {
+  app.use('/admin', adminGuard);
+
   app.get('/admin', (req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
@@ -309,12 +385,16 @@ function mountAdminUI(app) {
     const entity = req.params.entity;
     if (!HANA_ENTITIES.includes(entity)) return res.status(400).json({ error: 'Unknown entity: ' + entity });
     try {
-      const rows = await cds.run(SELECT.from(`bankingsentinel.${entity}`).limit(200));
+      const [rows, countResult] = await Promise.all([
+        cds.run(SELECT.from(`bankingsentinel.${entity}`).limit(200)),
+        cds.run(SELECT.one.from(`bankingsentinel.${entity}`).columns('count(*) as n'))
+      ]);
+      const totalCount = parseInt(countResult?.n ?? rows.length);
       const clean = rows.map(r => {
         if (r.EMBEDDING) r.EMBEDDING = '[vector — ' + (r.EMBEDDING.length) + ' chars]';
         return r;
       });
-      res.json({ count: clean.length, rows: clean });
+      res.json({ count: totalCount, rows: clean });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -403,21 +483,39 @@ function mountAdminUI(app) {
     }
   });
 
+  const { Pool } = require('pg');
+  const pgPool = process.env.POSTGRES_URL
+    ? new Pool({ connectionString: process.env.POSTGRES_URL, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000 })
+    : null;
+  const PG_TABLES = ['checkpoint_migrations', 'checkpoints', 'checkpoint_blobs', 'checkpoint_writes'];
+
   app.get('/admin/api/pg', async (req, res) => {
+    if (!pgPool) return res.status(500).json({ error: 'POSTGRES_URL not configured' });
     try {
-      const { Pool } = require('pg');
-      const pool = new Pool({ connectionString: process.env.POSTGRES_URL, connectionTimeoutMillis: 5000 });
-      const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'checkpoint%' ORDER BY table_name`);
       const results = {};
-      for (const t of tables.rows) {
-        const r = await pool.query(`SELECT * FROM "${t.table_name}" LIMIT 50`);
-        results[t.table_name] = { count: r.rowCount, rows: r.rows };
+      for (const t of PG_TABLES) {
+        try {
+          const r = await pgPool.query(`SELECT * FROM "${t}" ORDER BY 1 LIMIT 50`);
+          results[t] = { count: r.rowCount, rows: r.rows };
+        } catch { results[t] = { count: 0, rows: [] }; }
       }
-      await pool.end();
       res.json(results);
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete('/admin/api/pg/clear/:table', async (req, res) => {
+    if (!pgPool) return res.status(500).json({ error: 'POSTGRES_URL not configured' });
+    const table = req.params.table;
+    if (!PG_TABLES.includes(table)) return res.status(400).json({ error: 'Table not allowed' });
+    if (table === 'checkpoint_migrations') return res.status(400).json({ error: 'Cannot clear migrations table' });
+    try { await pgPool.query(`TRUNCATE "${table}"`); res.json({ ok: true }); }
+    catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete('/admin/api/pg/clear', async (req, res) => {
+    if (!pgPool) return res.status(500).json({ error: 'POSTGRES_URL not configured' });
+    try { await pgPool.query(`TRUNCATE checkpoints, checkpoint_blobs, checkpoint_writes`); res.json({ ok: true }); }
+    catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   console.log('  [Admin] Data browser: GET /admin');

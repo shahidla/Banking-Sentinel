@@ -67,27 +67,6 @@
 
   .logo { display: flex; align-items: center; gap: 16px; }
 
-  /* Diamond shape */
-  .diamond {
-    width: 32px;
-    height: 32px;
-    background: var(--yellow);
-    transform: rotate(45deg);
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  .diamond::after {
-    content: '';
-    position: absolute;
-    right: -4px;
-    top: -4px;
-    width: 12px;
-    height: 12px;
-    background: var(--black);
-    opacity: 0.3;
-  }
-
   .logo-text { display: flex; flex-direction: column; gap: 1px; }
   .logo-name { font-family: var(--sans); font-size: 15px; font-weight: 700; letter-spacing: 1px; color: var(--white); }
   .logo-tagline { font-family: var(--mono); font-size: 8px; letter-spacing: 2px; color: rgba(255,208,0,0.7); text-transform: uppercase; }
@@ -267,7 +246,7 @@
 
 <header>
   <div class="logo">
-    <div class="diamond"></div>
+    <img src="/logo.png" style="height:32px;width:auto;" alt="Banking Sentinel">
     <div class="logo-text">
       <div class="logo-name">Banking Sentinel</div>
       <div class="logo-tagline">AI Risk Intelligence · SAP TRBK · GraphRAG · Multi-Agent</div>
@@ -275,26 +254,18 @@
   </div>
   <div class="header-nav">
     <div class="nav-item active">Risk Monitor</div>
-    <div class="nav-item">Portfolio</div>
-    <div class="nav-item">Regulatory</div>
-    <div class="nav-item">Audit Trail</div>
   </div>
   <div class="header-right">
-    <div class="hpill warn">▲ 3 Alerts</div>
+    <div class="hpill warn" id="alertCountPill" style="display:none;"></div>
     <div class="hpill live">Graph Live</div>
     <div class="hpill info">APRA · APS221 · CPS230</div>
+    <div class="hpill info" onclick="resetSession()" style="cursor:pointer;margin-left:8px">↺ Reset</div>
   </div>
 </header>
 
-<div class="alert-bar">
+<div class="alert-bar" id="liveAlertsBar" style="display:none;">
   <div class="ab-label">Live Alerts</div>
-  <div class="ab-items">
-    <div class="ab-item">▲ APS 221 — Group exposure 92% of limit · B-4471 connected group</div>
-    <div class="ab-sep">|</div>
-    <div class="ab-item">▲ DTI Breach — Ratio 7.2 exceeds Feb 2026 limit of 6.0 · B-4471 HL-8821</div>
-    <div class="ab-sep">|</div>
-    <div class="ab-item">● RETAIL_PROP sector concentration at 78% of internal limit</div>
-  </div>
+  <div class="ab-items" id="liveAlertItems"></div>
 </div>
 
 <main>
@@ -309,36 +280,27 @@
     </div>
     <div class="panel-body">
       <div class="query-wrap">
-        <textarea class="query-input" placeholder="Analyse borrower B-4471 for all risk dimensions..."></textarea>
+        <textarea class="query-input" placeholder="Analyse credit risk for customer 30100001..."></textarea>
       </div>
-      <button class="query-send" onclick="runDemo()">▶ Run Analysis</button>
+      <button class="query-send" onclick="runAnalysis()">▶ Run Analysis</button>
 
       <div class="sh">Quick Queries</div>
-      <div class="eq" onclick="setQ(this)">Analyse all connected party risk for B-4471</div>
-      <div class="eq" onclick="setQ(this)">Borrowers with shared guarantors and overdue payments</div>
-      <div class="eq" onclick="setQ(this)">DTI breaches against February 2026 APRA limit</div>
-      <div class="eq" onclick="setQ(this)">Retail property sector concentration analysis</div>
+      <div class="eq" onclick="setQ(this)">Analyse credit risk for customer 30100001</div>
+      <div class="eq" onclick="setQ(this)">Analyse connected party risk for customer 30100003</div>
+      <div class="eq" onclick="setQ(this)">What is the total loan amount across all customers?</div>
+      <div class="eq" onclick="setQ(this)">Approve the loan for customer 30100001</div>
 
-      <div class="sh">Regulatory Alerts</div>
-      <div class="alert-box high">
-        <div class="alert-std">APS 221 — Large Exposures</div>
-        <div class="alert-text">Group exposure 92% of limit. B-4471 · B-4472 · B-4473 via guarantor G-0091 (TrustCo Holdings). Combined AUD $7.8M.</div>
-      </div>
-      <div class="alert-box high">
-        <div class="alert-std">DTI Limit Breach — Feb 2026</div>
-        <div class="alert-text">B-4471 DTI ratio 7.2 exceeds APRA limit of 6.0 activated February 2026. Loan HL-8821 approved pre-activation.</div>
-      </div>
-      <div class="alert-box med">
-        <div class="alert-std">Sector Concentration</div>
-        <div class="alert-text">RETAIL_PROP at 78% of internal limit. Four connected borrowers in same sector.</div>
+      <div id="regulatoryAlertsSection" style="display:none;">
+        <div class="sh">Regulatory Alerts</div>
+        <div id="regulatoryAlertItems"></div>
       </div>
 
       <div class="intent-box" id="intentBox">
         <div class="sh" style="margin-top:0">Intake Agent — Parsed Intent</div>
-        <div class="intent-row"><span class="ik">customer</span><span class="iv">B-4471 · James Thornton</span></div>
-        <div class="intent-row"><span class="ik">dimensions</span><span class="iv">Credit · Connected · Regulatory · Sector</span></div>
-        <div class="intent-row"><span class="ik">graph depth</span><span class="iv">6 hops · include guarantors</span></div>
-        <div class="intent-row"><span class="ik">route</span><span class="iv">Graph → Policy → Risk → Recommend</span></div>
+        <div class="intent-row"><span class="ik">customer</span><span class="iv">—</span></div>
+        <div class="intent-row"><span class="ik">dimensions</span><span class="iv">—</span></div>
+        <div class="intent-row"><span class="ik">graph depth</span><span class="iv">—</span></div>
+        <div class="intent-row"><span class="ik">route</span><span class="iv">—</span></div>
       </div>
     </div>
   </div>
@@ -358,32 +320,32 @@
         <div class="an">01</div>
         <div>
           <div class="anr">Intake Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">Parses query · Identifies customer · Routes to specialist agents · Builds execution plan</div>
+          <div class="ao">Parses NL query · Identifies customer · Classifies intent · Routes: risk analysis / simple query / rejection</div>
         </div>
       </div>
 
       <div class="agent-item" id="a2">
         <div class="an">02</div>
         <div>
-          <div class="anr">Graph Traversal Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">TRBK multi-hop · BUT000 → BP2000 → BCA_GUARANTOR → DFKKOP · ReAct loop · 6-8 hops</div>
-          <div class="graph-wrap" id="gw"><canvas id="graphCanvas"></canvas></div>
+          <div class="anr">Pattern Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">RPT-1 tabular foundation model · HANA PAL Isolation Forest · LLM narrative anomalies · All three run simultaneously</div>
         </div>
       </div>
 
       <div class="agent-item" id="a3">
         <div class="an">03</div>
         <div>
-          <div class="anr">Policy Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">Hybrid RAG · APRA prudential standards · APS 221 · CPS 230 · HyDE query enhancement</div>
+          <div class="anr">Relationship Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check</div>
+          <div class="graph-wrap" id="gw"><canvas id="graphCanvas"></canvas></div>
         </div>
       </div>
 
       <div class="agent-item" id="a4">
         <div class="an">04</div>
         <div>
-          <div class="anr">Risk Scoring Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">Self-RAG confidence evaluation · Re-queries if below 75% · Basel III metrics · 4 dimensions</div>
+          <div class="anr">Trajectory + Self-RAG <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">Forward DTI after income expiry · Conflicting signal resolution · Self-RAG re-queries if confidence &lt; 0.70</div>
           <div class="conf-wrap" id="cw">
             <span class="cl">Confidence</span>
             <div class="cb"><div class="cf" id="cf" style="width:0%"></div></div>
@@ -392,13 +354,22 @@
         </div>
       </div>
 
+      <!-- Human approval bar — shown when pipeline pauses -->
+      <div id="approveBar" style="display:none;align-items:center;gap:12px;padding:12px 14px;margin:8px 0;background:var(--yellow-pale);border:1.5px solid var(--yellow);border-left:4px solid var(--amber)">
+        <div style="flex:1;font-size:11px;color:var(--dark)"><strong>APRA CPS 230</strong> — Risk officer approval required before final brief is generated</div>
+        <button onclick="approve()" style="background:var(--yellow);border:none;padding:8px 18px;font-family:var(--sans);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">▶ APPROVE</button>
+      </div>
+
       <div class="agent-item" id="a5">
         <div class="an">05</div>
         <div>
-          <div class="anr">Recommendation Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">Synthesises all findings · APRA-ready risk brief · Evidence trail · Actionable recommendations</div>
+          <div class="anr">Synthesis Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">HANA Vector RAG · APRA regulatory retrieval · Evidence trail · APRA-ready risk brief with confidence per finding</div>
         </div>
       </div>
+
+      <!-- Regulatory update banner — shown when APRA doc synced -->
+      <div id="regulatoryBanner" style="display:none;margin-top:12px;padding:10px 14px;background:var(--green-light);border:1px solid rgba(13,122,62,0.3);border-left:4px solid var(--green);font-size:11px;color:var(--green)"></div>
 
     </div>
   </div>
@@ -452,140 +423,355 @@
 </div>
 
 <script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const API = 'http://localhost:4004';
+let sessionId = null;
+let evtSource = null;
+let agentsDone = 0;
+let startTime = null;
+
+// Agent node name → UI element id
+const AGENT_MAP = {
+  intake: 'a1', simpleQuery: 'a1', rejection: 'a1',
+  pattern: 'a2',
+  relationship: 'a3',
+  trajectory: 'a4', selfRagCheck: 'a4',
+  humanApproval: null,
+  synthesis: 'a5'
+};
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
 function setQ(el) { document.querySelector('.query-input').value = el.textContent; }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-let done = 0;
+
+function resetUI() {
+  agentsDone = 0; startTime = Date.now();
+  document.getElementById('agentProgress').textContent = '0 / 5 complete';
+  document.getElementById('approveBar').style.display = 'none';
+  document.getElementById('regulatoryBanner').style.display = 'none';
+  document.getElementById('liveAlertsBar').style.display = 'none';
+  document.getElementById('liveAlertItems').innerHTML = '';
+  document.getElementById('alertCountPill').style.display = 'none';
+  document.getElementById('regulatoryAlertsSection').style.display = 'none';
+  document.getElementById('regulatoryAlertItems').innerHTML = '';
+  document.getElementById('intentBox').querySelectorAll('.iv').forEach(el => el.textContent = '—');
+  document.getElementById('rb').style.opacity = '0.2';
+  document.getElementById('gw').style.display = 'none';
+  document.getElementById('cw').style.display = 'none';
+  document.getElementById('cf').style.width = '0%';
+  document.getElementById('cv').textContent = '0%';
+  document.getElementById('ts').textContent = 'idle';
+  document.getElementById('ts').style.color = '';
+  document.getElementById('tc').textContent = '0';
+  document.getElementById('lat').textContent = '—';
+  document.getElementById('rq').textContent = '0';
+  document.getElementById('gh').textContent = '0';
+  document.getElementById('rsn').textContent = '—';
+  document.getElementById('rdl').textContent = 'Awaiting Analysis';
+  document.getElementById('rdd').textContent = 'Run a query to generate the risk brief';
+  document.getElementById('chain').innerHTML = '<div class="chain-item"><span class="ca">→</span><span class="ct">Awaiting analysis...</span></div>';
+  document.getElementById('breaches').innerHTML = '<div class="breach" style="opacity:0.3"><div class="bh"><span class="bs">—</span></div><div class="bt">Awaiting policy agent...</div></div>';
+  document.getElementById('recs').innerHTML = '<div class="rec" style="opacity:0.3"><div class="rh"><span class="rp">—</span></div><div class="rt">Awaiting synthesis...</div></div>';
+  document.getElementById('evs').innerHTML = '<div class="ev-item"><span class="ed">◆</span>Awaiting retrieval...</div>';
+  ['a1','a2','a3','a4','a5'].forEach(id => setAgent(id, 'idle', null));
+}
 
 function setAgent(id, state, html) {
   const el = document.getElementById(id);
-  el.className = 'agent-item ' + state;
-  el.querySelector('.an').className = 'an ' + state;
-  const b = el.querySelector('.ab');
-  b.className = 'ab ab-' + (state==='active'?'thinking':state==='complete'?'complete':'waiting');
-  b.textContent = state==='active'?'Thinking...':state==='complete'?'Complete ✓':'Waiting';
+  if (!el) return;
+  el.className = 'agent-item' + (state !== 'idle' ? ' ' + (state === 'requery' ? 'active' : state) : '');
+  const numEl = el.querySelector('.an');
+  numEl.className = 'an' + (state === 'active' || state === 'requery' ? ' active' : state === 'complete' ? ' complete' : '');
+  const badge = el.querySelector('.ab');
+  if      (state === 'active')   { badge.className = 'ab ab-thinking'; badge.textContent = 'Thinking...'; }
+  else if (state === 'requery')  { badge.className = 'ab ab-thinking'; badge.textContent = 'Re-querying...'; }
+  else if (state === 'complete') { badge.className = 'ab ab-complete'; badge.textContent = 'Complete ✓'; }
+  else                           { badge.className = 'ab ab-waiting';  badge.textContent = 'Waiting'; }
   if (html) el.querySelector('.ao').innerHTML = html;
-  if (state==='complete') { done++; document.getElementById('agentProgress').textContent = done + ' / 5 complete'; }
+  if (state === 'complete') {
+    agentsDone++;
+    document.getElementById('agentProgress').textContent = agentsDone + ' / 5 complete';
+  }
 }
 
+// ── SSE event handler ─────────────────────────────────────────────────────────
+function handleEvent(evt) {
+  const e = JSON.parse(evt.data);
+  if (e.type === 'connected') return;
+
+  if (startTime) document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+
+  if (e.type === 'pipeline_status') {
+    // selfRagCheck — update confidence bar and trajectory row with full outcome
+    if (e.agent === 'selfRagCheck') {
+      const pct = Math.round((e.confidence || 0) * 100);
+      document.getElementById('cf').style.width = pct + '%';
+      document.getElementById('cv').textContent = pct + '%';
+      document.getElementById('cw').style.display = 'flex';
+      document.getElementById('rq').textContent = e.requeryCount || '0';
+      const fp    = e.forwardPosition || '—';
+      const fpCol = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : 'w';
+      const dte   = e.daysToExpiry != null ? ` · Income expiry <span class="r">${e.daysToExpiry}d</span>` : '';
+      const rqTxt = e.requeryCount > 0 ? ` · ${e.requeryCount} re-quer${e.requeryCount === 1 ? 'y' : 'ies'}` : '';
+      if (e.confidence < 0.70) {
+        setAgent('a4', 'requery', `Forward: <span class="${fpCol}">${fp}</span>${dte} · Confidence <span class="w">${pct}%</span> — below 70% · Re-querying: <span class="h">${e.reQueryHint || 'expanding graph traversal...'}</span>`);
+      } else {
+        setAgent('a4', 'complete', `Forward: <span class="${fpCol}">${fp}</span>${dte} · Confidence <span class="h">${pct}%</span>${rqTxt}`);
+        setAgent('a5', 'active', 'HANA Vector RAG retrieving APRA standards · Building risk brief...');
+      }
+      return;
+    }
+
+    // humanApproval — show approve button; synthesis starts after officer approves
+    if (e.agent === 'humanApproval') {
+      document.getElementById('approveBar').style.display = 'flex';
+      return;
+    }
+
+    const agentId = AGENT_MAP[e.agent];
+    if (!agentId) return;
+
+    // Set next agent as active (pipeline hint)
+    const nextMap = { intake: 'a2', pattern: 'a3', relationship: 'a4', trajectory: 'a4' };
+    if (nextMap[e.agent]) setAgent(nextMap[e.agent], 'active', null);
+
+    setAgent(agentId, 'complete', getCompletionHtml(e));
+
+    if (e.agent === 'relationship') {
+      document.getElementById('gh').textContent = e.nodes || '?';
+      if ((e.nodes || 0) > 1) { document.getElementById('gw').style.display = 'block'; setTimeout(drawGraph, 50); }
+    }
+    if (e.agent === 'pattern') {
+      document.getElementById('rsn').textContent = e.riskScore || '—';
+      document.getElementById('rdl').textContent = (e.riskLevel || '—') + ' RISK';
+      const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
+      document.querySelector('.risk-score-block').style.background = c[e.riskLevel] || '#888';
+    }
+  }
+
+  if (e.type === 'risk_findings') renderRiskBrief(e.synthesisResult);
+  if (e.type === 'human_approval') document.getElementById('approveBar').style.display = 'flex';
+
+  if (e.type === 'regulatory_update') {
+    const b = document.getElementById('regulatoryBanner');
+    b.textContent = `${e.standard} updated — ${e.chunkCount} chunks embedded in HANA Vector. Re-run analysis to apply new standards.`;
+    b.style.display = 'block';
+  }
+  if (e.type === 'session_reset') resetUI();
+}
+
+function getCompletionHtml(e) {
+  switch (e.agent) {
+    case 'intake':
+      const ib = document.getElementById('intentBox');
+      if (ib) {
+        ib.querySelectorAll('.iv')[0].textContent = e.customerId || '—';
+        ib.querySelectorAll('.iv')[1].textContent = 'Credit · Connected Party · Regulatory · Trajectory';
+        ib.querySelectorAll('.iv')[2].textContent = '6 hops · BUT050 + BCA_GUARANTOR';
+        ib.querySelectorAll('.iv')[3].textContent = 'Pattern → Relationship → Trajectory → Synthesis';
+      }
+      return `Customer: <span class="h">${e.customerId || '—'}</span> · Intent: risk analysis · Pipeline routing complete`;
+    case 'simpleQuery':
+      return `<span class="h">Simple query answered</span> · No full pipeline needed`;
+    case 'rejection':
+      return `<span class="r">Request rejected</span> · Outside risk intelligence scope`;
+    case 'pattern': {
+      const lvlCol = { CRITICAL:'r', HIGH:'r', MEDIUM:'w', LOW:'g' }[e.riskLevel] || 'w';
+      const sig = e.signal ? ` · Signal: <span class="h">${e.signal}</span>` : '';
+      const pc  = e.patternConf != null ? ` · <span class="h">${Math.round(e.patternConf * 100)}% confidence</span>` : '';
+      const anomalyHtml = (e.anomalies || []).length > 0
+        ? '<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px;">' +
+          e.anomalies.map(a => `<div style="font-size:10px;color:var(--mid)">· ${a}</div>`).join('') +
+          '</div>'
+        : '';
+      return `Score: <span class="${lvlCol}">${e.riskScore || '—'}</span> · <span class="${lvlCol}">${e.riskLevel || '—'}</span>${sig}${pc}${anomalyHtml}`;
+    }
+    case 'relationship': {
+      const exp   = e.groupExposure ? 'AUD ' + (e.groupExposure/1e6).toFixed(2) + 'M' : '—';
+      const aps   = e.aps221Pct ? e.aps221Pct.toFixed(1) + '%' : '—';
+      const limit = (e.groupExposure && e.aps221Pct)
+        ? ' of AUD ' + (e.groupExposure / (e.aps221Pct / 100) / 1e6).toFixed(2) + 'M limit'
+        : '';
+      const findingHtml = e.relationshipFinding
+        ? `<div style="margin-top:5px;font-size:10px;color:var(--mid);">· ${e.relationshipFinding}</div>`
+        : '';
+      return `${e.nodes || '?'} entities · Group exposure: <span class="r">${exp}</span> · APS 221: <span class="r">${aps}</span>${limit}${findingHtml}`;
+    }
+    case 'trajectory': {
+      const fp = e.forwardPosition || '—';
+      const col = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : 'w';
+      const dte = e.daysToExpiry != null ? ` · Income expiry in <span class="r">${e.daysToExpiry}d</span>` : '';
+      return `Forward position: <span class="${col}">${fp}</span>${dte} · DTI trajectory calculated`;
+    }
+    case 'synthesis': {
+      const fc = e.findingsCount || '?';
+      const apra = e.apraReady ? '<span class="h">APRA Ready ✓</span>' : 'Evidence trail complete';
+      return `Brief generated · <span class="h">${fc} finding${fc !== 1 ? 's' : ''}</span> · ${apra} · See Panel 3 →`;
+    }
+    default:
+      return 'Complete';
+  }
+}
+
+// ── Run analysis ──────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const query = document.querySelector('.query-input').value.trim();
+  if (!query) return;
+
+  resetUI();
+  sessionId = 'ui-' + Date.now();
+
+  if (evtSource) evtSource.close();
+  evtSource = new EventSource(`${API}/a2a/events?sessionId=${sessionId}`);
+  evtSource.onmessage = handleEvent;
+  evtSource.onerror = () => console.warn('[SSE] Connection error');
+
+  setAgent('a1', 'active', 'Parsing query · Identifying customer · Classifying intent...');
+  document.getElementById('intentBox').style.display = 'block';
+  document.getElementById('rb').style.opacity = '1';
+  document.getElementById('ts').textContent = 'tracing';
+  document.getElementById('ts').style.color = '#FFD000';
+  document.getElementById('tbl').textContent = 'BUT050·BCA_GUARANTOR·DFKKOP·BCA_DTI·BCA_LOAN_HDR';
+
+  try {
+    const res = await fetch(`${API}/a2a/agent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'analyseRisk', params: { query, sessionId }, id: '1' })
+    });
+    const data = await res.json();
+    const r = data.result || {};
+    document.getElementById('tc').textContent = ((r.tokensIn || 0) + (r.tokensOut || 0)).toLocaleString();
+    if (r.status !== 'awaiting_approval') {
+      document.getElementById('ts').textContent = 'complete';
+    }
+  } catch (err) {
+    console.error('[A2A]', err);
+    document.getElementById('ts').textContent = 'error';
+    document.getElementById('ts').style.color = '#ff6666';
+  }
+}
+
+// ── Approve ───────────────────────────────────────────────────────────────────
+async function approve() {
+  if (!sessionId) return;
+  document.getElementById('approveBar').style.display = 'none';
+  setAgent('a5', 'active', 'Retrieving APRA standards from HANA Vector · Generating risk brief...');
+
+  try {
+    const res = await fetch(`${API}/a2a/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, approvedBy: 'risk_officer' })
+    });
+    const data = await res.json();
+    const r = data.result || {};
+    document.getElementById('tc').textContent = ((r.tokensIn || 0) + (r.tokensOut || 0)).toLocaleString();
+    document.getElementById('ts').textContent = 'complete';
+    document.getElementById('ts').style.color = '#FFD000';
+  } catch (err) {
+    console.error('[Approve]', err);
+  }
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+async function resetSession() {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  try {
+    await fetch(`${API}/a2a/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: sessionId || 'reset-' + Date.now() })
+    });
+  } catch (e) {}
+  resetUI();
+}
+
+// ── Render Panel 3 ────────────────────────────────────────────────────────────
+function renderRiskBrief(s) {
+  if (!s) return;
+  document.getElementById('rsn').textContent = s.riskScore || '—';
+  document.getElementById('rdl').textContent = (s.riskLevel || '—') + ' RISK';
+  document.getElementById('rdd').textContent = `Confidence ${Math.round((s.confidence || 0) * 100)}% · Approved by risk officer · ${s.apraReady ? 'APRA Ready ✓' : 'Evidence trail in review'}`;
+  const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
+  document.querySelector('.risk-score-block').style.background = c[s.riskLevel] || '#888';
+
+  document.getElementById('breaches').innerHTML = (s.findings || []).map(f => `
+    <div class="breach">
+      <div class="bh"><span class="bs">${(f.finding || '').substring(0, 70)}${f.finding?.length > 70 ? '...' : ''}</span>
+      <span class="bsev">${Math.round((f.confidence || 0) * 100)}% confidence · ${f.evidenceSource || ''}</span></div>
+      <div class="bt">${f.finding || ''}</div>
+    </div>`).join('') || '<div class="breach" style="opacity:0.3"><div class="bt">No findings</div></div>';
+
+  const labels = ['Immediate Action', 'Within 5 Days', 'Within 30 Days'];
+  document.getElementById('recs').innerHTML = (s.recommendations || []).map((r, i) => `
+    <div class="rec">
+      <div class="rh"><span class="rp ${i === 0 ? 'hi' : 'med'}">${labels[i] || 'Action'}</span><span class="ro">Risk Officer</span></div>
+      <div class="rt">${r}</div>
+    </div>`).join('') || '<div class="rec" style="opacity:0.3"><div class="rt">No recommendations</div></div>';
+
+  document.getElementById('evs').innerHTML = (s.regulatoryRefs || []).map(r =>
+    `<div class="ev-item"><span class="ed">◆</span>${r}</div>`).join('') ||
+    '<div class="ev-item"><span class="ed">◆</span>No regulatory refs</div>';
+
+  document.getElementById('chain').innerHTML = (s.uncertainties || []).map(u =>
+    `<div class="chain-item"><span class="ca">→</span><span class="ct">${u}</span></div>`).join('') ||
+    '<div class="chain-item"><span class="ca">→</span><span class="ct">No uncertainties noted</span></div>';
+
+  document.getElementById('rag').textContent = (s.confidence || 0).toFixed(2);
+  document.getElementById('rag').style.color = '#FFD000';
+  document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's total';
+
+  // Populate regulatory alerts in Panel 1 from real findings
+  const findings = s.findings || [];
+  if (findings.length > 0) {
+    const alertHtml = findings.map(f => {
+      const sev = (f.severity || '').toUpperCase();
+      const cls = (sev === 'HIGH' || sev === 'CRITICAL') ? 'high' : 'med';
+      const std = f.standard || f.evidenceSource || 'Regulatory Finding';
+      return `<div class="alert-box ${cls}"><div class="alert-std">${std}</div><div class="alert-text">${f.finding || ''}</div></div>`;
+    }).join('');
+    document.getElementById('regulatoryAlertItems').innerHTML = alertHtml;
+    document.getElementById('regulatoryAlertsSection').style.display = 'block';
+
+    // Populate live alerts bar
+    const barHtml = findings.slice(0, 3).map(f =>
+      `<div class="ab-item">▲ ${(f.finding || '').substring(0, 80)}</div>`
+    ).join('<div class="ab-sep">|</div>');
+    document.getElementById('liveAlertItems').innerHTML = barHtml;
+    document.getElementById('liveAlertsBar').style.display = 'flex';
+    const pill = document.getElementById('alertCountPill');
+    pill.textContent = `▲ ${findings.length} Alert${findings.length !== 1 ? 's' : ''}`;
+    pill.style.display = '';
+  }
+}
+
+// ── Graph canvas ──────────────────────────────────────────────────────────────
 function drawGraph() {
   const c = document.getElementById('graphCanvas');
   const ctx = c.getContext('2d');
   c.width = c.offsetWidth; c.height = c.offsetHeight;
-  const w = c.width, h = c.height;
-
+  const h = c.height;
   const nodes = [
-    {x:50,y:h/2,l:'B-4471',s:'Borrower',col:'#D42020',r:14},
-    {x:155,y:h/2-35,l:'HL-8821',s:'Home Loan',col:'#0055B3',r:11},
-    {x:155,y:h/2+35,l:'PL-2201',s:'Personal',col:'#0055B3',r:10},
-    {x:265,y:h/2-48,l:'G-0091',s:'Guarantor',col:'#D42020',r:13},
-    {x:265,y:h/2+48,l:'OVERDUE',s:'61 days',col:'#D42020',r:9},
-    {x:360,y:h/2-28,l:'B-4472',s:'Connected',col:'#C47A00',r:10},
-    {x:360,y:h/2+28,l:'B-4473',s:'Connected',col:'#C47A00',r:10},
-    {x:48,y:22,l:'TrustCo',s:'Parent',col:'#D42020',r:9},
+    {x:50, y:h/2,    l:'30100001', s:'Borrower',  col:'#D42020', r:14},
+    {x:155,y:h/2-35, l:'L-001',    s:'Home Loan', col:'#0055B3', r:11},
+    {x:155,y:h/2+35, l:'L-002',    s:'Inv Prop',  col:'#0055B3', r:10},
+    {x:265,y:h/2-48, l:'30910005', s:'Guarantor', col:'#D42020', r:13},
+    {x:265,y:h/2+48, l:'OVERDUE',  s:'81 days',   col:'#D42020', r:9},
+    {x:360,y:h/2-28, l:'30910006', s:'Connected', col:'#C47A00', r:10},
+    {x:360,y:h/2+28, l:'30910009', s:'TrustCo',   col:'#C47A00', r:10},
   ];
-  const edges=[[0,1],[0,2],[1,3],[2,4],[3,5],[3,6],[0,7]];
-
-  ctx.strokeStyle='rgba(0,0,0,0.08)'; ctx.lineWidth=1.5;
-  edges.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(nodes[a].x,nodes[a].y);ctx.lineTo(nodes[b].x,nodes[b].y);ctx.stroke();});
-
-  nodes.forEach(n=>{
-    ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
-    ctx.fillStyle=n.col+'22';ctx.fill();
-    ctx.strokeStyle=n.col;ctx.lineWidth=2;ctx.stroke();
-    ctx.fillStyle='#1A1A1A';ctx.font='bold 8px Figtree';ctx.textAlign='center';
+  const edges = [[0,1],[0,2],[1,3],[2,4],[3,5],[3,6]];
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1.5;
+  edges.forEach(([a,b]) => { ctx.beginPath(); ctx.moveTo(nodes[a].x,nodes[a].y); ctx.lineTo(nodes[b].x,nodes[b].y); ctx.stroke(); });
+  nodes.forEach(n => {
+    ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+    ctx.fillStyle = n.col+'22'; ctx.fill();
+    ctx.strokeStyle = n.col; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 8px Figtree'; ctx.textAlign = 'center';
     ctx.fillText(n.l,n.x,n.y+2);
-    ctx.fillStyle='#A0A0A0';ctx.font='7px Figtree';
+    ctx.fillStyle = '#A0A0A0'; ctx.font = '7px Figtree';
     ctx.fillText(n.s,n.x,n.y+n.r+11);
   });
-}
-
-async function runDemo() {
-  done = 0;
-  document.getElementById('agentProgress').textContent='0 / 5 complete';
-  document.getElementById('intentBox').style.display='block';
-  document.getElementById('rb').style.opacity='1';
-  document.getElementById('ts').textContent='tracing'; document.getElementById('ts').style.color='#FFD000';
-  document.getElementById('tbl').textContent='BUT000·BP2000·BCA_LOAN_HDR·DFKKOP·BCA_GUARANTOR';
-
-  let tok=0; const ti=setInterval(()=>{tok+=Math.floor(Math.random()*80+20);document.getElementById('tc').textContent=tok.toLocaleString();},350);
-
-  setAgent('a1','active','Parsing query... B-4471 identified... routing to agents...');
-  await sleep(1100);
-  setAgent('a1','complete','Customer: <span class="h">B-4471 James Thornton</span> · Dimensions: <span class="h">Credit · Connected · Regulatory · Sector</span>');
-  document.getElementById('lat').textContent='1.1s';
-
-  setAgent('a2','active','Traversing TRBK graph... BUT000 → BP2000 → BCA_GUARANTOR → DFKKOP...');
-  document.getElementById('gh').textContent='2';
-  await sleep(700);
-  document.getElementById('gw').style.display='block';
-  setTimeout(drawGraph,50);
-  document.getElementById('gh').textContent='4';
-  await sleep(900);
-  document.getElementById('gh').textContent='6';
-  setAgent('a2','complete','Loans: <span class="r">HL-8821 $1.2M · PL-2201 $45K</span> · Guarantor: <span class="r">G-0091 covers B-4472 + B-4473</span> · Parent: <span class="r">TrustCo Holdings</span> · DFKKOP: <span class="r">61 days overdue $8,450</span>');
-  document.getElementById('lat').textContent='2.8s';
-
-  document.getElementById('chain').innerHTML=`
-    <div class="chain-item"><span class="ca">→</span><span class="ct"><strong>B-4471</strong> (James Thornton) — home loan HL-8821 AUD $1.2M + personal loan PL-2201 AUD $45K</span></div>
-    <div class="chain-item"><span class="ca">→</span><span class="ct">Guarantor <strong>G-0091</strong> (TrustCo Holdings Pty Ltd) also guarantees loans for <strong>B-4472 and B-4473</strong></span></div>
-    <div class="chain-item"><span class="ca">→</span><span class="ct">Combined group exposure: <strong>AUD $7.8M</strong> — APS 221 limit AUD $8.5M — utilisation <strong>92%</strong></span></div>
-    <div class="chain-item"><span class="ca">→</span><span class="ct">B-4471 DTI ratio: <strong>7.2</strong> — exceeds APRA Feb 2026 limit of 6.0 — loan approved pre-activation</span></div>
-    <div class="chain-item"><span class="ca">→</span><span class="ct">All three borrowers in <strong>SECTOR_CODE: RETAIL_PROP</strong> — combined sector exposure 78% of limit</span></div>
-    <div class="chain-item"><span class="ca">→</span><span class="ct">HL-8821 — DFKKOP: <strong>61 days overdue</strong> AUD $8,450 — no matching DFKKZP payment record</span></div>
-  `;
-
-  setAgent('a3','active','Hybrid RAG on APRA standards... HyDE generating hypothetical breach profile...');
-  await sleep(1500);
-  setAgent('a3','complete','APS 221: <span class="r">92% utilisation — board notification required</span> · DTI: <span class="r">7.2 breaches Feb 2026</span> · CPS 230: <span class="w">documentation required</span>');
-  document.getElementById('lat').textContent='4.2s';
-
-  setAgent('a4','active','Scoring across 4 risk dimensions... evaluating confidence...');
-  document.getElementById('cw').style.display='flex';
-  await sleep(600);
-  document.getElementById('cf').style.width='64%'; document.getElementById('cv').textContent='64%';
-  await sleep(900);
-  document.getElementById('rq').textContent='1';
-  setAgent('a4','active','Confidence 64% — below threshold. <span class="h">Re-querying: TrustCo Holdings full group exposure...</span>');
-  await sleep(1100);
-  document.getElementById('gh').textContent='8';
-  document.getElementById('cf').style.width='89%'; document.getElementById('cv').textContent='89%';
-  await sleep(500);
-  setAgent('a4','complete','Score: <span class="r">81 / HIGH</span> · Confidence: <span class="h">89%</span> · Self-RAG: 1 re-query · 4 active risk dimensions');
-  document.getElementById('rsn').textContent='81';
-  document.getElementById('rdl').textContent='HIGH RISK';
-  document.getElementById('rdd').textContent='Connected Party · Credit · Regulatory · Sector';
-  document.getElementById('lat').textContent='6.7s';
-  document.getElementById('riskHeader').querySelector('.risk-score-block').style.background='#D42020';
-
-  document.getElementById('breaches').innerHTML=`
-    <div class="breach"><div class="bh"><span class="bs">APS 221 — Large Exposures</span><span class="bsev">Immediate Review Required</span></div><div class="bt">Group (B-4471, B-4472, B-4473 via G-0091 / TrustCo Holdings) combined AUD $7.8M. Limit AUD $8.5M. 92% utilisation. Any new drawdown breaches. APRA requires board notification above 90%.</div></div>
-    <div class="breach"><div class="bh"><span class="bs">DTI Limits — February 2026</span><span class="bsev">Regulatory Breach</span></div><div class="bt">B-4471 DTI ratio 7.2 exceeds the 6.0 limit activated February 2026. Loan HL-8821 approved October 2025 — pre-activation. Not yet reported to APRA.</div></div>
-    <div class="breach"><div class="bh"><span class="bs">Sector Concentration — Internal Policy</span><span class="bsev">Monitor</span></div><div class="bt">RETAIL_PROP at 78% of internal limit. Four connected borrowers in same sector. Pre-approval escalation required under credit policy §7.3.</div></div>
-  `;
-
-  setAgent('a5','active','Synthesising all findings... generating APRA-ready risk brief...');
-  await sleep(1800);
-  setAgent('a5','complete','Risk brief generated · 3 regulatory findings · 3 recommendations · Full evidence trail');
-
-  document.getElementById('recs').innerHTML=`
-    <div class="rec"><div class="rh"><span class="rp hi">Immediate Action</span><span class="ro">Credit Risk Officer</span></div><div class="rt">Halt all new drawdowns for B-4471, B-4472, B-4473 and any G-0091 / TrustCo Holdings connected entity pending group exposure review. Next drawdown will breach APS 221.</div></div>
-    <div class="rec"><div class="rh"><span class="rp hi">Within 5 Days</span><span class="ro">Regulatory Reporting</span></div><div class="rt">Document DTI breach for B-4471 HL-8821 under APRA February 2026 requirements. Prepare remediation plan — restructure or additional security options.</div></div>
-    <div class="rec"><div class="rh"><span class="rp med">Within 30 Days</span><span class="ro">Portfolio Risk Team</span></div><div class="rt">Sector concentration review for RETAIL_PROP book. Four connected borrowers. Engage credit policy §7.3 escalation before any new approvals in this connected group.</div></div>
-  `;
-
-  document.getElementById('evs').innerHTML=`
-    <div class="ev-item"><span class="ed">◆</span>TRBK Graph: 8-hop · BUT000 → BP2000 → BKKN → BCA_LOAN_HDR → BCA_GUARANTOR → DFKKOP</div>
-    <div class="ev-item"><span class="ed">◆</span>Policy RAG: APS 221 §3.2 Large Exposure Limits (2024 revision) · similarity 0.96</div>
-    <div class="ev-item"><span class="ed">◆</span>Policy RAG: APRA DTI Activation Notice February 2026 · similarity 0.94</div>
-    <div class="ev-item"><span class="ed">◆</span>Policy RAG: Credit Policy §7.3 Sector Concentration Escalation · similarity 0.89</div>
-    <div class="ev-item"><span class="ed">◆</span>Self-RAG: re-query at 64% confidence · TrustCo full group exposure · final confidence 89%</div>
-    <div class="ev-item"><span class="ed">◆</span>Tables: BUT000 · BP2000 · BKKN · BCA_LOAN_HDR · BCA_GUARANTOR · BCA_LOAN_SCHED · DFKKOP · BCA_SECTOR · BCA_DTI</div>
-  `;
-
-  clearInterval(ti);
-  document.getElementById('rag').textContent='0.93'; document.getElementById('rag').style.color='#FFD000';
-  document.getElementById('lat').textContent='9.1s total';
-  document.getElementById('ts').textContent='complete'; document.getElementById('ts').style.color='#FFD000';
 }
 </script>
 </body>

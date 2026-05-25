@@ -105,7 +105,8 @@ async function sparqlQuery(sparql) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/sparql-query', 'Accept': 'application/sparql-results+json', 'Authorization': `Basic ${auth}` },
-    body: sparql
+    body: sparql,
+    signal: AbortSignal.timeout(8000)
   });
   if (!res.ok) throw new Error(`GraphDB SPARQL error ${res.status}: ${(await res.text()).substring(0, 200)}`);
   return res.json();
@@ -197,7 +198,9 @@ async function apra_threshold_check({ metricType, value, entityId }) {
   let limit, threshold, breach, utilisation;
 
   if (metricType === 'large_exposure' || metricType === 'aps221') {
-    const limits = await cds.run(SELECT.from('bankingsentinel.ExposureLimits').where({ LIMIT_TYPE: 'SINGLE' }));
+    // APS 221 connected-party group exposure uses GROUP limit; single-entity uses SINGLE limit
+    const limitType = metricType === 'aps221' ? 'GROUP' : 'SINGLE';
+    const limits = await cds.run(SELECT.from('bankingsentinel.ExposureLimits').where({ LIMIT_TYPE: limitType }));
     limit = limits[0]?.LIMIT_AUD;
     utilisation = limit ? (value / limit) * 100 : null;
     breach = utilisation > 100;

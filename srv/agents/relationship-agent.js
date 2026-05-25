@@ -69,6 +69,27 @@ async function relationshipAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
   console.log(`  [Relationship] ReAct traversal starting: ${customerId}`);
 
+  // Hard timeout — if the ReAct loop or any LLM/tool call hangs, return an error
+  // instead of freezing the entire pipeline
+  const TIMEOUT_MS = 45000;
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Relationship Agent timed out after ${TIMEOUT_MS / 1000}s — GraphDB or LLM unresponsive`)), TIMEOUT_MS)
+  );
+  try {
+    return await Promise.race([runRelationshipAgent(state, customerId), timeout]);
+  } catch (e) {
+    console.error(`  [Relationship] FAILED: ${e.message}`);
+    return {
+      relationshipMap: {
+        nodes: [customerId], edges: [], groupExposure: 0, aps221Pct: 0, confidence: 0,
+        finding: `Relationship traversal failed: ${e.message}`
+      }
+    };
+  }
+}
+
+async function runRelationshipAgent(state, customerId) {
+
   if (!customerId) {
     return {
       relationshipMap: {

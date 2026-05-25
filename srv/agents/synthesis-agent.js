@@ -28,7 +28,7 @@ async function synthesisAgent(state) {
 
   let regulatoryDocs = [];
   try {
-    regulatoryDocs = await hana_vector_search({ query: searchQuery, topK: 5, useHyDE: false });
+    regulatoryDocs = await hana_vector_search({ query: searchQuery, topK: 3, useHyDE: false });
     console.log(`  [Synthesis] Retrieved ${regulatoryDocs.length} APRA regulatory chunks from HANA Vector`);
   } catch (e) {
     console.warn('  [Synthesis] HANA Vector search failed:', e.message);
@@ -43,7 +43,7 @@ async function synthesisAgent(state) {
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 800
+    maxTokens: 700
   });
 
   const agentContext = JSON.stringify({
@@ -81,12 +81,13 @@ Return ONLY valid JSON matching this exact structure:
   "riskScore": <0-100 integer>,
   "riskLevel": "<LOW|MEDIUM|HIGH|CRITICAL>",
   "confidence": <0.00-1.00>,
-  "findings": [{"finding": "<max 25 words>", "evidenceSource": "<agent name>", "confidence": <0.00-1.00>}],
+  "findings": [{"finding": "<max 25 words>", "standard": "<APS221|CPS230|DTI_NOTICE>", "severity": "<HIGH|MEDIUM|LOW>", "evidenceSource": "<agent name>", "confidence": <0.00-1.00>}],
   "recommendations": ["<action>"],
   "regulatoryRefs": ["<APS221|CPS230|DTI_NOTICE>"],
   "uncertainties": ["<data gap>"],
   "apraReady": <true|false>
 }
+Return ONLY the JSON object. No markdown, no explanation, no code fences.
 Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evidence trail is complete.`
     },
     {
@@ -95,12 +96,23 @@ Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evide
     }
   ]);
 
-  const text  = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+  // Extract text from LangChain response — content can be a string or array of content blocks
+  let rawText;
+  if (typeof response.content === 'string') {
+    rawText = response.content;
+  } else if (Array.isArray(response.content)) {
+    rawText = response.content.map(b => (typeof b === 'string' ? b : b.text || '')).join('');
+  } else {
+    rawText = String(response.content);
+  }
+  // Strip markdown code fences if LLM wrapped JSON in ```json ... ```
+  const text  = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
   const match = text.match(/\{[\s\S]*\}/);
   let brief;
   try {
     brief = match ? JSON.parse(match[0]) : null;
   } catch (e) {
+    console.warn('  [Synthesis] JSON parse failed. Raw LLM output:', rawText.substring(0, 500));
     brief = null;
   }
 
@@ -127,22 +139,18 @@ Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evide
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;
   const tokensOut = response.usage_metadata?.output_tokens || 0;
 
-  // ── Persist to RiskAssessments HANA table ─────────────────────────────────
-  try {
-    const { v4: uuid } = require('uuid');
-    await cds.run(INSERT.into('bankingsentinel.RiskAssessments').entries({
-      SESSION_ID:  sessionId || uuid(),
-      PARTNER:     customerId,
-      RISK_SCORE:  brief.riskScore,
-      RISK_LEVEL:  brief.riskLevel,
-      FINDINGS:    JSON.stringify(brief.findings),
-      CONFIDENCE:  brief.confidence,
-      CREATED_AT:  new Date().toISOString()
-    }));
-    console.log(`  [Synthesis] Risk assessment persisted → HANA RiskAssessments session:${sessionId}`);
-  } catch (e) {
-    console.warn('  [Synthesis] RiskAssessments insert failed:', e.message);
-  }
+  // ── Persist to RiskAssessments HANA table (fire-and-forget — don't block return) ──
+  const { v4: uuid } = require('uuid');
+  cds.run(INSERT.into('bankingsentinel.RiskAssessments').entries({
+    SESSION_ID:  sessionId || uuid(),
+    PARTNER:     customerId,
+    RISK_SCORE:  brief.riskScore,
+    RISK_LEVEL:  brief.riskLevel,
+    FINDINGS:    JSON.stringify(brief.findings),
+    CONFIDENCE:  brief.confidence,
+    CREATED_AT:  new Date().toISOString()
+  })).then(() => console.log(`  [Synthesis] Persisted → HANA RiskAssessments session:${sessionId}`))
+     .catch(e => console.warn('  [Synthesis] RiskAssessments insert failed:', e.message));
 
   console.log(`  [Synthesis] Done — score:${brief.riskScore} level:${brief.riskLevel} confidence:${brief.confidence} apraReady:${brief.apraReady}`);
 

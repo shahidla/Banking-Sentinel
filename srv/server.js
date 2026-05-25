@@ -8,6 +8,7 @@ require('dotenv').config();
 const cds     = require('@sap/cds');
 const express = require('express');
 const { v4: uuid } = require('uuid');
+const path = require('path');
 const {
   publishPipelineStatus,
   publishRiskFindings,
@@ -18,6 +19,19 @@ const {
 
 let graph = null;
 let langfuse = null;
+
+// ── SSE client registry — browser connects here for real-time agent events ──
+// AI: SSE relays per-node graph.stream() events directly to the HTML UI
+// Banking: Panel 2 updates live as each agent completes — no polling needed
+// SAP: Solace publishes for enterprise consumers; SSE serves the local HTML UI
+const sseClients = new Map(); // sessionId → Express response
+
+function pushSSE(sessionId, type, data) {
+  const client = sseClients.get(sessionId);
+  if (client && !client.writableEnded) {
+    client.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+  }
+}
 
 // ── Langfuse observability (optional — fails gracefully if keys missing) ──
 function initLangfuse() {
@@ -44,7 +58,7 @@ function calculateCostAUD(inputTokens, outputTokens) {
   return (inputTokens / 1000 * INPUT_PER_1K) + (outputTokens / 1000 * OUTPUT_PER_1K);
 }
 
-async function logToAuditLog(sessionId, query, response, state) {
+async function logToAuditLog(sessionId, query, response, state, latencyMs = 0) {
   try {
     const { v4: uuid } = require('uuid');
     await cds.run(INSERT.into('bankingsentinel.AuditLog').entries({
@@ -58,7 +72,7 @@ async function logToAuditLog(sessionId, query, response, state) {
       TOKENS_IN:  state.totalInputTokens || 0,
       TOKENS_OUT: state.totalOutputTokens || 0,
       COST_AUD:   calculateCostAUD(state.totalInputTokens || 0, state.totalOutputTokens || 0),
-      LATENCY_MS: 0,
+      LATENCY_MS: latencyMs,
       CREATED_AT: new Date().toISOString()
     }));
   } catch (e) {
@@ -73,6 +87,33 @@ cds.on('bootstrap', async (app) => {
 
   // Parse JSON bodies
   app.use(express.json());
+
+  // Serve HTML UI at root
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../v0-source-files/Banking-Sentinel-AustralianBank.html'));
+  });
+
+  // Serve logo
+  app.get('/logo.png', (req, res) => {
+    res.sendFile(path.join(__dirname, '../Docs/logo.png'));
+  });
+
+
+  // ── SSE endpoint — browser subscribes for real-time agent progress ─────────
+  // AI: Browser opens EventSource('/a2a/events?sessionId=xxx'), server pushes per-node events
+  // Banking: Panel 2 ticks each agent green as it completes — no polling, no refresh
+  // SAP: SSE for HTML UI + Solace for enterprise (Joule, dashboards) — both run simultaneously
+  app.get('/a2a/events', (req, res) => {
+    const { sessionId } = req.query;
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.flushHeaders();
+    res.write('data: {"type":"connected"}\n\n');
+    if (sessionId) sseClients.set(sessionId, res);
+    req.on('close', () => { if (sessionId) sseClients.delete(sessionId); });
+  });
 
   // Data browser UI
   const { mountAdminUI } = require('./admin');
@@ -128,10 +169,35 @@ cds.on('bootstrap', async (app) => {
       for await (const chunk of await graph.stream(initialState, { ...config, streamMode: 'updates' })) {
         const [nodeName, nodeState] = Object.entries(chunk)[0];
         finalState = { ...finalState, ...nodeState };
+
+        const eventData = {
+          agent:          nodeName,
+          status:         'complete',
+          customerId:     finalState.intent?.customerId || initialState.customerId,
+          riskScore:      finalState.patternAssessment?.riskScore,
+          riskLevel:      finalState.patternAssessment?.riskLevel,
+          signal:         finalState.patternAssessment?.signal,
+          anomalyCount:   finalState.patternAssessment?.anomalies?.length,
+          anomalies:      finalState.patternAssessment?.anomalies,
+          patternConf:    finalState.patternAssessment?.confidence,
+          nodes:          finalState.relationshipMap?.nodes?.length,
+          groupExposure:  finalState.relationshipMap?.groupExposure,
+          aps221Pct:      finalState.relationshipMap?.aps221Pct,
+          relationshipFinding: finalState.relationshipMap?.finding,
+          forwardPosition:finalState.trajectoryAnalysis?.forwardPosition,
+          daysToExpiry:   finalState.trajectoryAnalysis?.daysToExpiry,
+          confidence:     finalState.selfRagEvaluation?.overallConfidence,
+          reQueryHint:    finalState.reQueryHint,
+          requeryCount:   finalState.requeryCount,
+          findingsCount:  finalState.synthesisResult?.findings?.length,
+          apraReady:      finalState.synthesisResult?.apraReady
+        };
+
+        pushSSE(sessionId, 'pipeline_status', eventData);
         await publishPipelineStatus(sessionId, nodeName, 'complete', {
-          customerId: finalState.intent?.customerId || initialState.customerId,
-          riskScore:  finalState.patternAssessment?.riskScore,
-          riskLevel:  finalState.patternAssessment?.riskLevel
+          customerId: eventData.customerId,
+          riskScore:  eventData.riskScore,
+          riskLevel:  eventData.riskLevel
         });
       }
 
@@ -140,7 +206,12 @@ cds.on('bootstrap', async (app) => {
       const interrupted = checkpoint.next && checkpoint.next.includes('humanApproval');
 
       if (interrupted) {
-        // Publish Solace event — UI shows pause indicator + Approve button
+        // Push SSE to browser + Solace event for enterprise consumers
+        pushSSE(sessionId, 'human_approval', {
+          riskScore:  finalState.patternAssessment?.riskScore,
+          riskLevel:  finalState.patternAssessment?.riskLevel,
+          message:    'Risk officer approval required'
+        });
         await publishHumanApproval(sessionId, {
           customerId:         finalState.intent?.customerId,
           riskLevel:          finalState.patternAssessment?.riskLevel,
@@ -171,8 +242,9 @@ cds.on('bootstrap', async (app) => {
         });
       }
 
-      // Publish risk findings if synthesis completed
+      // Push SSE + Solace for risk findings
       if (finalState.synthesisResult) {
+        pushSSE(sessionId, 'risk_findings', { synthesisResult: finalState.synthesisResult });
         await publishRiskFindings(sessionId, finalState.synthesisResult);
       }
 
@@ -197,7 +269,7 @@ cds.on('bootstrap', async (app) => {
       console.log(`[A2A] Done | type: ${responseType} | tokens: ${finalState.totalInputTokens}in/${finalState.totalOutputTokens}out | AUD ${cost.toFixed(4)} | ${latencyMs}ms`);
 
       // Persist to AuditLog
-      await logToAuditLog(sessionId, params.query, answer, finalState);
+      await logToAuditLog(sessionId, params.query, answer, finalState, latencyMs);
 
       // Flush Langfuse trace
       trace?.update({ output: answer, metadata: { latencyMs, cost, responseType } });
@@ -246,14 +318,36 @@ cds.on('bootstrap', async (app) => {
     try {
       // Resume graph from interruptBefore — stream so UI gets synthesis progress event
       let finalState = {};
+      let chunksReceived = 0;
       for await (const chunk of await graph.stream(null, { ...config, streamMode: 'updates' })) {
+        chunksReceived++;
         const [nodeName, nodeState] = Object.entries(chunk)[0];
         finalState = { ...finalState, ...nodeState };
+        const eventData = {
+          agent:        nodeName,
+          status:       'complete',
+          findingsCount: finalState.synthesisResult?.findings?.length,
+          riskScore:    finalState.synthesisResult?.riskScore,
+          riskLevel:    finalState.synthesisResult?.riskLevel,
+          confidence:   finalState.synthesisResult?.confidence
+        };
+        pushSSE(sessionId, 'pipeline_status', eventData);
         await publishPipelineStatus(sessionId, nodeName, 'complete', {});
       }
 
-      // Publish final risk findings to UI Panel 3
+      // No chunks = no paused session existed for this sessionId
+      if (chunksReceived === 0) {
+        console.warn(`[A2A] /approve — no paused session found for ${sessionId}`);
+        return res.status(404).json({
+          jsonrpc: '2.0',
+          error: { code: -32001, message: `No paused session found for sessionId: ${sessionId}` },
+          id: null
+        });
+      }
+
+      // Push SSE + Solace for final risk findings
       if (finalState.synthesisResult) {
+        pushSSE(sessionId, 'risk_findings', { synthesisResult: finalState.synthesisResult });
         await publishRiskFindings(sessionId, finalState.synthesisResult);
       }
 
@@ -316,6 +410,7 @@ cds.on('bootstrap', async (app) => {
       const { embedAndStoreApraDoc } = require('./rag/apra-embedder');
       const chunkCount = await embedAndStoreApraDoc({ docTitle, standard, pdfUrl, pdfBase64 });
 
+      pushSSE(sessionId, 'regulatory_update', { docTitle, standard, chunkCount });
       await publishRegulatoryUpdate(sessionId, docTitle, standard, chunkCount);
 
       console.log(`[A2A] /sync-apra complete | ${chunkCount} chunks embedded | event published`);
