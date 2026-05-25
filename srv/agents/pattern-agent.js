@@ -6,6 +6,7 @@
 
 'use strict';
 const cds = require('@sap/cds');
+const { startSpan, endSpan } = require('../observability/langfuse-client');
 const { ChatAnthropic } = require('@langchain/anthropic');
 
 // ── Step 1: Fetch customer data from HANA ────────────────────────────────────
@@ -217,6 +218,7 @@ Each anomaly max 20 words. Empty array if nothing unusual.`
 // ── Pattern Agent — main LangGraph node ──────────────────────────────────────
 async function patternAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
+  const span = startSpan(state.traceId, 'pattern-agent', { customerId });
   console.log(`  [Pattern] Analysing: ${customerId}`);
 
   if (!customerId) {
@@ -290,6 +292,14 @@ async function patternAgent(state) {
                      combinedAnomalies.length > 0 ? 'unclear'    : 'stable';
 
   console.log(`  [Pattern] Done — score:${riskScore} level:${riskLevel} signal:${signal} anomalies:${combinedAnomalies.length}`);
+
+  endSpan(span, { riskScore, riskLevel, signal, anomalyCount: combinedAnomalies.length }, {
+    rpt1Success: rpt1Result.success,
+    palAnomalies: palResult.anomalyCount,
+    llmAnomalies: llmResult.anomalies?.length,
+    tokensIn: llmResult.tokensIn,
+    tokensOut: llmResult.tokensOut
+  });
 
   return {
     patternAssessment: {

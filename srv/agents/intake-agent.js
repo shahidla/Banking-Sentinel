@@ -6,6 +6,7 @@
 
 'use strict';
 const { ChatAnthropic } = require('@langchain/anthropic');
+const { getLangchainHandler } = require('../observability/langfuse-client');
 
 const INTAKE_SYSTEM = `You are the Intake Agent for Banking Sentinel, an AI risk intelligence system for a major Australian bank.
 
@@ -36,10 +37,12 @@ Respond with JSON only, no explanation:
 }`;
 
 async function intakeAgent(state) {
+  const lfHandler = getLangchainHandler(state.traceId, 'intake-agent');
   const llm = new ChatAnthropic({
     model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey: process.env.ANTHROPIC_API_KEY,
-    maxTokens: 300
+    maxTokens: 300,
+    callbacks: lfHandler ? [lfHandler] : []
   });
 
   let parsed;

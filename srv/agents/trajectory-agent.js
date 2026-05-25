@@ -5,12 +5,14 @@
 
 'use strict';
 const cds = require('@sap/cds');
+const { startSpan, endSpan } = require('../observability/langfuse-client');
 
 const APRA_DTI_LIMIT         = 6.0;
 const INCOME_EXPIRY_WARN_DAYS = 180; // flag if income expires within 6 months
 
 async function trajectoryAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
+  const span = startSpan(state.traceId, 'trajectory-agent', { customerId });
   console.log(`  [Trajectory] Analysing forward position: ${customerId}`);
 
   if (!customerId) {
@@ -127,6 +129,11 @@ async function trajectoryAgent(state) {
   forwardPosition = isDeteriograting ? 'DETERIORATING' : isStable ? 'STABLE' : 'IMPROVING';
 
   console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
+
+  endSpan(span, { forwardPosition, currentDti, futureDti, daysToExpiry }, {
+    conflictingSignals: conflictingSignals.length,
+    timeToBreach
+  });
 
   return {
     trajectoryAnalysis: {

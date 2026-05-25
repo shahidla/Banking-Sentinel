@@ -145,6 +145,16 @@ const BankingSentinelState = Annotation.Root({
   totalInputTokens:  Annotation({ reducer: sum, default: () => 0 }),
   totalOutputTokens: Annotation({ reducer: sum, default: () => 0 }),
 
+  // AI: Retrieved APRA regulatory chunks — set by Synthesis Agent, read by RAGAS evaluator
+  // Banking: Faithfulness check: does the risk brief cite regulations that were actually retrieved?
+  // SAP: Stored without EMBEDDING field (too large) — STANDARD + CONTENT only
+  retrievedDocs: Annotation({ reducer: last }),
+
+  // AI: Langfuse traceId — set by server.js on trace creation, read by all agents to attach child spans
+  // Banking: Every agent span links back to the same trace → one unified view per risk analysis run
+  // SAP: String (UUID) — safe to checkpoint in PostgresSaver; agents require langfuse-client to use it
+  traceId: Annotation({ reducer: last }),
+
   // Message history — carries conversation context
   messages: Annotation({ reducer: append, default: () => [] }),
 

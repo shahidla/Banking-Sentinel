@@ -10,6 +10,7 @@
 'use strict';
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { hana_graph_traverse, exposure_calculator, apra_threshold_check } = require('../tools/mcp-tools');
+const { getLangchainHandler } = require('../observability/langfuse-client');
 
 const MAX_REACT_STEPS = 6;
 
@@ -103,10 +104,12 @@ async function runRelationshipAgent(state, customerId) {
   const reQueryHint = state.reQueryHint || null;
   const prevNodes   = state.relationshipMap?.nodes || [];
 
+  const lfHandler = getLangchainHandler(state.traceId, 'relationship-agent');
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 1000
+    maxTokens: 1000,
+    callbacks: lfHandler ? [lfHandler] : []
   }).bindTools(TOOLS);
 
   // ── System prompt: first run vs targeted re-query ─────────────────────────

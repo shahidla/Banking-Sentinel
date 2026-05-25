@@ -7,6 +7,7 @@
 const cds = require('@sap/cds');
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { hana_vector_search } = require('../tools/mcp-tools');
+const { getLangchainHandler } = require('../observability/langfuse-client');
 
 async function synthesisAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
@@ -40,10 +41,12 @@ async function synthesisAgent(state) {
     .join('\n\n');
 
   // ── LLM synthesis — APRA-ready risk brief ────────────────────────────────
+  const lfHandler = getLangchainHandler(state.traceId, 'synthesis-agent');
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 700
+    maxTokens: 700,
+    callbacks: lfHandler ? [lfHandler] : []
   });
 
   const agentContext = JSON.stringify({
@@ -165,6 +168,8 @@ Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evide
       uncertainties:   brief.uncertainties   || [],
       apraReady:       brief.apraReady       || false
     },
+    // Strip EMBEDDING before persisting to state — too large for PostgresSaver
+    retrievedDocs: regulatoryDocs.map(({ DOC_ID, TITLE, STANDARD, CONTENT }) => ({ DOC_ID, TITLE, STANDARD, CONTENT })),
     totalInputTokens:  tokensIn,
     totalOutputTokens: tokensOut
   };

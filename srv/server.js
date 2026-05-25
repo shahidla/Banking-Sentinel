@@ -16,6 +16,8 @@ const {
   publishRegulatoryUpdate,
   publishSessionReset
 } = require('./events/solace-publisher');
+const { runRagasEvaluation } = require('./observability/ragas-evaluator');
+const { flush: langfuseFlush } = require('./observability/langfuse-client');
 
 let graph = null;
 let langfuse = null;
@@ -138,19 +140,22 @@ cds.on('bootstrap', async (app) => {
 
     console.log(`\n[A2A] ${method} | session: ${sessionId} | query: "${(params.query || '').substring(0, 60)}"`);
 
-    // Langfuse trace for this request
+    // Langfuse trace for this request — traceId flows into state so agents attach child spans
     const trace = langfuse?.trace({
       name:      'banking-sentinel-analysis',
       sessionId,
       userId:    'banking-sentinel',
-      metadata:  { method, query: params.query }
+      input:     { query: params.query, customerId: params.customerId },
+      metadata:  { method }
     });
+    const traceId = trace?.id || null;
 
     try {
       const initialState = {
         query:      params.query || '',
         customerId: params.customerId || null,
         sessionId,
+        traceId,
         requeryCount:      0,
         totalInputTokens:  0,
         totalOutputTokens: 0,
@@ -227,7 +232,7 @@ cds.on('bootstrap', async (app) => {
         });
 
         trace?.update({ output: 'awaiting_human_approval', metadata: { sessionId, latencyMs: Date.now() - startTime } });
-        await langfuse?.flushAsync?.();
+        await langfuseFlush();
 
         return res.json({
           jsonrpc: '2.0',
@@ -274,9 +279,15 @@ cds.on('bootstrap', async (app) => {
       // Persist to AuditLog
       await logToAuditLog(sessionId, params.query, answer, finalState, latencyMs);
 
-      // Flush Langfuse trace
-      trace?.update({ output: answer, metadata: { latencyMs, cost, responseType } });
-      await langfuse?.flushAsync?.();
+      // RAGAS-style quality evaluation — fire-and-forget, does not block response
+      if (finalState.synthesisResult && traceId) {
+        runRagasEvaluation(traceId, params.query, finalState.synthesisResult, finalState.retrievedDocs)
+          .catch(e => console.warn('[RAGAS] evaluation error:', e.message));
+      }
+
+      // Finalise and flush Langfuse trace
+      trace?.update({ output: answer, metadata: { latencyMs, cost, responseType, tokensIn: finalState.totalInputTokens, tokensOut: finalState.totalOutputTokens } });
+      await langfuseFlush();
 
       res.json({
         jsonrpc: '2.0',
@@ -296,7 +307,7 @@ cds.on('bootstrap', async (app) => {
     } catch (err) {
       console.error(`[A2A] Error: ${err.message}`);
       trace?.update({ output: null, level: 'ERROR', metadata: { error: err.message } });
-      await langfuse?.flushAsync?.();
+      await langfuseFlush();
       res.status(500).json({
         jsonrpc: '2.0',
         error: { code: -32603, message: err.message },

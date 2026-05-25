@@ -8,6 +8,7 @@
 
 'use strict';
 const { ChatAnthropic } = require('@langchain/anthropic');
+const { getLangchainHandler } = require('../observability/langfuse-client');
 
 async function selfRagCheckNode(state) {
   const customerId = state.intent?.customerId || state.customerId;
@@ -18,10 +19,12 @@ async function selfRagCheckNode(state) {
 
   console.log(`  [SelfRAG] Evaluating evidence quality — attempt ${reqCount + 1} for ${customerId}`);
 
+  const lfHandler = getLangchainHandler(state.traceId, 'self-rag');
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 400
+    maxTokens: 400,
+    callbacks: lfHandler ? [lfHandler] : []
   });
 
   // ── Summarise all agent outputs for evaluation ────────────────────────────
