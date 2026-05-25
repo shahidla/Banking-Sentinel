@@ -332,7 +332,7 @@
         <div class="an">02</div>
         <div>
           <div class="anr">Pattern Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">RPT-1 tabular foundation model · HANA PAL Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled</div>
+          <div class="ao" id="a2desc">RPT-1 tabular foundation model · Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled</div>
         </div>
       </div>
 
@@ -436,6 +436,14 @@ let evtSource = null;
 let agentsDone = 0;
 let startTime = null;
 
+// Anomaly engine label — fetched once from /a2a/config (scikit|pal)
+let _anomalyLabel = 'Scikit-IF';
+fetch('/a2a/config').then(r => r.json()).then(cfg => {
+  _anomalyLabel = cfg.anomalyEngineLabel || 'Scikit-IF';
+  const desc = document.getElementById('a2desc');
+  if (desc) desc.textContent = `RPT-1 tabular foundation model · ${_anomalyLabel} Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled`;
+}).catch(() => {});
+
 // Progressive pattern results — populated as RPT-1 / PAL / LLM each return
 const patternParts = { rpt1: null, pal: null, llm: null };
 
@@ -452,8 +460,8 @@ function renderPatternProgress() {
       })()
     : `RPT-1: ${pending}`;
   const palHtml = p.pal
-    ? `<b>PAL: <span class="h">${p.pal.anomalyCount ?? 0} anomal${p.pal.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`
-    : `PAL: ${pending}`;
+    ? `<b>${_anomalyLabel}: <span class="h">${p.pal.anomalyCount ?? 0} anomal${p.pal.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`
+    : `${_anomalyLabel}: ${pending}`;
   const llmHtml = p.llm
     ? `<b>LLM: <span class="h">${p.llm.anomalyCount ?? 0} anomal${p.llm.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`
     : `LLM: ${pending}`;
@@ -659,7 +667,7 @@ function getCompletionHtml(e) {
       const lvlCol  = { CRITICAL:'r', HIGH:'r', MEDIUM:'w', LOW:'g' }[e.riskLevel] || 'w';
       const est     = e.rpt1Success === false ? ' <span style="font-size:9px;color:var(--mid)">(est.)</span>' : '';
       const rpt1Txt = `<b>RPT-1:</b> <span class="${lvlCol}">${e.riskLevel || '—'} ${e.riskScore != null ? e.riskScore : '—'}</span>${est}`;
-      const palTxt  = `<b>PAL:</b> <span class="h">${e.palCount ?? 0} anomal${(e.palCount === 1) ? 'y' : 'ies'}</span>`;
+      const palTxt  = `<b>${_anomalyLabel}:</b> <span class="h">${e.palCount ?? 0} anomal${(e.palCount === 1) ? 'y' : 'ies'}</span>`;
       const llmTxt  = `<b>LLM:</b> <span class="h">${e.signal || '—'}</span>`;
       const confTxt = e.patternConf != null ? ` · <span class="h">${Math.round(e.patternConf * 100)}% conf</span>` : '';
       const anomalyHtml = (e.anomalies || []).length > 0

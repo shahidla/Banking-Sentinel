@@ -481,6 +481,14 @@ cds.on('bootstrap', async (app) => {
     });
   });
 
+  app.get('/a2a/config', (req, res) => {
+    const engine = (process.env.ANOMALY_ENGINE || 'scikit').toLowerCase();
+    res.json({
+      anomalyEngine:      engine,
+      anomalyEngineLabel: engine === 'pal' ? 'HANA PAL' : 'Scikit-IF'
+    });
+  });
+
   console.log('  [Server] A2A endpoint ready: POST /a2a/agent');
   console.log('  [Server] Health check: GET /a2a/health\n');
 });
