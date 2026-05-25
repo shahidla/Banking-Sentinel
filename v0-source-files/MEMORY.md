@@ -1,6 +1,6 @@
 # Banking Sentinel — Project Memory
 ## For Claude Code — New Conversation Handoff
-## Last updated: 2026-05-25 (Session 5 — Phase 6 complete, Phase 7 in progress)
+## Last updated: 2026-05-25 (Session 6 — Phase 7 complete, Phase 8 next)
 
 ---
 
@@ -157,9 +157,9 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | 4b | Relationship Agent — ReAct loop (max 6 steps), GraphDB SPARQL graph traversal, APS 221 check | ✅ DONE (2026-05-24) |
 | 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop (interruptBefore humanApproval) | ✅ DONE (2026-05-24) |
 | 6 | Self-RAG — real LLM confidence evaluation (4 dimensions) + targeted re-query loop | ✅ DONE (2026-05-25) |
-| 7 | Solace events (graph.stream) + Twinkle 2 (APRA sync) + reset endpoint | 🔶 IN PROGRESS (2026-05-25) |
-| 8 | Langfuse tracing every node + RAGAS scoring + cost tracking + CF restart test | 🔲 PENDING |
-| 9 | HTML UI wired to A2A + Solace topics + demo scenarios rehearsed + deliberate rejection | 🔲 PENDING |
+| 7 | Solace events (graph.stream) + Twinkle 2 (APRA sync) + UI wired + security hardening | ✅ DONE (2026-05-25) |
+| 8 | Langfuse tracing every node + RAGAS scoring + cost tracking + CF restart test | 🔲 NEXT |
+| 9 | Educational slide-in drawer per agent (ON/OFF toggle) + demo rehearsal | 🔲 PENDING |
 | 10 | BTP CF deployment + architecture diagram + demo video + blog post | 🔲 PENDING |
 
 ---
@@ -488,7 +488,7 @@ intake → pattern → relationship → trajectory → selfRagCheck → [interru
 
 ## PHASE 7 DECISIONS LOG (2026-05-25)
 
-**What was built (Phase 7 — in progress):**
+**What was built (Phase 7 — complete 2026-05-25):**
 - `srv/events/solace-publisher.js` (NEW) — centralized Solace publisher, 5 topic functions, fire-and-forget pattern
 - `srv/server.js` (UPDATED) — replaced `graph.invoke()` with `graph.stream()` for per-node Solace events
 - `srv/rag/apra-embedder.js` (NEW) — Twinkle 2: PDF → chunks (800 chars, 100 overlap) → OpenAI embeddings → HANA RegulatoryDocuments
@@ -527,9 +527,34 @@ graph.stream() → yields after each node
 | PDF chunking | 800 chars, 100 overlap | 500/50, 1000/200 | Balances context window (too large = noisy retrieval) and boundary loss (overlap preserves split sentences) |
 | Embedding model | text-embedding-3-small (1536d) | text-embedding-ada-002 | Same model used in Phase 2 — consistency required for cosine similarity. Different models = incomparable vectors. |
 
-**Pending for Phase 7 completion:**
-- HTML UI (`Banking-Sentinel-AustralianBank.html`) — wire Solace subscriptions to update all 3 panels live
-- Test full stream: send query → watch per-agent events arrive in browser
+**Additional Phase 7 deliverables (Session 6 — 2026-05-25):**
+- HTML UI fully wired: SSE per-agent events update all 3 panels live
+- Anomaly strings as bullet list in Pattern row; relationship finding + APS 221% in Relationship row
+- Forward position, daysToExpiry, re-query count in Trajectory/Self-RAG row
+- Synthesis: findings count + APRA Ready ✓ in agent row; full brief + recommendations in Panel 3
+- Removed all hardcoded content (B-4471, fake customer names, fake alerts)
+- Real logo added: `Docs/logo.png` served via `/logo.png` route
+- Admin `/admin`: PostgreSQL sidebar with real COUNT(*), click-to-view, Clear All button for checkpoint tables
+- Admin JS syntax error fixed: `\'` in template literal rendered as `'` → adjacent string literals → script killed. Fixed with `data-table` attributes + addEventListener
+- Security hardening: 6 issues validated and fixed (see security decisions below)
+
+**Security decisions (Phase 7 — Session 6):**
+
+| Fix | Root Cause | Solution |
+|---|---|---|
+| Admin auth (HIGH) | No middleware on `/admin` routes | `adminGuard`: localhost-only; `ADMIN_TOKEN` env for token auth on BTP |
+| APS 221 limit type (MEDIUM) | `aps221` queried `LIMIT_TYPE: 'SINGLE'` | Now queries `'GROUP'` for connected-party; `'SINGLE'` for single-entity |
+| HANA count capped (MEDIUM) | `count: rows.length` after `.limit(200)` | Parallel `COUNT(*)` query, real total returned |
+| Orphaned approve (MEDIUM) | No chunks → silent `status: 'completed'` | `chunksReceived` counter — 404 if zero chunks |
+| Audit latency = 0 (LOW) | `LATENCY_MS: 0` hardcoded | `logToAuditLog(sessionId, query, answer, state, latencyMs)` — real ms |
+
+**Reliability decisions (Phase 7):**
+
+| Fix | Mechanism | Why |
+|---|---|---|
+| Relationship Agent timeout | `Promise.race([agent, 45s timeout])` | Hung LLM call froze entire pipeline |
+| SPARQL timeout | `AbortSignal.timeout(8000)` on fetch | GraphDB unreachable hung silently |
+| Both return structured error | `{ relationshipMap: { finding: 'timed out' } }` | UI shows error instead of "Thinking..." forever |
 
 ---
 
@@ -538,9 +563,26 @@ graph.stream() → yields after each node
 | Issue | Severity | Status |
 |---|---|---|
 | PAL requires AFL__SYS_AFL_AFLPAL_EXECUTE privilege on HDI technical user | Medium | Grant via HANA Cloud Cockpit if PAL fails |
-| GraphDB sandbox expires every 7 days | Medium | Run seed-graphdb.js restore script |
-| synthesis-agent uses claude-haiku not claude-opus-4-7 | Low | Upgrade for demo in Phase 9 |
-| HTML UI not yet wired to Solace (no real-time panel updates) | High | Phase 7 remaining work |
+| GraphDB sandbox expires every 7 days | Medium | Run `npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid` |
+| synthesis-agent uses claude-haiku not claude-opus-4-7 | Low | Upgrade in Phase 9 for demo |
+| ADMIN_TOKEN not set — localhost-only restriction | Low | Set before BTP deployment |
+
+---
+
+## PHASE 8 — UPCOMING
+
+**Goal:** LLMOps — full observability of every AI call in the pipeline
+
+**What to build:**
+- Langfuse trace wrapping every LangGraph node (already partially wired in server.js — extend to agents)
+- RAGAS evaluation: faithfulness, answer relevance, context recall — scored per synthesis run
+- Token cost tracking per analysis (AUD) — already in AuditLog, add Langfuse metadata
+- CF restart survival test — confirm PostgresSaver checkpoint survives CF app restart
+
+**Key patterns:**
+- AI: LLMOps — treat AI like software: trace, evaluate, improve
+- Banking: APRA CPS 230 operational resilience — AI systems must be auditable
+- SAP: Langfuse on BTP CF (Docker or managed) — cost dashboard for AI API usage
 
 ---
 

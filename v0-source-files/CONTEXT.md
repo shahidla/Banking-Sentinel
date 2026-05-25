@@ -9,7 +9,9 @@
 ## Phase 5 complete (2026-05-24): Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt (interruptBefore: humanApproval). PostgresSaver checkpointer wired. Full pipeline LIVE end-to-end.
 ## Graph Engine decision (2026-05-24): KGE (Triple Store) NOT on BTP trial. GRAPH_TABLE SQL function NOT supported (preview feature only in this tier). Workspace BP_RELATIONSHIP_GRAPH deployed as HDI artifact — production upgrade path when GRAPH_TABLE goes GA.
 ## KGE equivalent (2026-05-24): GraphDB (Graphwise sandbox) — RDF triple store + SPARQL. Same SPARQL queries run on HANA KGE in production (one endpoint change). 4035 triples loaded: 1000 BusinessPartners + 12 BUT050 relationships. SPARQL traversal from 30100003 finds 7 connected parties including TrustCo Holdings (4 hops). Sandbox expires every 7 days — restore with: npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid
-## Last updated: 2026-05-24
+## Phase 6 complete (2026-05-25): Self-RAG — real LLM confidence evaluation (4 dimensions), targeted re-query loop (max 2), reQueryHint drives focused Relationship Agent re-traversal. Confidence threshold 0.70.
+## Phase 7 complete (2026-05-25): SSE + Solace dual-publish per node via graph.stream(). UI fully wired — anomaly strings, relationship finding, forward position, synthesis findings all live. Admin data browser: PostgreSQL sidebar with real COUNT(*) and Clear All. Security hardening: admin IP guard, APS 221 GROUP limit fix, orphaned-approve 404, real audit latency. Relationship Agent 45s timeout + SPARQL 8s AbortSignal. Logo added.
+## Last updated: 2026-05-25
 
 ---
 
