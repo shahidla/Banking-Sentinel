@@ -124,7 +124,7 @@ async function trajectoryAgent(state) {
     && currentDti < APRA_DTI_LIMIT * 0.80
     && (daysToExpiry === null || daysToExpiry > INCOME_EXPIRY_WARN_DAYS);
 
-  forwardPosition = isDeteriograting ? 'DETERIORATING' : isStable ? 'STABLE' : 'DETERIORATING';
+  forwardPosition = isDeteriograting ? 'DETERIORATING' : isStable ? 'STABLE' : 'IMPROVING';
 
   console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
 

@@ -31,7 +31,7 @@ CUSTOMER_ID extraction: Partner IDs are 8-digit SAP BP numbers like 30100001, 30
 Respond with JSON only, no explanation:
 {
   "intent": "SIMPLE_DATA_QUERY" | "RISK_ANALYSIS" | "INAPPROPRIATE_REQUEST",
-  "customerId": "B-001" | null,
+  "customerId": "30100001" | null,
   "description": "one sentence describing exactly what the user wants"
 }`;
 

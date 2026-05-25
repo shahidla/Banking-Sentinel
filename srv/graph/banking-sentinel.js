@@ -45,8 +45,11 @@ async function createBankingSentinelGraph() {
     checkpointer = pgCheckpointer;
     console.log('  [Graph] PostgresSaver initialised — agent state will survive CF restarts');
   } catch (e) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`PostgresSaver required in production — cannot fall back to MemorySaver. ${e.message}`);
+    }
     checkpointer = new MemorySaver();
-    console.warn(`  [Graph] PostgresSaver unavailable (${e.message.substring(0, 60)}) — MemorySaver active (local dev only)`);
+    console.warn(`  [Graph] PostgresSaver unavailable (${e.message.substring(0, 60)}) — MemorySaver active (LOCAL DEV ONLY — state will not survive restarts)`);
   }
 
   // ── StateGraph definition ──────────────────────────────────────────────────

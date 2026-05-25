@@ -133,7 +133,7 @@ function checkConfidence(state) {
     ? evaluation.overallConfidence
     : Math.min(state.patternAssessment?.confidence ?? 1, state.relationshipMap?.confidence ?? 1);
 
-  if (confidence < 0.70 && reqCount < 2) {
+  if (confidence < 0.70 && reqCount < 3) {
     console.log(`  [SelfRAG→Route] confidence:${confidence.toFixed(2)} below 0.70 — re-querying (attempt ${reqCount})`);
     return 'requery';
   }

@@ -495,8 +495,11 @@ function mountAdminUI(app) {
       const results = {};
       for (const t of PG_TABLES) {
         try {
-          const r = await pgPool.query(`SELECT * FROM "${t}" ORDER BY 1 LIMIT 50`);
-          results[t] = { count: r.rowCount, rows: r.rows };
+          const [rows, cnt] = await Promise.all([
+            pgPool.query(`SELECT * FROM "${t}" ORDER BY 1 LIMIT 50`),
+            pgPool.query(`SELECT COUNT(*)::int AS n FROM "${t}"`)
+          ]);
+          results[t] = { count: cnt.rows[0].n, rows: rows.rows };
         } catch { results[t] = { count: 0, rows: [] }; }
       }
       res.json(results);
