@@ -121,6 +121,7 @@ async function trajectoryAgent(state) {
   forwardPosition = isDeteriorating ? 'DETERIORATING' : isStable ? 'STABLE' : isImproving ? 'IMPROVING' : 'MONITORING';
 
   console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
+  conflictingSignals.forEach((s, i) => console.log(`  [Trajectory] Signal ${i+1}: ${s}`));
 
   endSpan(span, { forwardPosition, currentDti, futureDti, daysToExpiry }, {
     conflictingSignals: conflictingSignals.length,

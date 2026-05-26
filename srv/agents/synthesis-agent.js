@@ -164,6 +164,13 @@ Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evide
      .catch(e => console.warn('  [Synthesis] RiskAssessments insert failed:', e.message));
 
   console.log(`  [Synthesis] Done — score:${brief.riskScore} level:${brief.riskLevel} confidence:${brief.confidence} apraReady:${brief.apraReady}`);
+  console.log(`  [Synthesis] Regulatory refs: ${(brief.regulatoryRefs || []).join(', ') || 'none'}`);
+  (brief.findings || []).forEach((f, i) =>
+    console.log(`  [Synthesis] Finding ${i+1}: [${f.severity}] ${f.finding} (src:${f.evidenceSource} conf:${f.confidence})`));
+  (brief.recommendations || []).forEach((r, i) =>
+    console.log(`  [Synthesis] Rec ${i+1}: ${r}`));
+  (brief.uncertainties || []).forEach((u, i) =>
+    console.log(`  [Synthesis] Uncertainty ${i+1}: ${u}`));
 
   return {
     synthesisResult: {

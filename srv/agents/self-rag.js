@@ -114,8 +114,10 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;
   const tokensOut = response.usage_metadata?.output_tokens || 0;
 
-  console.log(`  [SelfRAG] confidence:${evaluation.overallConfidence.toFixed(2)} gaps:${evaluation.gaps?.length || 0} reQueryHint:"${(evaluation.reQueryHint || '').substring(0, 70)}..."`);
+  console.log(`  [SelfRAG] confidence:${evaluation.overallConfidence.toFixed(2)} gaps:${evaluation.gaps?.length || 0}`);
   console.log(`  [SelfRAG] reasoning: ${evaluation.reasoning}`);
+  console.log(`  [SelfRAG] reQueryHint: ${evaluation.reQueryHint || '(none)'}`);
+  (evaluation.gaps || []).forEach((g, i) => console.log(`  [SelfRAG] Gap ${i+1}: ${g}`));
 
   return {
     selfRagEvaluation: evaluation,

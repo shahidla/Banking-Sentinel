@@ -68,6 +68,7 @@ Respond with JSON only:
 
     await submitScore(traceId, 'faithfulness', result.faithfulness, result.comment);
     console.log(`  [RAGAS] faithfulness: ${result.faithfulness.toFixed(2)} (${result.supported}/${result.total} findings supported)`);
+    if (result.comment) console.log(`  [RAGAS] faithfulness comment: ${result.comment}`);
     return result;
   } catch (e) {
     console.warn('  [RAGAS] faithfulness evaluation failed:', e.message);

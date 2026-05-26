@@ -197,6 +197,9 @@ Return your final summary as JSON:
   const relationshipMap = { ...parsed };
 
   console.log(`  [Relationship] Done — nodes:${relationshipMap.nodes?.length} edges:${relationshipMap.edges?.length} groupExposure:${relationshipMap.groupExposure} aps221Pct:${relationshipMap.aps221Pct} steps:${steps}`);
+  console.log(`  [Relationship] Nodes: ${(relationshipMap.nodes || []).join(', ') || 'none'}`);
+  console.log(`  [Relationship] Finding: ${relationshipMap.finding || '(none)'}`);
+  console.log(`  [Relationship] Confidence: ${relationshipMap.confidence}`);
 
   return {
     relationshipMap: {
