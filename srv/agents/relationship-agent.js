@@ -113,7 +113,7 @@ Steps:
 1. Call hana_graph_traverse with the customer ID to find connected parties
 2. If new entities are found, call exposure_calculator with all entity IDs found
 3. Call apra_threshold_check with the total exposure and metricType="aps221"
-4. If the graph seems incomplete (few connections found), traverse again from a connected entity
+4. If hana_graph_traverse returns zero SPARQL connections, this is EXPECTED — many borrowers are not in BUT050 directly. Do NOT call hana_graph_traverse again from a different entity; doing so pulls in unrelated connected-party chains. The guarantor data is already included in the tool result — use those IDs for exposure_calculator.
 5. When you have a complete picture, stop calling tools and summarise
 
 Return your final summary as JSON:

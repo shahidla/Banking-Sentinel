@@ -603,7 +603,16 @@ function resetUI() {
   document.getElementById('breaches').innerHTML = '<div class="breach" style="opacity:0.3"><div class="bh"><span class="bs">—</span></div><div class="bt">Awaiting policy agent...</div></div>';
   document.getElementById('recs').innerHTML = '<div class="rec" style="opacity:0.3"><div class="rh"><span class="rp">—</span></div><div class="rt">Awaiting synthesis...</div></div>';
   document.getElementById('evs').innerHTML = '<div class="ev-item"><span class="ed">◆</span>Awaiting retrieval...</div>';
-  ['a1','a2','a3','a4','a5'].forEach(id => setAgent(id, 'idle', null));
+  const AGENT_DEFAULTS = {
+    a1: 'Parses NL query · Identifies customer · Classifies intent · Routes: risk analysis / simple query / rejection',
+    a2: 'RPT-1 tabular foundation model · Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled',
+    a3: 'ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check',
+    a4: 'Forward DTI after income expiry · Conflicting signal resolution · Self-RAG re-queries if confidence &lt; 0.70',
+    a5: 'HANA Vector RAG · APRA regulatory retrieval · Evidence trail · APRA-ready risk brief with confidence per finding'
+  };
+  ['a1','a2','a3','a4','a5'].forEach(id => {
+    setAgent(id, 'idle', AGENT_DEFAULTS[id]);
+  });
   // Clear educational drawer
   const eduSec = document.getElementById('eduSections');
   if (eduSec) eduSec.innerHTML = '<div class="edu-empty">Run a risk analysis<br>to begin the walkthrough</div>';
@@ -671,10 +680,9 @@ function handleEvent(evt) {
       return;
     }
 
-    // riskStart fan-out — activate both pattern and relationship simultaneously
+    // riskStart — activate pattern only; relationship only runs on high_risk path
     if (e.agent === 'riskStart') {
       setAgent('a2', 'active', null);
-      setAgent('a3', 'active', null);
       return;
     }
 
@@ -702,6 +710,18 @@ function handleEvent(evt) {
 
     setAgent(agentId, 'complete', getCompletionHtml(e));
     addEduSection(e.agent, e);
+
+    // Low-risk path skips agents 3+4 — mark them so they don't show stale state
+    if (e.agent === 'synthesis') {
+      ['a3','a4'].forEach(id => {
+        const badge = document.querySelector(`#${id} .ab`);
+        if (badge && (badge.textContent === 'Thinking...' || badge.textContent === 'Waiting')) {
+          setAgent(id, 'idle', id === 'a3'
+            ? 'Skipped — risk score below threshold · Connected party check not required'
+            : 'Skipped — risk score below threshold · Trajectory assessment not required');
+        }
+      });
+    }
 
     if (e.agent === 'relationship') {
       document.getElementById('gh').textContent = e.nodes || '?';
