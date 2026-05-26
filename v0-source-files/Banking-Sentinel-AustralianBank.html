@@ -585,9 +585,9 @@ function handleEvent(evt) {
       return;
     }
 
-    // humanApproval — show approve button; synthesis starts after officer approves
+    // humanApproval pipeline_status fires on graph RESUME (node executes after approval)
+    // The approve bar is shown by the 'human_approval' event type from the initial pause — not here
     if (e.agent === 'humanApproval') {
-      document.getElementById('approveBar').style.display = 'flex';
       return;
     }
 
