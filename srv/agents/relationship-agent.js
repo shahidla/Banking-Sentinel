@@ -165,20 +165,34 @@ Return your final summary as JSON:
   }
 
   // ── Extract final relationship map from LLM summary ───────────────────────
+  // LangChain AIMessage.content can be a string OR an array of content blocks
+  function extractText(content) {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) return content.map(b => (typeof b === 'string' ? b : b.text || '')).join('');
+    return String(content);
+  }
+
   const lastTextMsg = [...messages].reverse().find(m => {
-    const content = typeof m.content === 'string' ? m.content : '';
-    return content.includes('{') && !m.tool_call_id;
+    if (m.tool_call_id) return false;
+    return extractText(m.content).includes('{');
   });
 
-  if (!lastTextMsg) throw new Error('Relationship Agent: LLM did not return a JSON summary after ReAct loop');
+  let parsed = null;
+  if (lastTextMsg) {
+    const rawText = extractText(lastTextMsg.content);
+    const clean   = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const match   = clean.match(/\{[\s\S]*\}/);
+    try {
+      if (match) parsed = JSON.parse(match[0]);
+    } catch (e) {
+      console.warn(`  [Relationship] JSON parse failed: ${e.message} — using fallback`);
+    }
+  }
 
-  const text  = typeof lastTextMsg.content === 'string' ? lastTextMsg.content : JSON.stringify(lastTextMsg.content);
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Relationship Agent: no JSON found in LLM final response');
-
-  let parsed;
-  try { parsed = JSON.parse(match[0]); } catch (e) { throw new Error(`Relationship Agent: JSON parse failed — ${e.message}`); }
-  if (!Array.isArray(parsed.nodes)) throw new Error('Relationship Agent: LLM response missing nodes array');
+  if (!parsed || !Array.isArray(parsed.nodes)) {
+    console.warn('  [Relationship] LLM response missing nodes — using empty relationship map fallback');
+    parsed = { nodes: [], edges: [], groupExposure: 0, aps221Pct: 0, confidence: 0.40, finding: 'Graph traversal result unavailable — manual review required' };
+  }
 
   const relationshipMap = { ...parsed };
 

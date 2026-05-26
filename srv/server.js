@@ -347,7 +347,24 @@ cds.on('bootstrap', async (app) => {
     const config = { configurable: { thread_id: sessionId } };
 
     try {
-      // Resume graph from interruptBefore — stream so UI gets synthesis progress event
+      // Verify the graph is actually paused at humanApproval before proceeding
+      const checkpoint = await graph.getState(config);
+      const interrupted = checkpoint.next && checkpoint.next.includes('humanApproval');
+      if (!interrupted) {
+        console.warn(`[A2A] /approve — no paused session at humanApproval for ${sessionId} (next: ${JSON.stringify(checkpoint.next)})`);
+        return res.status(404).json({
+          jsonrpc: '2.0',
+          error: { code: -32001, message: `No paused session found for sessionId: ${sessionId}` },
+          id: null
+        });
+      }
+
+      // Advance the checkpoint past interruptBefore by marking humanApproval as complete.
+      // Without this, graph.stream(null, config) re-triggers interruptBefore and synthesis never runs.
+      await graph.updateState(config, {}, 'humanApproval');
+      console.log(`  [A2A] Checkpoint advanced past humanApproval — streaming synthesis for ${sessionId}`);
+
+      // Resume graph — now starts at synthesis (humanApproval already advanced)
       let finalState = {};
       let chunksReceived = 0;
       for await (const chunk of await graph.stream(null, { ...config, streamMode: 'updates' })) {
@@ -360,20 +377,11 @@ cds.on('bootstrap', async (app) => {
           findingsCount: finalState.synthesisResult?.findings?.length,
           riskScore:    finalState.synthesisResult?.riskScore,
           riskLevel:    finalState.synthesisResult?.riskLevel,
-          confidence:   finalState.synthesisResult?.confidence
+          confidence:   finalState.synthesisResult?.confidence,
+          apraReady:    finalState.synthesisResult?.apraReady
         };
         pushSSE(sessionId, 'pipeline_status', eventData);
         await publishPipelineStatus(sessionId, nodeName, 'complete', {});
-      }
-
-      // No chunks = no paused session existed for this sessionId
-      if (chunksReceived === 0) {
-        console.warn(`[A2A] /approve — no paused session found for ${sessionId}`);
-        return res.status(404).json({
-          jsonrpc: '2.0',
-          error: { code: -32001, message: `No paused session found for sessionId: ${sessionId}` },
-          id: null
-        });
       }
 
       // Push SSE + Solace for final risk findings

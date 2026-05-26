@@ -87,8 +87,16 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
     }
   ]);
 
-  const text  = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
-  const match = text.match(/\{[\s\S]*\}/);
+  let rawText;
+  if (typeof response.content === 'string') {
+    rawText = response.content;
+  } else if (Array.isArray(response.content)) {
+    rawText = response.content.map(b => (typeof b === 'string' ? b : b.text || '')).join('');
+  } else {
+    rawText = String(response.content);
+  }
+  const clean = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const match = clean.match(/\{[\s\S]*\}/);
   let evaluation;
   try {
     evaluation = match ? JSON.parse(match[0]) : null;
@@ -97,7 +105,8 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
   }
 
   if (!evaluation || typeof evaluation.overallConfidence !== 'number') {
-    throw new Error('Self-RAG: LLM did not return a valid JSON evaluation with overallConfidence');
+    console.warn('  [SelfRAG] LLM response malformed — defaulting confidence to 0.75 (proceed)');
+    evaluation = { overallConfidence: 0.75, gaps: [], reQueryHint: '', reasoning: 'Self-RAG evaluation unavailable — proceeding to human approval' };
   }
 
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;

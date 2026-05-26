@@ -242,6 +242,65 @@
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* ── Educational Drawer — Phase 9 ─────────────────────────────────────── */
+  .edu-toggle {
+    font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 2px; cursor: pointer; border: 1px solid rgba(255,208,0,0.4);
+    background: rgba(255,208,0,0.12); color: var(--yellow); transition: all 0.2s; margin-left: 8px;
+  }
+  .edu-toggle.off { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.12); }
+
+  .edu-drawer {
+    position: fixed; top: calc(5 * var(--H) + 3px); right: 0; bottom: calc(5 * var(--H) + 3px);
+    width: 380px; background: rgba(8,8,8,0.97); border-left: 3px solid var(--yellow);
+    z-index: 100; overflow-y: auto; transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+  }
+  .edu-drawer.visible { transform: translateX(0); }
+
+  .edu-drawer-hdr {
+    padding: 14px 16px 12px; border-bottom: 1px solid #1e1e1e; position: sticky; top: 0;
+    background: rgba(8,8,8,0.98); z-index: 10;
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .edu-drawer-title { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--yellow); }
+  .edu-drawer-sub { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+  .edu-drawer-close { font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.25); cursor: pointer; padding: 2px 6px; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; }
+  .edu-drawer-close:hover { color: var(--yellow); border-color: var(--yellow); }
+
+  .edu-section { border-bottom: 1px solid #181818; }
+  .edu-section-head {
+    padding: 11px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    transition: background 0.15s;
+  }
+  .edu-section-head:hover { background: rgba(255,255,255,0.02); }
+  .edu-num { font-family: var(--mono); font-size: 9px; color: var(--yellow); width: 26px; flex-shrink: 0; }
+  .edu-agent-name { font-family: var(--sans); font-size: 11px; font-weight: 600; color: #e8e8e8; flex: 1; }
+  .edu-pattern-tag { font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.25); letter-spacing: 0.5px; }
+  .edu-chevron { color: rgba(255,255,255,0.2); font-size: 9px; transition: transform 0.2s; }
+  .edu-section.open .edu-chevron { transform: rotate(90deg); }
+
+  .edu-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .edu-section.open .edu-body { max-height: 600px; }
+  .edu-body-inner { padding: 4px 16px 14px; }
+
+  .edu-row { margin-bottom: 9px; }
+  .edu-lbl { font-family: var(--mono); font-size: 7px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,208,0,0.55); margin-bottom: 3px; }
+  .edu-val { font-family: var(--sans); font-size: 10px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+
+  .edu-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 6px 0 9px; }
+  .edu-chip { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); padding: 5px 8px; }
+  .edu-chip-lbl { font-family: var(--mono); font-size: 7px; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.25); }
+  .edu-chip-val { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--yellow); margin-top: 2px; }
+
+  .edu-next { background: rgba(255,208,0,0.04); border: 1px solid rgba(255,208,0,0.12);
+    border-left: 3px solid var(--yellow); padding: 6px 10px; margin-top: 8px;
+    font-size: 10px; color: rgba(255,208,0,0.7); line-height: 1.4; }
+
+  .edu-empty { padding: 32px 16px; text-align: center; font-family: var(--mono);
+    font-size: 9px; color: rgba(255,255,255,0.18); letter-spacing: 1px; line-height: 1.8; }
 </style>
 </head>
 <body>
@@ -262,12 +321,27 @@
     <div class="hpill live">Graph Live</div>
     <div class="hpill info">APRA · APS221 · CPS230</div>
     <div class="hpill info" onclick="resetSession()" style="cursor:pointer;margin-left:8px">↺ Reset</div>
+    <button class="edu-toggle" id="eduToggle" onclick="toggleEdu()">Edu: ON</button>
   </div>
 </header>
 
 <div class="alert-bar" id="liveAlertsBar" style="display:none;">
   <div class="ab-label">Live Alerts</div>
   <div class="ab-items" id="liveAlertItems"></div>
+</div>
+
+<!-- Phase 9 — Educational Drawer -->
+<div class="edu-drawer" id="eduDrawer">
+  <div class="edu-drawer-hdr">
+    <div>
+      <div class="edu-drawer-title">Architecture Walkthrough</div>
+      <div class="edu-drawer-sub">Live data from pipeline · Each agent explained</div>
+    </div>
+    <div class="edu-drawer-close" onclick="document.getElementById('eduDrawer').classList.remove('visible')">✕ Close</div>
+  </div>
+  <div id="eduSections">
+    <div class="edu-empty">Run a risk analysis<br>to begin the walkthrough</div>
+  </div>
 </div>
 
 <main>
@@ -530,6 +604,11 @@ function resetUI() {
   document.getElementById('recs').innerHTML = '<div class="rec" style="opacity:0.3"><div class="rh"><span class="rp">—</span></div><div class="rt">Awaiting synthesis...</div></div>';
   document.getElementById('evs').innerHTML = '<div class="ev-item"><span class="ed">◆</span>Awaiting retrieval...</div>';
   ['a1','a2','a3','a4','a5'].forEach(id => setAgent(id, 'idle', null));
+  // Clear educational drawer
+  const eduSec = document.getElementById('eduSections');
+  if (eduSec) eduSec.innerHTML = '<div class="edu-empty">Run a risk analysis<br>to begin the walkthrough</div>';
+  const eduDrawer = document.getElementById('eduDrawer');
+  if (eduDrawer) eduDrawer.classList.remove('visible');
 }
 
 function setAgent(id, state, html) {
@@ -582,6 +661,7 @@ function handleEvent(evt) {
         setAgent('a4', 'complete', `Forward: <span class="${fpCol}">${fp}</span>${dte} · Confidence <span class="h">${pct}%</span>${rqTxt}`);
         setAgent('a5', 'active', 'HANA Vector RAG retrieving APRA standards · Building risk brief...');
       }
+      addEduSection('selfRagCheck', e);
       return;
     }
 
@@ -616,10 +696,12 @@ function handleEvent(evt) {
       document.getElementById('rdl').textContent = (e.riskLevel || '—') + ' RISK';
       const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
       document.querySelector('.risk-score-block').style.background = c[e.riskLevel] || '#888';
+      addEduSection('pattern', e);
       return;
     }
 
     setAgent(agentId, 'complete', getCompletionHtml(e));
+    addEduSection(e.agent, e);
 
     if (e.agent === 'relationship') {
       document.getElementById('gh').textContent = e.nodes || '?';
@@ -628,7 +710,10 @@ function handleEvent(evt) {
   }
 
   if (e.type === 'risk_findings') renderRiskBrief(e.synthesisResult);
-  if (e.type === 'human_approval') document.getElementById('approveBar').style.display = 'flex';
+  if (e.type === 'human_approval') {
+    document.getElementById('approveBar').style.display = 'flex';
+    addEduSection('humanApproval', e);
+  }
 
   if (e.type === 'ragas_scores') {
     const f = e.faithfulness    != null ? e.faithfulness    : null;
@@ -759,13 +844,23 @@ async function approve() {
       body: JSON.stringify({ sessionId, approvedBy: 'risk_officer' })
     });
     const data = await res.json();
+    if (data.error) { showError(data.error.message || 'Approval error'); return; }
     const r = data.result || {};
     document.getElementById('tc').textContent = ((r.tokensIn || 0) + (r.tokensOut || 0)).toLocaleString();
     if (r.costAUD != null) document.getElementById('costAud').textContent = 'AUD ' + r.costAUD.toFixed(4);
     document.getElementById('ts').textContent = 'complete';
     document.getElementById('ts').style.color = '#FFD000';
+    // Fallback: SSE events may have been dropped if synthesis was slow — update UI from HTTP response
+    if (r.synthesisResult) {
+      const s = r.synthesisResult;
+      const fc = s.findings?.length || '?';
+      const apra = s.apraReady ? '<span class="h">APRA Ready ✓</span>' : 'Evidence trail complete';
+      setAgent('a5', 'complete', `Brief generated · <span class="h">${fc} finding${fc !== 1 ? 's' : ''}</span> · ${apra} · See Panel 3 →`);
+      renderRiskBrief(s);
+    }
   } catch (err) {
     console.error('[Approve]', err);
+    showError(err.message || 'Approval error');
   }
 }
 
@@ -780,6 +875,166 @@ async function resetSession() {
     });
   } catch (e) {}
   resetUI();
+  // Clear educational drawer on reset
+  const sections = document.getElementById('eduSections');
+  if (sections) {
+    sections.innerHTML = '<div class="edu-empty">Run a risk analysis<br>to begin the walkthrough</div>';
+    document.getElementById('eduDrawer').classList.remove('visible');
+  }
+}
+
+// ── Phase 9 — Educational Drawer ─────────────────────────────────────────────
+let eduMode = true;
+
+function toggleEdu() {
+  eduMode = !eduMode;
+  const btn = document.getElementById('eduToggle');
+  const drawer = document.getElementById('eduDrawer');
+  btn.textContent = eduMode ? 'Edu: ON' : 'Edu: OFF';
+  btn.className = 'edu-toggle' + (eduMode ? '' : ' off');
+  if (!eduMode) {
+    drawer.classList.remove('visible');
+  } else if (document.querySelectorAll('.edu-section').length > 0) {
+    drawer.classList.add('visible');
+  }
+}
+
+const EDU_META = {
+  intake: {
+    num: '01', name: 'Intake Agent', pattern: 'Router / Classifier',
+    banking: 'Parses the risk query, extracts the customer ID, and classifies intent — full risk pipeline, simple lookup, or inappropriate request. Upstream of every specialist agent.',
+    sap: 'Claude Haiku · Structured JSON output · CAP A2A endpoint (JSON-RPC 2.0)'
+  },
+  pattern: {
+    num: '02', name: 'Pattern Agent', pattern: 'Parallel Multi-Model',
+    banking: 'Three independent signals run simultaneously: tabular risk scoring (RPT-1), statistical anomaly detection (PAL Isolation Forest), and LLM narrative analysis for nuanced signals.',
+    sap: 'RPT-1 (rpt.cloud.sap) · HANA PAL Isolation Forest · Claude Haiku · ScriptServer'
+  },
+  relationship: {
+    num: '03', name: 'Relationship Agent', pattern: 'ReAct Loop (Reason + Act)',
+    banking: 'Multi-hop graph traversal finds ALL connected parties — subsidiaries, guarantors, family trusts — up to 8 hops. Calculates total APS 221 group exposure including guaranteed amounts.',
+    sap: 'HANA Knowledge Graph Engine · BUT050 + BCA_GUARANTOR tables · SPARQL · GraphDB sandbox'
+  },
+  selfRagCheck: {
+    num: '04', name: 'Trajectory + Self-RAG', pattern: 'Self-Reflective RAG',
+    banking: 'Trajectory Agent projects the forward DTI when income contracts expire. Self-RAG then reads ALL agent outputs and judges whether the evidence is complete — below 70% confidence triggers a targeted re-query of the relationship graph.',
+    sap: 'BCA_DTI · INCOME_EXPIRY field · LangGraph conditional edge · Claude Haiku · Langfuse quality scores'
+  },
+  humanApproval: {
+    num: 'HIL', name: 'Human Approval', pattern: 'Human-in-the-Loop (HITL)',
+    banking: 'Execution pauses here. APRA CPS 230 co-pilot requirement — no risk brief is sealed without a risk officer reviewing the preliminary findings and explicitly approving.',
+    sap: 'LangGraph interruptBefore · PostgresSaver checkpoint · Supabase · graph.updateState() on resume'
+  },
+  synthesis: {
+    num: '05', name: 'Synthesis Agent', pattern: 'RAG + Brief Generation',
+    banking: 'Retrieves the most relevant APRA regulatory chunks from HANA Vector (cosine similarity), then generates the APRA-ready risk brief with per-finding confidence, evidence source, and recommended actions.',
+    sap: 'HANA Vector cosine search · Claude Haiku · RegulatoryDocuments HANA entity · Langfuse RAGAS eval'
+  }
+};
+
+const EDU_NEXT = {
+  intake:        'Customer risk profile requested → Pattern Agent and Relationship Agent activate in parallel.',
+  pattern:       'Anomalies detected → Relationship Agent validates group exposure as root cause.',
+  relationship:  'Group exposure calculated → Trajectory Agent checks if DTI deterioration is imminent.',
+  selfRagCheck:  'Evidence quality confirmed → Human risk officer reviews before APRA brief is sealed.',
+  humanApproval: 'Approval received → Synthesis Agent retrieves APRA standards and generates the brief.',
+  synthesis:     'APRA-ready risk brief complete. Findings ready for board notification.'
+};
+
+function buildEduChips(agentKey, e) {
+  if (agentKey === 'intake') {
+    return `<div class="edu-chips">
+      <div class="edu-chip"><div class="edu-chip-lbl">Customer ID</div><div class="edu-chip-val">${e.customerId || '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Intent</div><div class="edu-chip-val">Risk Analysis</div></div>
+    </div>`;
+  }
+  if (agentKey === 'pattern') {
+    return `<div class="edu-chips">
+      <div class="edu-chip"><div class="edu-chip-lbl">Risk Score</div><div class="edu-chip-val">${e.riskScore ?? '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Level</div><div class="edu-chip-val">${e.riskLevel || '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Anomalies</div><div class="edu-chip-val">${e.anomalyCount ?? '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Confidence</div><div class="edu-chip-val">${e.patternConf != null ? Math.round(e.patternConf * 100) + '%' : '—'}</div></div>
+    </div>`;
+  }
+  if (agentKey === 'relationship') {
+    const exp = e.groupExposure ? '$' + (e.groupExposure / 1e6).toFixed(1) + 'M' : '—';
+    return `<div class="edu-chips">
+      <div class="edu-chip"><div class="edu-chip-lbl">Entities</div><div class="edu-chip-val">${e.nodes ?? '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Group Exposure</div><div class="edu-chip-val">${exp}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">APS 221 Used</div><div class="edu-chip-val">${e.aps221Pct != null ? e.aps221Pct.toFixed(1) + '%' : '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Max Hops</div><div class="edu-chip-val">8</div></div>
+    </div>`;
+  }
+  if (agentKey === 'selfRagCheck') {
+    const conf = e.confidence != null ? Math.round(e.confidence * 100) : null;
+    const fp = e.forwardPosition || '—';
+    return `<div class="edu-chips">
+      <div class="edu-chip"><div class="edu-chip-lbl">Confidence</div><div class="edu-chip-val">${conf != null ? conf + '%' : '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Decision</div><div class="edu-chip-val">${conf != null && conf >= 70 ? 'PROCEED' : 'RE-QUERY'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Forward DTI</div><div class="edu-chip-val">${fp}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Re-queries</div><div class="edu-chip-val">${e.requeryCount ?? 0}</div></div>
+    </div>`;
+  }
+  if (agentKey === 'synthesis') {
+    return `<div class="edu-chips">
+      <div class="edu-chip"><div class="edu-chip-lbl">Findings</div><div class="edu-chip-val">${e.findingsCount ?? '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Risk Score</div><div class="edu-chip-val">${e.riskScore ?? '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">Risk Level</div><div class="edu-chip-val">${e.riskLevel || '—'}</div></div>
+      <div class="edu-chip"><div class="edu-chip-lbl">APRA Ready</div><div class="edu-chip-val">${e.apraReady ? 'YES' : 'NO'}</div></div>
+    </div>`;
+  }
+  return '';
+}
+
+function addEduSection(agentKey, eventData) {
+  if (!eduMode) return;
+  const meta = EDU_META[agentKey];
+  if (!meta) return;
+
+  const sections = document.getElementById('eduSections');
+  const drawer = document.getElementById('eduDrawer');
+
+  // Remove placeholder
+  const empty = sections.querySelector('.edu-empty');
+  if (empty) empty.remove();
+
+  // Deduplicate — one section per agent
+  if (document.getElementById('edu-' + agentKey)) return;
+
+  const chips = buildEduChips(agentKey, eventData);
+  const nextText = EDU_NEXT[agentKey] || '';
+
+  const div = document.createElement('div');
+  div.className = 'edu-section open';
+  div.id = 'edu-' + agentKey;
+  div.innerHTML = `
+    <div class="edu-section-head" onclick="toggleEduSection('${agentKey}')">
+      <div class="edu-num">${meta.num}</div>
+      <div class="edu-agent-name">${meta.name}</div>
+      <div class="edu-pattern-tag">${meta.pattern}</div>
+      <div class="edu-chevron">▶</div>
+    </div>
+    <div class="edu-body"><div class="edu-body-inner">
+      <div class="edu-row">
+        <div class="edu-lbl">Banking Context</div>
+        <div class="edu-val">${meta.banking}</div>
+      </div>
+      ${chips ? `<div class="edu-row"><div class="edu-lbl">Live Data</div></div>${chips}` : ''}
+      <div class="edu-row">
+        <div class="edu-lbl">SAP Technology</div>
+        <div class="edu-val">${meta.sap}</div>
+      </div>
+      ${nextText ? `<div class="edu-next">→ ${nextText}</div>` : ''}
+    </div></div>`;
+
+  sections.appendChild(div);
+  drawer.classList.add('visible');
+  setTimeout(() => div.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+function toggleEduSection(agentKey) {
+  const s = document.getElementById('edu-' + agentKey);
+  if (s) s.classList.toggle('open');
 }
 
 // ── Render Panel 3 ────────────────────────────────────────────────────────────
