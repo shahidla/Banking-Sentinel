@@ -34,11 +34,13 @@ async function trajectoryAgent(state) {
   // If income expires in N days, only N/365 of annual income remains this year.
   // Effective DTI = total debt / (income × remaining fraction)
   // This reveals the annualised servicing burden after the contract ends.
-  let daysToExpiry = null;
-  let futureDti    = null;
+  let daysToExpiry    = null;
+  let futureDti       = null;
+  let incomeExpiryIso = null;
 
   if (dti.INCOME_EXPIRY) {
     const expiryDate = new Date(dti.INCOME_EXPIRY);
+    incomeExpiryIso  = expiryDate.toISOString().split('T')[0];
     const today      = new Date();
     daysToExpiry     = Math.floor((expiryDate - today) / (1000 * 60 * 60 * 24));
 
@@ -81,7 +83,12 @@ async function trajectoryAgent(state) {
     if (loanRows.length > 0 && daysToExpiry !== null && daysToExpiry < INCOME_EXPIRY_WARN_DAYS) {
       const loanIds          = loanRows.map(l => l.LOAN_ID);
       const upcomingPayments = await cds.run(
-        SELECT.from('bankingsentinel.LoanSchedule').where({ LOAN_ID: { in: loanIds } }).limit(20)
+        incomeExpiryIso
+          ? SELECT.from('bankingsentinel.LoanSchedule')
+              .where({ LOAN_ID: { in: loanIds }, STATUS: { '!=': 'PAID' } })
+              .where('DUE_DATE <=', incomeExpiryIso)
+              .limit(20)
+          : SELECT.from('bankingsentinel.LoanSchedule').where({ LOAN_ID: { in: loanIds } }).limit(20)
       );
       if (upcomingPayments.length > 0) {
         const totalDue = upcomingPayments.reduce((s, p) => s + (parseFloat(p.AMOUNT_DUE) || 0), 0);
@@ -102,14 +109,16 @@ async function trajectoryAgent(state) {
 
   // ── Forward position ───────────────────────────────────────────────────────
   let forwardPosition;
-  const isDeteriograting = breachFlag
+  const isDeteriorating = breachFlag
     || (futureDti !== null && futureDti > APRA_DTI_LIMIT)
     || (daysToExpiry !== null && daysToExpiry < 90);
   const isStable = !breachFlag
     && currentDti < APRA_DTI_LIMIT * 0.80
     && (daysToExpiry === null || daysToExpiry > INCOME_EXPIRY_WARN_DAYS);
+  // Only IMPROVING when DTI is clearly below limit with no income risk — else MONITORING
+  const isImproving = !breachFlag && currentDti < APRA_DTI_LIMIT * 0.70 && daysToExpiry === null;
 
-  forwardPosition = isDeteriograting ? 'DETERIORATING' : isStable ? 'STABLE' : 'IMPROVING';
+  forwardPosition = isDeteriorating ? 'DETERIORATING' : isStable ? 'STABLE' : isImproving ? 'IMPROVING' : 'MONITORING';
 
   console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
 

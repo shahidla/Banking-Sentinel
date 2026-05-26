@@ -45,8 +45,10 @@ async function createBankingSentinelGraph() {
     checkpointer = pgCheckpointer;
     console.log('  [Graph] PostgresSaver initialised — agent state will survive CF restarts');
   } catch (e) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(`PostgresSaver required in production — cannot fall back to MemorySaver. ${e.message}`);
+    // VCAP_APPLICATION is always set by CF — reject MemorySaver in any CF environment
+    // regardless of NODE_ENV (which CF does not set automatically)
+    if (process.env.VCAP_APPLICATION) {
+      throw new Error(`PostgresSaver required on BTP CF — set POSTGRES_URL env var. ${e.message}`);
     }
     checkpointer = new MemorySaver();
     console.warn(`  [Graph] PostgresSaver unavailable (${e.message.substring(0, 60)}) — MemorySaver active (LOCAL DEV ONLY — state will not survive restarts)`);
@@ -81,17 +83,20 @@ async function createBankingSentinelGraph() {
   graph.addEdge('simpleQuery', END);
   graph.addEdge('rejection',   END);
 
-  // ── Fan-out: pattern + relationship run in parallel after riskStart ──
-  // AI: Neither reads from the other — both only need customerId from Intake
-  // Banking: Relationship (graph traversal) and Pattern (RPT-1/PAL/LLM) are independent
+  // ── Risk pipeline — pattern runs first, then routes on score ──────────────
+  // AI: routeAfterPattern shortcut — score < 30 skips Relationship + Trajectory + Self-RAG
+  // Banking: Performing borrower (score 5) gets a fast synthesis; high-risk gets full pipeline
   graph.addEdge('riskStart', 'pattern');
-  graph.addEdge('riskStart', 'relationship');
 
-  // ── pattern → trajectory (trajectory reads patternAssessment) ──
-  graph.addEdge('pattern', 'trajectory');
+  graph.addConditionalEdges('pattern', routeAfterPattern, {
+    'low_risk':  'synthesis',    // skip directly — no connected-party graph traversal needed
+    'high_risk': 'trajectory'   // full pipeline: trajectory → relationship → selfRagCheck
+  });
 
-  // ── Fan-in: selfRagCheck waits for BOTH trajectory and relationship ──
-  graph.addEdge('trajectory',   'selfRagCheck');
+  // ── Sequential high-risk path: trajectory → relationship → selfRagCheck ──
+  // AI: Sequential instead of fan-out — relationship reads patternAssessment + trajectoryAnalysis
+  // Banking: Relationship Agent uses DTI context to judge whether group exposure is material
+  graph.addEdge('trajectory',   'relationship');
   graph.addEdge('relationship', 'selfRagCheck');
 
   // ── Self-RAG loop ──

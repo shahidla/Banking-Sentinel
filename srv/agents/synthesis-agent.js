@@ -28,17 +28,19 @@ async function synthesisAgent(state) {
   ].filter(Boolean).join(' ');
 
   let regulatoryDocs = [];
+  let regulatoryContextUnavailable = false;
   try {
     regulatoryDocs = await hana_vector_search({ query: searchQuery, topK: 3, useHyDE: false });
     console.log(`  [Synthesis] Retrieved ${regulatoryDocs.length} APRA regulatory chunks from HANA Vector`);
   } catch (e) {
-    console.warn('  [Synthesis] HANA Vector search failed:', e.message);
+    console.error('  [Synthesis] HANA Vector search failed:', e.message);
+    regulatoryContextUnavailable = true;
   }
 
   const regulatoryRefs    = [...new Set(regulatoryDocs.map(d => d.STANDARD).filter(Boolean))];
-  const regulatoryContext = regulatoryDocs
-    .map(d => `[${d.STANDARD}] ${d.CONTENT}`)
-    .join('\n\n');
+  const regulatoryContext = regulatoryContextUnavailable
+    ? 'REGULATORY CONTEXT UNAVAILABLE — OpenAI embedding service failed. Apply general APRA knowledge only.'
+    : regulatoryDocs.map(d => `[${d.STANDARD}] ${d.CONTENT}`).join('\n\n') || 'No regulatory docs retrieved — apply general APRA knowledge.';
 
   // ── LLM synthesis — APRA-ready risk brief ────────────────────────────────
   const lfHandler = getLangchainHandler(state.traceId, 'synthesis-agent');
@@ -132,6 +134,12 @@ Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evide
       uncertainties:   ['LLM synthesis response malformed — manual review required'],
       apraReady:       false
     };
+  }
+
+  // Surface regulatory context failure — ensures risk officer knows citations may be incomplete
+  if (regulatoryContextUnavailable) {
+    brief.uncertainties = [...(brief.uncertainties || []), 'Regulatory context unavailable — APRA citations may be incomplete (OpenAI embedding service unreachable)'];
+    brief.apraReady = false;
   }
 
   // Merge retrieved regulatory refs into whatever the LLM produced

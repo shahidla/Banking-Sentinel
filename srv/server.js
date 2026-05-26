@@ -17,7 +17,7 @@ const {
   publishSessionReset
 } = require('./events/solace-publisher');
 const { runRagasEvaluation } = require('./observability/ragas-evaluator');
-const { flush: langfuseFlush } = require('./observability/langfuse-client');
+const { getLangfuse, flush: langfuseFlush } = require('./observability/langfuse-client');
 const { progressEmitter } = require('./agents/pattern-agent');
 
 let graph = null;
@@ -36,17 +36,14 @@ function pushSSE(sessionId, type, data) {
   }
 }
 
-// ── Langfuse observability (optional — fails gracefully if keys missing) ──
+// ── Langfuse observability — shared singleton from langfuse-client.js ────────
+// Phase 8d: consolidated from two separate instances (server + langfuse-client) to one.
+// langfuseFlush() now flushes top-level traces AND child spans from agents.
 function initLangfuse() {
-  try {
-    const { Langfuse } = require('langfuse');
-    langfuse = new Langfuse({
-      publicKey: process.env.LANGFUSE_PUBLIC_KEY,
-      secretKey: process.env.LANGFUSE_SECRET_KEY,
-      baseUrl:   process.env.LANGFUSE_HOST || 'https://us.cloud.langfuse.com'
-    });
+  langfuse = getLangfuse();
+  if (langfuse) {
     console.log('  [Server] Langfuse connected — all agent traces will appear in dashboard');
-  } catch (e) {
+  } else {
     console.warn('  [Server] Langfuse not available — continuing without observability');
   }
 }
@@ -55,10 +52,16 @@ function initLangfuse() {
 // AI: LLMOps — every analysis run tracked for cost visibility
 // Banking: Demonstrates AI ROI to bank stakeholders. AUD per risk brief.
 // SAP: Stored in AuditLog HANA entity + visible in Langfuse dashboard
+// USD prices × 1.55 AUD/USD — updated per Anthropic pricing page 2026-05
+const MODEL_PRICING_AUD = {
+  'claude-haiku-4-5-20251001': { in: 0.000388, out: 0.001938 },
+  'claude-sonnet-4-6':         { in: 0.00465,  out: 0.02325  },
+  'claude-opus-4-7':           { in: 0.02325,  out: 0.11625  }
+};
 function calculateCostAUD(inputTokens, outputTokens) {
-  const INPUT_PER_1K  = 0.0025; // Claude Sonnet AUD approximate
-  const OUTPUT_PER_1K = 0.0125;
-  return (inputTokens / 1000 * INPUT_PER_1K) + (outputTokens / 1000 * OUTPUT_PER_1K);
+  const model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
+  const rates = MODEL_PRICING_AUD[model] || MODEL_PRICING_AUD['claude-haiku-4-5-20251001'];
+  return (inputTokens / 1000 * rates.in) + (outputTokens / 1000 * rates.out);
 }
 
 async function logToAuditLog(sessionId, query, response, state, latencyMs = 0) {
@@ -344,6 +347,7 @@ cds.on('bootstrap', async (app) => {
     }
 
     console.log(`\n[A2A] /approve | session: ${sessionId} | approvedBy: ${approvedBy}`);
+    const approveStart = Date.now();
     const config = { configurable: { thread_id: sessionId } };
 
     try {
@@ -401,8 +405,20 @@ cds.on('bootstrap', async (app) => {
         console.warn('[Server] RiskAssessments approval update failed:', e.message);
       }
 
-      const synthesis = finalState.synthesisResult;
+      const synthesis    = finalState.synthesisResult;
+      const approveLatMs = Date.now() - approveStart;
       console.log(`[A2A] /approve complete | score:${synthesis?.riskScore} level:${synthesis?.riskLevel}`);
+
+      // AuditLog + RAGAS — same as the initial analysis path (Incomplete 3 fix)
+      const savedState = checkpoint.values || {};
+      const origQuery  = savedState.query   || '';
+      const traceId    = savedState.traceId || null;
+      await logToAuditLog(sessionId, origQuery, synthesis, finalState, approveLatMs);
+      if (synthesis) {
+        runRagasEvaluation(traceId, origQuery, synthesis, finalState.retrievedDocs)
+          .then(r => { if (r) pushSSE(sessionId, 'ragas_scores', r); })
+          .catch(() => {});
+      }
 
       const approveCost = calculateCostAUD(finalState.totalInputTokens || 0, finalState.totalOutputTokens || 0);
       res.json({

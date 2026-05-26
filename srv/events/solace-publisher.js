@@ -3,6 +3,10 @@
 // Banking: Risk officer sees live pipeline progress. APRA CPS 230 auditability.
 // SAP: Solace Advanced Event Mesh — same broker as MJ Live (topic prefix: banking/*)
 //
+// Arch 1 fix: persistent session — connect once at startup, reuse for all publishes.
+// The old pattern (connect → send → disconnect per message) hit Solace VPN connection
+// limits under concurrent load (8 msgs × 5 analysts = 40 TCP handshakes).
+//
 // Topics:
 //   banking/pipeline/status    → each agent start + complete (Panel 2 live progress)
 //   banking/risk/findings      → synthesis result ready (Panel 3 risk brief)
@@ -12,89 +16,117 @@
 
 'use strict';
 
-let solaceFactory = null;
+let _factory  = null;
+let _session  = null;
+let _ready    = false;
+let _queue    = [];      // messages buffered while connecting
+let _connecting = false;
 
-function getSolaceFactory() {
-  if (solaceFactory) return solaceFactory;
+function getFactory() {
+  if (_factory) return _factory;
   const solace = require('solclientjs');
   const props = new solace.SolclientFactoryProperties();
   props.profile = solace.SolclientFactoryProfiles.version10;
   solace.SolclientFactory.init(props);
-  solaceFactory = solace.SolclientFactory;
-  return solaceFactory;
+  _factory = solace.SolclientFactory;
+  return _factory;
 }
 
-// ── Core publish — connect, send one message, disconnect ─────────────────────
-// AI: Fire-and-forget pattern — agent does not wait for subscriber acknowledgement
-// Banking: Pipeline cannot block on UI delivery — risk analysis continues regardless
-// SAP: Solace DIRECT delivery mode — same pattern as MJ Live consumer.html events
-async function publish(topic, payload) {
-  return new Promise((resolve) => {
-    // Safety timeout — if Solace never connects, resolve after 8s so endpoint never hangs
-    const timer = setTimeout(() => {
-      console.warn(`  [Solace] publish timeout (${topic}) — broker did not respond in 8s`);
-      resolve(false);
-    }, 8000);
-
+function flushQueue() {
+  const factory = getFactory();
+  const solace  = require('solclientjs');
+  while (_queue.length > 0 && _ready && _session) {
+    const { topic, payload } = _queue.shift();
     try {
-      const solace  = require('solclientjs');
-      const factory = getSolaceFactory();
-
-      const session = factory.createSession({
-        url:      process.env.SOLACE_URL,
-        vpnName:  process.env.SOLACE_VPN,
-        userName: process.env.SOLACE_USERNAME,
-        password: process.env.SOLACE_PASSWORD
-      });
-
-      session.on(solace.SessionEventCode.UP_NOTICE, () => {
-        const msg = factory.createMessage();
-        msg.setDestination(factory.createTopicDestination(topic));
-        msg.setBinaryAttachment(JSON.stringify({ ...payload, publishedAt: new Date().toISOString() }));
-        msg.setDeliveryMode(solace.MessageDeliveryModeType.DIRECT);
-        session.send(msg);
-        console.log(`  [Solace] → ${topic}`);
-        session.disconnect();
-        clearTimeout(timer);
-        resolve(true);
-      });
-
-      session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, (e) => {
-        console.warn(`  [Solace] publish failed (${topic}): ${e.infoStr || e.message || 'connection error'}`);
-        clearTimeout(timer);
-        resolve(false);
-      });
-
-      session.on(solace.SessionEventCode.DISCONNECTED, () => {
-        clearTimeout(timer);
-        resolve(true);
-      });
-      session.connect();
+      const msg = factory.createMessage();
+      msg.setDestination(factory.createTopicDestination(topic));
+      msg.setBinaryAttachment(JSON.stringify({ ...payload, publishedAt: new Date().toISOString() }));
+      msg.setDeliveryMode(solace.MessageDeliveryModeType.DIRECT);
+      _session.send(msg);
+      console.log(`  [Solace] → ${topic}`);
     } catch (e) {
-      console.warn(`  [Solace] publisher error (${topic}): ${e.message}`);
-      clearTimeout(timer);
-      resolve(false);
+      console.warn(`  [Solace] send failed (${topic}): ${e.message}`);
     }
-  });
+  }
+}
+
+function connectSession() {
+  if (_connecting || _ready) return;
+  if (!process.env.SOLACE_URL) {
+    console.warn('  [Solace] SOLACE_URL not set — publisher disabled');
+    return;
+  }
+
+  _connecting = true;
+  const solace  = require('solclientjs');
+  const factory = getFactory();
+
+  try {
+    _session = factory.createSession({
+      url:      process.env.SOLACE_URL,
+      vpnName:  process.env.SOLACE_VPN,
+      userName: process.env.SOLACE_USERNAME,
+      password: process.env.SOLACE_PASSWORD,
+      reconnectRetries:          10,
+      reconnectRetryWaitInMsecs: 3000
+    });
+
+    _session.on(solace.SessionEventCode.UP_NOTICE, () => {
+      console.log('  [Solace] Persistent session connected');
+      _ready      = true;
+      _connecting = false;
+      flushQueue();
+    });
+
+    _session.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, (e) => {
+      console.warn(`  [Solace] Connection failed: ${e.infoStr || 'unknown'}`);
+      _ready      = false;
+      _connecting = false;
+      _session    = null;
+    });
+
+    _session.on(solace.SessionEventCode.DISCONNECTED, () => {
+      console.warn('  [Solace] Session disconnected — will reconnect on next publish');
+      _ready      = false;
+      _connecting = false;
+      _session    = null;
+    });
+
+    _session.connect();
+  } catch (e) {
+    console.warn(`  [Solace] createSession failed: ${e.message}`);
+    _connecting = false;
+    _session    = null;
+  }
+}
+
+// ── Core publish — queue if not yet connected, send immediately if ready ─────
+async function publish(topic, payload) {
+  if (!process.env.SOLACE_URL) return false;
+
+  _queue.push({ topic, payload });
+
+  if (_ready && _session) {
+    flushQueue();
+  } else {
+    connectSession();
+    // Queue will be flushed in UP_NOTICE handler when session comes up.
+    // Return immediately — fire-and-forget; pipeline does not wait for Solace.
+  }
+  return true;
 }
 
 // ── Topic publishers ─────────────────────────────────────────────────────────
 
-// AI: Per-agent progress event — UI shows which agent is running right now
-// Banking: Transparency into pipeline — "Relationship Agent traversing connected parties..."
-// SAP: Panel 2 in Banking-Sentinel-AustralianBank.html subscribes to this topic
 async function publishPipelineStatus(sessionId, agentName, status, data = {}) {
   return publish('banking/pipeline/status', {
     sessionId,
-    agent:  agentName,   // intake | pattern | relationship | trajectory | selfRagCheck | synthesis
-    status,              // running | complete | requerying
+    agent:  agentName,
+    status,
     ...data
   });
 }
 
-// AI: Final synthesis output event — UI renders the APRA-ready risk brief
-// Banking: Panel 3 updates with risk score, findings, recommendations
-// SAP: Published after humanApproval resume + synthesis completion
 async function publishRiskFindings(sessionId, synthesisResult) {
   return publish('banking/risk/findings', {
     sessionId,
@@ -108,32 +140,23 @@ async function publishRiskFindings(sessionId, synthesisResult) {
   });
 }
 
-// AI: Human-in-the-loop pause event — pipeline halted, awaiting human decision
-// Banking: Risk officer receives notification to review preliminary findings
-// SAP: Panel 2 shows pause indicator + Approve button when this event arrives
 async function publishHumanApproval(sessionId, data = {}) {
   return publish('banking/human/approval', { sessionId, ...data });
 }
 
-// AI: Regulatory knowledge base updated — Synthesis will retrieve new content on next query
-// Banking: Twinkle 2 — APRA document uploaded, zero code change, policy applies immediately
-// SAP: Triggers re-evaluation indicator in UI — "Standards updated, re-run analysis?"
 async function publishRegulatoryUpdate(sessionId, docTitle, standard, chunkCount) {
   return publish('banking/regulatory/update', {
-    sessionId,
-    docTitle,
-    standard,
-    chunkCount,
+    sessionId, docTitle, standard, chunkCount,
     message: `${standard} updated — ${chunkCount} chunks embedded in HANA Vector. Re-run analysis to apply.`
   });
 }
 
-// AI: Demo reset event — clears UI state for next scenario
-// Banking: Clean slate before each demo run — no stale findings from previous analysis
-// SAP: UI subscribes and resets all three panels on receipt
 async function publishSessionReset(sessionId) {
   return publish('banking/session/reset', { sessionId });
 }
+
+// Eagerly connect on module load so the session is ready before the first analysis
+connectSession();
 
 module.exports = {
   publishPipelineStatus,

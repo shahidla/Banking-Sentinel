@@ -652,7 +652,7 @@ function handleEvent(evt) {
       document.getElementById('cw').style.display = 'flex';
       document.getElementById('rq').textContent = e.requeryCount || '0';
       const fp    = e.forwardPosition || '—';
-      const fpCol = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : 'w';
+      const fpCol = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : fp === 'MONITORING' ? 'w' : 'w';
       const dte   = e.daysToExpiry != null ? ` · Income expiry <span class="r">${e.daysToExpiry}d</span>` : '';
       const rqTxt = e.requeryCount > 0 ? ` · ${e.requeryCount} re-quer${e.requeryCount === 1 ? 'y' : 'ies'}` : '';
       if (e.confidence < 0.70) {
@@ -775,7 +775,7 @@ function getCompletionHtml(e) {
     }
     case 'trajectory': {
       const fp = e.forwardPosition || '—';
-      const col = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : 'w';
+      const col = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : fp === 'MONITORING' ? 'w' : 'w';
       const dte = e.daysToExpiry != null ? ` · Income expiry in <span class="r">${e.daysToExpiry}d</span>` : '';
       return `Forward position: <span class="${col}">${fp}</span>${dte} · DTI trajectory calculated`;
     }
@@ -1108,12 +1108,18 @@ function drawGraph(rawNodes, rawEdges) {
     ? rawNodes.map(String)
     : ['Customer'];
 
-  // Normalise edges to index pairs; support both [idx,idx] and ["id","id"] forms
+  // Normalise edges — accept [a,b] arrays OR {from,to,type,hop} objects (Relationship Agent format)
   const edgePairs = [];
   if (Array.isArray(rawEdges)) {
     rawEdges.forEach(e => {
-      if (!Array.isArray(e) || e.length < 2) return;
-      let a = e[0], b = e[1];
+      let a, b;
+      if (Array.isArray(e) && e.length >= 2) {
+        a = e[0]; b = e[1];
+      } else if (e && typeof e === 'object' && e.from != null && e.to != null) {
+        a = e.from; b = e.to;
+      } else {
+        return;
+      }
       if (typeof a === 'string') a = nodeIds.indexOf(a);
       if (typeof b === 'string') b = nodeIds.indexOf(b);
       if (a >= 0 && b >= 0 && a < nodeIds.length && b < nodeIds.length) edgePairs.push([a, b]);
