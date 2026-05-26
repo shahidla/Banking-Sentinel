@@ -105,8 +105,10 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
   }
 
   if (!evaluation || typeof evaluation.overallConfidence !== 'number') {
-    console.warn('  [SelfRAG] LLM response malformed — defaulting confidence to 0.75 (proceed)');
-    evaluation = { overallConfidence: 0.75, gaps: [], reQueryHint: '', reasoning: 'Self-RAG evaluation unavailable — proceeding to human approval' };
+    // Default below re-query threshold (0.70) so a parse failure triggers re-query, not proceed.
+    // 0.75 would silently route to approval — masking a real LLM/format failure.
+    console.warn('  [SelfRAG] LLM response malformed — defaulting confidence to 0.60 (requery)');
+    evaluation = { overallConfidence: 0.60, gaps: ['Self-RAG evaluation unavailable — response malformed'], reQueryHint: '', reasoning: 'Self-RAG parse failure — routing to requery rather than proceeding blindly' };
   }
 
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;

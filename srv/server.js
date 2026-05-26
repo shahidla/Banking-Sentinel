@@ -182,49 +182,51 @@ cds.on('bootstrap', async (app) => {
       progressEmitter.on('progress', onPatternProgress);
 
       let finalState = { ...initialState };
-      for await (const chunk of await graph.stream(initialState, { ...config, streamMode: 'updates' })) {
-        // Fan-out nodes can produce multiple entries in one chunk — iterate all
-        for (const [nodeName, nodeState] of Object.entries(chunk)) {
-        finalState = { ...finalState, ...nodeState };
+      try {
+        for await (const chunk of await graph.stream(initialState, { ...config, streamMode: 'updates' })) {
+          // Fan-out nodes can produce multiple entries in one chunk — iterate all
+          for (const [nodeName, nodeState] of Object.entries(chunk)) {
+          finalState = { ...finalState, ...nodeState };
 
-        const eventData = {
-          agent:          nodeName,
-          status:         'complete',
-          customerId:     finalState.intent?.customerId || initialState.customerId,
-          riskScore:      finalState.patternAssessment?.riskScore,
-          riskLevel:      finalState.patternAssessment?.riskLevel,
-          signal:         finalState.patternAssessment?.signal,
-          anomalyCount:   finalState.patternAssessment?.anomalies?.length,
-          anomalies:      finalState.patternAssessment?.anomalies,
-          patternConf:    finalState.patternAssessment?.confidence,
-          rpt1Success:    finalState.patternAssessment?.rpt1?.success,
-          palCount:       finalState.patternAssessment?.pal?.anomalyCount ?? 0,
-          llmCount:       finalState.patternAssessment?.llm?.anomalies?.length ?? 0,
-          nodes:          finalState.relationshipMap?.nodes?.length,
-          graphNodes:     finalState.relationshipMap?.nodes,
-          graphEdges:     finalState.relationshipMap?.edges,
-          groupExposure:  finalState.relationshipMap?.groupExposure,
-          aps221Pct:      finalState.relationshipMap?.aps221Pct,
-          relationshipFinding: finalState.relationshipMap?.finding,
-          forwardPosition:finalState.trajectoryAnalysis?.forwardPosition,
-          daysToExpiry:   finalState.trajectoryAnalysis?.daysToExpiry,
-          confidence:     finalState.selfRagEvaluation?.overallConfidence,
-          reQueryHint:    finalState.reQueryHint,
-          requeryCount:   finalState.requeryCount,
-          findingsCount:  finalState.synthesisResult?.findings?.length,
-          apraReady:      finalState.synthesisResult?.apraReady
-        };
+          const eventData = {
+            agent:          nodeName,
+            status:         'complete',
+            customerId:     finalState.intent?.customerId || initialState.customerId,
+            riskScore:      finalState.patternAssessment?.riskScore,
+            riskLevel:      finalState.patternAssessment?.riskLevel,
+            signal:         finalState.patternAssessment?.signal,
+            anomalyCount:   finalState.patternAssessment?.anomalies?.length,
+            anomalies:      finalState.patternAssessment?.anomalies,
+            patternConf:    finalState.patternAssessment?.confidence,
+            rpt1Success:    finalState.patternAssessment?.rpt1?.success,
+            palCount:       finalState.patternAssessment?.pal?.anomalyCount ?? 0,
+            llmCount:       finalState.patternAssessment?.llm?.anomalies?.length ?? 0,
+            nodes:          finalState.relationshipMap?.nodes?.length,
+            graphNodes:     finalState.relationshipMap?.nodes,
+            graphEdges:     finalState.relationshipMap?.edges,
+            groupExposure:  finalState.relationshipMap?.groupExposure,
+            aps221Pct:      finalState.relationshipMap?.aps221Pct,
+            relationshipFinding: finalState.relationshipMap?.finding,
+            forwardPosition:finalState.trajectoryAnalysis?.forwardPosition,
+            daysToExpiry:   finalState.trajectoryAnalysis?.daysToExpiry,
+            confidence:     finalState.selfRagEvaluation?.overallConfidence,
+            reQueryHint:    finalState.reQueryHint,
+            requeryCount:   finalState.requeryCount,
+            findingsCount:  finalState.synthesisResult?.findings?.length,
+            apraReady:      finalState.synthesisResult?.apraReady
+          };
 
-        pushSSE(sessionId, 'pipeline_status', eventData);
-        await publishPipelineStatus(sessionId, nodeName, 'complete', {
-          customerId: eventData.customerId,
-          riskScore:  eventData.riskScore,
-          riskLevel:  eventData.riskLevel
-        });
-        } // end per-node loop
-      } // end stream chunk loop
-
-      progressEmitter.off('progress', onPatternProgress);
+          pushSSE(sessionId, 'pipeline_status', eventData);
+          await publishPipelineStatus(sessionId, nodeName, 'complete', {
+            customerId: eventData.customerId,
+            riskScore:  eventData.riskScore,
+            riskLevel:  eventData.riskLevel
+          });
+          } // end per-node loop
+        } // end stream chunk loop
+      } finally {
+        progressEmitter.off('progress', onPatternProgress);
+      }
 
       // Check if graph paused at humanApproval (interruptBefore)
       const checkpoint = await graph.getState(config);
