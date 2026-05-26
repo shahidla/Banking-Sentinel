@@ -154,13 +154,6 @@
   .eq { padding: 9px 12px; border: 1px solid var(--border); border-left: 3px solid var(--yellow); margin-bottom: 6px; cursor: pointer; font-size: 11px; color: var(--mid); transition: all 0.15s; background: var(--white); }
   .eq:hover { background: var(--yellow-pale); color: var(--dark); border-left-color: var(--yellow-dark); }
 
-  .alert-box { padding: 10px 12px; border: 1px solid; margin-bottom: 6px; }
-  .alert-box.high { border-color: rgba(212,32,32,0.3); background: var(--red-light); border-left: 3px solid var(--red); }
-  .alert-box.med { border-color: rgba(196,122,0,0.3); background: var(--amber-light); border-left: 3px solid var(--amber); }
-  .alert-std { font-family: var(--mono); font-size: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
-  .alert-box.high .alert-std { color: var(--red); }
-  .alert-box.med .alert-std { color: var(--amber); }
-  .alert-text { font-size: 11px; color: var(--dark); line-height: 1.4; }
 
   .intent-box { margin-top: 14px; padding: 12px 14px; border: 1.5px solid var(--yellow); background: var(--yellow-pale); display: none; }
   .intent-row { display: flex; gap: 0; margin-bottom: 3px; font-family: var(--mono); font-size: 9px; }
@@ -188,8 +181,20 @@
   .ao .g { color: var(--green); }
   .ao .w { color: var(--amber); }
 
-  .graph-wrap { margin-top: 10px; border: 1px solid var(--border); background: var(--bg); height: 120px; display: none; }
-  #graphCanvas { width: 100%; height: 100%; }
+  .graph-wrap { margin-top: 10px; border: 1px solid var(--border); background: var(--bg); height: 240px; display: none; position: relative; cursor: pointer; }
+  .graph-wrap:hover::after { content: '⤢ expand'; position: absolute; top: 6px; right: 8px; font-size: 9px; font-family: var(--sans); color: var(--mid); background: rgba(255,255,255,0.85); padding: 2px 6px; border-radius: 2px; border: 1px solid var(--border); pointer-events: none; }
+  #graphCanvas { width: 100%; height: 100%; display: block; }
+
+  /* Graph expand modal */
+  .graph-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.60); z-index: 1000; display: none; align-items: center; justify-content: center; }
+  .graph-modal-overlay.open { display: flex; }
+  .graph-modal { background: #fff; border: 1px solid var(--border); border-radius: 4px; width: 92vw; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+  .graph-modal-hdr { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg); }
+  .graph-modal-title { font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--dark); letter-spacing: 0.2px; }
+  .graph-modal-close { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--mid); line-height: 1; padding: 2px 8px; border-radius: 2px; }
+  .graph-modal-close:hover { background: var(--red-light); color: var(--red); }
+  .graph-modal-close:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  #graphModalCanvas { flex: 1; width: 100%; display: block; }
 
   .conf-wrap { margin-top: 8px; display: none; align-items: center; gap: 8px; }
   .cl { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--light); width: 72px; flex-shrink: 0; }
@@ -301,6 +306,78 @@
 
   .edu-empty { padding: 32px 16px; text-align: center; font-family: var(--mono);
     font-size: 9px; color: rgba(255,255,255,0.18); letter-spacing: 1px; line-height: 1.8; }
+
+  /* ── Design System Uplift ────────────────────────────────────────────────── */
+
+  /* 1 + 20 — Contrast: #A0A0A0 fails WCAG AA on white (2.85:1). Fix both tokens. */
+  :root {
+    --mid:   #4A4A4A;   /* was #5A5A5A → 8.6:1 on white */
+    --light: #767676;   /* was #A0A0A0 → 4.54:1 on white, WCAG AA minimum */
+  }
+
+  /* 4 — Consistent line-height 1.5 for all body content */
+  .rdd, .ct, .ao { line-height: 1.5; }
+
+  /* 5 — Type scale: consolidate 11px micro-text to 12px base */
+  .ao, .bt, .rt, .eq, .anr, .bs, .ab-item, .chain-item { font-size: 12px; }
+
+  /* 6 — Section titles: 9px with 2px tracking is more legible than 8px with 3px */
+  .section-title { font-size: 9px; letter-spacing: 2px; color: var(--mid); }
+
+  /* 7 — Slightly more breathing room in finding and recommendation cards */
+  .breach { padding: 12px 16px; }
+  .rec    { padding: 12px 16px; }
+
+  /* 8 — Zebra striping for the connected chain list */
+  #chain .chain-item:nth-child(even) { background: rgba(0,0,0,0.025); border-radius: 2px; }
+
+  /* 11 — Severity badges: text + color, never color alone */
+  .sev-badge {
+    font-family: var(--mono); font-size: 7px; padding: 2px 6px;
+    letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;
+    font-weight: 600; vertical-align: middle; white-space: nowrap;
+  }
+  .sev-badge.critical { background: rgba(212,32,32,0.18); color: #8B0000; border: 1px solid rgba(212,32,32,0.35); }
+  .sev-badge.high     { background: rgba(212,32,32,0.10); color: #B01818; border: 1px solid rgba(212,32,32,0.22); }
+  .sev-badge.medium   { background: rgba(196,122,0,0.10);  color: #9E6200; border: 1px solid rgba(196,122,0,0.22); }
+  .sev-badge.low      { background: rgba(13,122,62,0.10);  color: #0A6332; border: 1px solid rgba(13,122,62,0.22); }
+
+  /* 12 — Agent status icons: visual state without relying on color alone */
+  .ab-thinking { background: var(--yellow-light); color: #9E6200; border: 1px solid var(--yellow); }
+  .ab-complete { background: rgba(13,122,62,0.10); color: #0A6332; border: 1px solid rgba(13,122,62,0.3); }
+  .ab-waiting  { background: var(--bg); color: var(--light); border: 1px solid var(--border); }
+
+  /* 13 — Min 40px touch/click targets */
+  .query-send { min-height: 40px; }
+  .eq         { min-height: 40px; display: flex; align-items: center; }
+
+  /* 14 — Visible keyboard focus ring on all interactive elements */
+  button:focus-visible,
+  .query-send:focus-visible,
+  .eq:focus-visible,
+  .nav-item:focus-visible,
+  .edu-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  /* 15 — Limit narrative text width (~68ch) to reduce horizontal eye travel */
+  .bt, .rt, .rdd { max-width: 68ch; }
+
+  /* 16 — Utility: mono font for inline technical values (IDs, session keys) */
+  .mono-val { font-family: var(--mono); font-size: 10px; color: var(--mid); }
+
+  /* 17 — Snap odd margins to 8px rhythm */
+  .chain-item  { margin-bottom: 8px; }
+  .bh          { margin-bottom: 6px; }
+  .ev-item     { margin-bottom: 6px; }
+
+  /* 18 — Quiet the status bar slightly so Panel 3 remains the focal area */
+  .sb-item { font-size: 13px; }
+
+  /* 19 — Empty/awaiting states: consistent placeholder style */
+  .awaiting-state {
+    padding: 20px 0; text-align: center; font-family: var(--mono);
+    font-size: 9px; color: var(--light); letter-spacing: 1px; line-height: 2;
+    border: 1px dashed var(--border); border-radius: 2px;
+  }
 </style>
 </head>
 <body>
@@ -366,10 +443,6 @@
       <div class="eq" onclick="setQ(this)">What is the total loan amount across all customers?</div>
       <div class="eq" onclick="setQ(this)">Approve the loan for customer 30100001</div>
 
-      <div id="regulatoryAlertsSection" style="display:none;">
-        <div class="sh">Regulatory Alerts</div>
-        <div id="regulatoryAlertItems"></div>
-      </div>
 
       <div class="intent-box" id="intentBox">
         <div class="sh" style="margin-top:0">Intake Agent — Parsed Intent</div>
@@ -415,7 +488,7 @@
         <div>
           <div class="anr">Relationship Agent <span class="ab ab-waiting">Waiting</span></div>
           <div class="ao">ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check</div>
-          <div class="graph-wrap" id="gw"><canvas id="graphCanvas"></canvas></div>
+          <div class="graph-wrap" id="gw" onclick="openGraphModal()" title="Click to expand graph"><canvas id="graphCanvas"></canvas></div>
         </div>
       </div>
 
@@ -575,8 +648,6 @@ function resetUI() {
   document.getElementById('liveAlertsBar').style.display = 'none';
   document.getElementById('liveAlertItems').innerHTML = '';
   document.getElementById('alertCountPill').style.display = 'none';
-  document.getElementById('regulatoryAlertsSection').style.display = 'none';
-  document.getElementById('regulatoryAlertItems').innerHTML = '';
   document.getElementById('intentBox').querySelectorAll('.iv').forEach(el => el.textContent = '—');
   document.getElementById('rb').style.opacity = '0.2';
   document.getElementById('gw').style.display = 'none';
@@ -627,14 +698,20 @@ function setAgent(id, state, html) {
   const numEl = el.querySelector('.an');
   numEl.className = 'an' + (state === 'active' || state === 'requery' ? ' active' : state === 'complete' ? ' complete' : '');
   const badge = el.querySelector('.ab');
-  if      (state === 'active')   { badge.className = 'ab ab-thinking'; badge.textContent = 'Thinking...'; }
-  else if (state === 'requery')  { badge.className = 'ab ab-thinking'; badge.textContent = 'Re-querying...'; }
-  else if (state === 'complete') { badge.className = 'ab ab-complete'; badge.textContent = 'Complete ✓'; }
-  else                           { badge.className = 'ab ab-waiting';  badge.textContent = 'Waiting'; }
+  if      (state === 'active')   { badge.className = 'ab ab-thinking'; badge.textContent = '● Thinking'; }
+  else if (state === 'requery')  { badge.className = 'ab ab-thinking'; badge.textContent = '↻ Re-querying'; }
+  else if (state === 'complete') { badge.className = 'ab ab-complete'; badge.textContent = '✓ Complete'; }
+  else                           { badge.className = 'ab ab-waiting';  badge.textContent = '○ Waiting'; }
   if (html) el.querySelector('.ao').innerHTML = html;
   if (state === 'complete') {
-    agentsDone++;
-    document.getElementById('agentProgress').textContent = agentsDone + ' / 5 complete';
+    // Only count the first time this agent reaches complete — prevents double-count on a4 (trajectory + selfRagCheck both mark it complete)
+    if (!el.dataset.counted) {
+      el.dataset.counted = '1';
+      agentsDone++;
+      document.getElementById('agentProgress').textContent = agentsDone + ' / 5 complete';
+    }
+  } else if (state !== 'idle') {
+    delete el.dataset.counted;
   }
 }
 
@@ -689,8 +766,9 @@ function handleEvent(evt) {
     const agentId = AGENT_MAP[e.agent];
     if (!agentId) return;
 
-    // Set next agent as active (pipeline hint)
-    const nextMap = { intake: 'a2', relationship: 'a4', trajectory: 'a4' };
+    // Set next agent as active (pipeline hint) — matches actual execution order:
+    // trajectory (a4) runs before relationship (a3); selfRagCheck handles a4 requery/complete
+    const nextMap = { intake: 'a2', trajectory: 'a3' };
     if (nextMap[e.agent]) setAgent(nextMap[e.agent], 'active', null);
 
     // Pattern: mark complete but preserve the progressive bold .ao built by pattern_progress events
@@ -705,6 +783,10 @@ function handleEvent(evt) {
       const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
       document.querySelector('.risk-score-block').style.background = c[e.riskLevel] || '#888';
       addEduSection('pattern', e);
+      // high-risk path: trajectory (a4) runs next; low-risk goes direct to synthesis
+      if (e.riskLevel === 'HIGH' || e.riskLevel === 'CRITICAL' || e.riskLevel === 'MEDIUM') {
+        setAgent('a4', 'active', 'Calculating forward DTI · Income expiry projection · Conflicting signal resolution...');
+      }
       return;
     }
 
@@ -715,7 +797,7 @@ function handleEvent(evt) {
     if (e.agent === 'synthesis') {
       ['a3','a4'].forEach(id => {
         const badge = document.querySelector(`#${id} .ab`);
-        if (badge && (badge.textContent === 'Thinking...' || badge.textContent === 'Waiting')) {
+        if (badge && (badge.textContent === '● Thinking' || badge.textContent === '○ Waiting')) {
           setAgent(id, 'idle', id === 'a3'
             ? 'Skipped — risk score below threshold · Connected party check not required'
             : 'Skipped — risk score below threshold · Trajectory assessment not required');
@@ -725,7 +807,20 @@ function handleEvent(evt) {
 
     if (e.agent === 'relationship') {
       document.getElementById('gh').textContent = e.nodes || '?';
-      if ((e.nodes || 0) >= 1) { document.getElementById('gw').style.display = 'block'; setTimeout(() => drawGraph(e.graphNodes, e.graphEdges), 50); }
+      if ((e.nodes || 0) >= 1) {
+        document.getElementById('gw').style.display = 'block';
+        setTimeout(() => drawGraph(e.graphNodes, e.graphEdges), 50);
+        // Populate Connected Risk Chain panel with enriched node list
+        const enriched = Array.isArray(e.graphNodes) && e.graphNodes.length > 0 && typeof e.graphNodes[0] === 'object';
+        if (enriched) {
+          const sorted = [...e.graphNodes].sort((a, b) => (a.hop || 0) - (b.hop || 0));
+          document.getElementById('chain').innerHTML = sorted.map(n => {
+            const rel  = n.relType ? ` · <strong>${n.relType.replace(/_/g, ' ')}</strong>` : '';
+            const hop  = n.hop > 0 ? ` <span style="opacity:0.5">hop ${n.hop}</span>` : ' <span style="opacity:0.5">source</span>';
+            return `<div class="chain-item"><span class="ca">→</span><span class="ct"><strong>${n.name || n.id}</strong> <span style="font-family:var(--mono);font-size:10px">${n.id}</span>${rel}${hop}</span></div>`;
+          }).join('');
+        }
+      }
     }
   }
 
@@ -1066,12 +1161,16 @@ function renderRiskBrief(s) {
   const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
   document.querySelector('.risk-score-block').style.background = c[s.riskLevel] || '#888';
 
-  document.getElementById('breaches').innerHTML = (s.findings || []).map(f => `
+  document.getElementById('breaches').innerHTML = (s.findings || []).map(f => {
+    const sev = (f.severity || 'MEDIUM').toUpperCase();
+    const sevClass = { CRITICAL: 'critical', HIGH: 'high', MEDIUM: 'medium', LOW: 'low' }[sev] || 'medium';
+    return `
     <div class="breach">
-      <div class="bh"><span class="bs">${(f.finding || '').substring(0, 70)}${f.finding?.length > 70 ? '...' : ''}</span>
-      <span class="bsev">${Math.round((f.confidence || 0) * 100)}% confidence · ${f.evidenceSource || ''}</span></div>
-      <div class="bt">${f.finding || ''}</div>
-    </div>`).join('') || '<div class="breach" style="opacity:0.3"><div class="bt">No findings</div></div>';
+      <div class="bh"><span class="bs">${(f.finding || '').substring(0, 70)}${(f.finding || '').length > 70 ? '...' : ''}</span>
+      <span class="sev-badge ${sevClass}">${sev}</span></div>
+      <div class="bt">${f.finding || ''} <span style="color:var(--mid);font-size:10px;">· ${Math.round((f.confidence || 0) * 100)}% conf · ${f.evidenceSource || ''}</span></div>
+    </div>`;
+  }).join('') || '<div class="breach" style="opacity:0.3"><div class="bt">No findings</div></div>';
 
   const labels = ['Immediate Action', 'Within 5 Days', 'Within 30 Days'];
   document.getElementById('recs').innerHTML = (s.recommendations || []).map((r, i) => `
@@ -1084,27 +1183,16 @@ function renderRiskBrief(s) {
     `<div class="ev-item"><span class="ed">◆</span>${r}</div>`).join('') ||
     '<div class="ev-item"><span class="ed">◆</span>No regulatory refs</div>';
 
-  document.getElementById('chain').innerHTML = (s.uncertainties || []).map(u =>
-    `<div class="chain-item"><span class="ca">→</span><span class="ct">${u}</span></div>`).join('') ||
-    '<div class="chain-item"><span class="ca">→</span><span class="ct">No uncertainties noted</span></div>';
+  // Chain section is populated by the relationship agent event (enriched node list).
+  // Uncertainties appear in the findings text and apraReady flag — no separate display needed.
 
   document.getElementById('rag').textContent = (s.confidence || 0).toFixed(2);
   document.getElementById('rag').style.color = '#FFD000';
   document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's total';
 
-  // Populate regulatory alerts in Panel 1 from real findings
+  // Populate live alerts bar (top ticker) from findings
   const findings = s.findings || [];
   if (findings.length > 0) {
-    const alertHtml = findings.map(f => {
-      const sev = (f.severity || '').toUpperCase();
-      const cls = (sev === 'HIGH' || sev === 'CRITICAL') ? 'high' : 'med';
-      const std = f.standard || f.evidenceSource || 'Regulatory Finding';
-      return `<div class="alert-box ${cls}"><div class="alert-std">${std}</div><div class="alert-text">${f.finding || ''}</div></div>`;
-    }).join('');
-    document.getElementById('regulatoryAlertItems').innerHTML = alertHtml;
-    document.getElementById('regulatoryAlertsSection').style.display = 'block';
-
-    // Populate live alerts bar
     const barHtml = findings.slice(0, 3).map(f =>
       `<div class="ab-item">▲ ${(f.finding || '').substring(0, 80)}</div>`
     ).join('<div class="ab-sep">|</div>');
@@ -1117,86 +1205,180 @@ function renderRiskBrief(s) {
 }
 
 // ── Graph canvas ──────────────────────────────────────────────────────────────
-function drawGraph(rawNodes, rawEdges) {
-  const c = document.getElementById('graphCanvas');
+function abbrevRelType(t) {
+  if (!t) return '';
+  const m = { FAMILY_TRUST_MEMBER: 'Family Trust', SUBSIDIARY: 'Subsidiary',
+    PARENT_COMPANY: 'Parent Co.', CONTACT_PERSON: 'Contact', GUARANTOR: 'Guarantor', RELATED: 'Related' };
+  return m[t] || t.replace(/_/g, ' ').toLowerCase().slice(0, 14);
+}
+
+function drawGraph(rawNodes, rawEdges, targetCanvas) {
+  // Store data so the modal can redraw at larger size
+  if (!targetCanvas) lastGraphData = { nodes: rawNodes, edges: rawEdges };
+  const c = targetCanvas || document.getElementById('graphCanvas');
   const ctx = c.getContext('2d');
-  c.width = c.offsetWidth; c.height = c.offsetHeight;
+  if (!targetCanvas) { c.width = c.offsetWidth; c.height = c.offsetHeight; }
   const w = c.width, h = c.height;
 
-  // Normalise nodes to string IDs
-  const nodeIds = Array.isArray(rawNodes) && rawNodes.length > 0
-    ? rawNodes.map(String)
-    : ['Customer'];
+  // Accept enriched {id, name, hop, relType} objects or plain string IDs
+  const nodes = Array.isArray(rawNodes) && rawNodes.length > 0
+    ? rawNodes.map(n => typeof n === 'object' ? n : { id: String(n), name: String(n), hop: 0, relType: null })
+    : [{ id: 'Customer', name: 'Customer', hop: 0, relType: null }];
+  const nodeIds = nodes.map(n => n.id);
 
-  // Normalise edges — accept [a,b] arrays OR {from,to,type,hop} objects (Relationship Agent format)
-  const edgePairs = [];
+  // Normalise edges — {from, to, type} objects or [a,b] arrays
+  const edgePairs  = [];
+  const edgeTypes  = [];
   if (Array.isArray(rawEdges)) {
     rawEdges.forEach(e => {
-      let a, b;
-      if (Array.isArray(e) && e.length >= 2) {
-        a = e[0]; b = e[1];
-      } else if (e && typeof e === 'object' && e.from != null && e.to != null) {
-        a = e.from; b = e.to;
-      } else {
-        return;
-      }
-      if (typeof a === 'string') a = nodeIds.indexOf(a);
-      if (typeof b === 'string') b = nodeIds.indexOf(b);
-      if (a >= 0 && b >= 0 && a < nodeIds.length && b < nodeIds.length) edgePairs.push([a, b]);
+      let a, b, type = null;
+      if (e && typeof e === 'object' && e.from != null && e.to != null) {
+        a = String(e.from); b = String(e.to); type = e.type || null;
+      } else if (Array.isArray(e) && e.length >= 2) {
+        a = String(e[0]); b = String(e[1]);
+      } else return;
+      const ai = nodeIds.indexOf(a), bi = nodeIds.indexOf(b);
+      if (ai >= 0 && bi >= 0) { edgePairs.push([ai, bi]); edgeTypes.push(type); }
     });
   }
-  // Fallback: star from node 0 if no usable edges but multiple nodes
-  if (edgePairs.length === 0 && nodeIds.length > 1) {
-    for (let i = 1; i < nodeIds.length; i++) edgePairs.push([0, i]);
+  // Fallback star only when no real edges exist
+  if (edgePairs.length === 0 && nodes.length > 1) {
+    for (let i = 1; i < nodes.length; i++) { edgePairs.push([0, i]); edgeTypes.push(null); }
   }
 
-  // BFS depth from node 0
-  const depth = new Array(nodeIds.length).fill(0);
-  const visited = new Set([0]);
+  // Directed BFS from node 0 to assign column depth
+  const depth = new Array(nodes.length).fill(-1);
+  depth[0] = 0;
   const queue = [0];
   while (queue.length) {
     const cur = queue.shift();
     edgePairs.forEach(([a, b]) => {
-      const nb = a === cur ? b : b === cur ? a : -1;
-      if (nb >= 0 && !visited.has(nb)) { depth[nb] = depth[cur] + 1; visited.add(nb); queue.push(nb); }
+      if (a === cur && depth[b] < 0) { depth[b] = depth[cur] + 1; queue.push(b); }
     });
   }
+  // Assign any unreached nodes (disconnected) a depth after the max
+  const maxReached = Math.max(...depth.filter(d => d >= 0), 0);
+  depth.forEach((d, i) => { if (d < 0) depth[i] = maxReached + 1; });
 
   const maxDepth = Math.max(...depth, 0);
-  // Group nodes by depth column
   const cols = {};
-  nodeIds.forEach((_, i) => { const d = depth[i]; (cols[d] = cols[d] || []).push(i); });
+  nodes.forEach((_, i) => { const d = depth[i]; (cols[d] = cols[d] || []).push(i); });
 
-  const pos = new Array(nodeIds.length);
+  const pos = new Array(nodes.length);
   Object.entries(cols).forEach(([d, idxs]) => {
-    const xFrac = maxDepth === 0 ? 0.5 : parseInt(d) / maxDepth * 0.82 + 0.09;
+    const xFrac = maxDepth === 0 ? 0.5 : parseInt(d) / maxDepth * 0.80 + 0.10;
     idxs.forEach((idx, slot) => {
       pos[idx] = { x: w * xFrac, y: h * ((slot + 1) / (idxs.length + 1)) };
     });
   });
 
-  const PALETTE = ['#D42020', '#0055B3', '#C47A00', '#0D7A3E', '#7B3FA0', '#D42020'];
+  // Depth-indexed color palette — source=red, then cool progression
+  const PALETTE = ['#D42020', '#0055B3', '#C47A00', '#0D7A3E', '#7B3FA0', '#1A7A9A', '#8B4513'];
 
-  // Edges
-  ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1.5;
-  edgePairs.forEach(([a, b]) => {
+  // ── Draw edges ────────────────────────────────────────────────────────────
+  edgePairs.forEach(([a, b], idx) => {
     if (!pos[a] || !pos[b]) return;
-    ctx.beginPath(); ctx.moveTo(pos[a].x, pos[a].y); ctx.lineTo(pos[b].x, pos[b].y); ctx.stroke();
+    const R = 14; // node radius for arrow offset
+    const dx = pos[b].x - pos[a].x, dy = pos[b].y - pos[a].y;
+    const angle = Math.atan2(dy, dx);
+    const x2 = pos[b].x - R * Math.cos(angle), y2 = pos[b].y - R * Math.sin(angle);
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pos[a].x, pos[a].y); ctx.lineTo(x2, y2); ctx.stroke();
+
+    // Arrowhead
+    ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 7 * Math.cos(angle - 0.38), y2 - 7 * Math.sin(angle - 0.38));
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 7 * Math.cos(angle + 0.38), y2 - 7 * Math.sin(angle + 0.38));
+    ctx.stroke();
+
+    // Edge label — relationship type at midpoint, above the line
+    const lbl = abbrevRelType(edgeTypes[idx]);
+    if (lbl) {
+      const mx = (pos[a].x + pos[b].x) / 2, my = (pos[a].y + pos[b].y) / 2;
+      ctx.save();
+      ctx.translate(mx, my);
+      // Keep label horizontal regardless of edge angle
+      ctx.fillStyle = 'rgba(80,80,80,0.85)';
+      ctx.font = '7px Figtree, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(lbl, 0, -5);
+      ctx.restore();
+    }
   });
 
-  // Nodes
-  nodeIds.forEach((id, i) => {
+  // ── Draw nodes ────────────────────────────────────────────────────────────
+  nodes.forEach((node, i) => {
     if (!pos[i]) return;
-    const r   = i === 0 ? 14 : 11;
-    const col = PALETTE[Math.min(i, PALETTE.length - 1)];
-    const lbl = id.length > 9 ? id.slice(0, 9) : id;
+    const isRoot = (i === 0);
+    const r   = isRoot ? 16 : 14;
+    const col = PALETTE[Math.min(depth[i], PALETTE.length - 1)];
+
+    // Node circle
     ctx.beginPath(); ctx.arc(pos[i].x, pos[i].y, r, 0, Math.PI * 2);
-    ctx.fillStyle = col + '22'; ctx.fill();
-    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 8px Figtree'; ctx.textAlign = 'center';
-    ctx.fillText(lbl, pos[i].x, pos[i].y + 3);
+    ctx.fillStyle = col + '1A'; ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = isRoot ? 2.5 : 2; ctx.stroke();
+
+    // Line 1: display name (truncated to 14 chars)
+    const name = (node.name && node.name !== node.id)
+      ? (node.name.length > 14 ? node.name.slice(0, 13) + '…' : node.name)
+      : '';
+    // Line 2: BP number in mono
+    const id = node.id || '';
+
+    ctx.textAlign = 'center';
+    if (name) {
+      ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 8px Figtree, sans-serif';
+      ctx.fillText(name, pos[i].x, pos[i].y + 1);
+      ctx.fillStyle = '#555555'; ctx.font = '6.5px monospace';
+      ctx.fillText(id, pos[i].x, pos[i].y + 10);
+    } else {
+      // Fallback: just the ID centered
+      ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 7.5px Figtree, sans-serif';
+      ctx.fillText(id.length > 10 ? id.slice(0, 9) + '…' : id, pos[i].x, pos[i].y + 3);
+    }
   });
 }
+
+// ── Graph expand modal ────────────────────────────────────────────────────────
+let lastGraphData = null;
+
+function openGraphModal() {
+  if (!lastGraphData) return;
+  const overlay = document.getElementById('graphModalOverlay');
+  overlay.classList.add('open');
+  // Defer draw until canvas has rendered dimensions
+  requestAnimationFrame(() => {
+    const mc = document.getElementById('graphModalCanvas');
+    mc.width  = mc.offsetWidth;
+    mc.height = mc.offsetHeight;
+    drawGraph(lastGraphData.nodes, lastGraphData.edges, mc);
+  });
+}
+
+function closeGraphModal(evt) {
+  // Close on overlay click (not modal itself) or explicit call
+  if (evt && evt.target !== document.getElementById('graphModalOverlay')) return;
+  document.getElementById('graphModalOverlay').classList.remove('open');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('graphModalOverlay')?.classList.remove('open');
+});
 </script>
+
+<!-- Graph expand modal -->
+<div class="graph-modal-overlay" id="graphModalOverlay" onclick="closeGraphModal(event)">
+  <div class="graph-modal">
+    <div class="graph-modal-hdr">
+      <span class="graph-modal-title">Connected Party Graph — APS 221 Risk Chain</span>
+      <button class="graph-modal-close" onclick="document.getElementById('graphModalOverlay').classList.remove('open')" aria-label="Close graph">✕</button>
+    </div>
+    <canvas id="graphModalCanvas"></canvas>
+  </div>
+</div>
+
 </body>
 </html>

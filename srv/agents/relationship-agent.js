@@ -134,6 +134,7 @@ Return your final summary as JSON:
 
   let steps    = 0;
   let tokensIn = 0, tokensOut = 0;
+  let toolGraphData = null; // captures enriched node/edge data from first successful graph traverse
 
   // ── ReAct loop ────────────────────────────────────────────────────────────
   while (steps < MAX_REACT_STEPS) {
@@ -151,6 +152,12 @@ Return your final summary as JSON:
       let result;
       try {
         result = await dispatchTool(tc.name, tc.args);
+        // Capture enriched graph structure from the first successful traversal.
+        // The LLM summary loses node names and real edge topology — preserve it here.
+        if (tc.name === 'hana_graph_traverse' && result.nodeDetails?.length > 0 && !toolGraphData) {
+          toolGraphData = { nodeDetails: result.nodeDetails, edges: result.edges };
+          console.log(`  [Relationship] Graph data captured — ${result.nodeDetails.length} enriched nodes, ${result.edges.length} chain edges`);
+        }
       } catch (e) {
         result = { error: e.message };
         console.warn(`  [Relationship] Tool ${tc.name} failed:`, e.message);
@@ -196,15 +203,21 @@ Return your final summary as JSON:
 
   const relationshipMap = { ...parsed };
 
-  console.log(`  [Relationship] Done — nodes:${relationshipMap.nodes?.length} edges:${relationshipMap.edges?.length} groupExposure:${relationshipMap.groupExposure} aps221Pct:${relationshipMap.aps221Pct} steps:${steps}`);
-  console.log(`  [Relationship] Nodes: ${(relationshipMap.nodes || []).join(', ') || 'none'}`);
+  // Use tool's enriched node list if available — LLM summary only has flat IDs
+  const finalNodes = toolGraphData?.nodeDetails?.length > 0
+    ? toolGraphData.nodeDetails.map(n => n.id)
+    : (relationshipMap.nodes || []);
+
+  console.log(`  [Relationship] Done — nodes:${finalNodes.length} chainEdges:${toolGraphData?.edges?.length ?? 0} groupExposure:${relationshipMap.groupExposure} aps221Pct:${relationshipMap.aps221Pct} steps:${steps}`);
+  console.log(`  [Relationship] Nodes: ${finalNodes.join(', ') || 'none'}`);
   console.log(`  [Relationship] Finding: ${relationshipMap.finding || '(none)'}`);
   console.log(`  [Relationship] Confidence: ${relationshipMap.confidence}`);
 
   return {
     relationshipMap: {
-      nodes:         relationshipMap.nodes,
-      edges:         relationshipMap.edges         || [],
+      nodes:         finalNodes,
+      nodeDetails:   toolGraphData?.nodeDetails  || [],   // enriched — for UI graph canvas
+      edges:         toolGraphData?.edges?.length > 0 ? toolGraphData.edges : (relationshipMap.edges || []),
       groupExposure: relationshipMap.groupExposure || 0,
       aps221Pct:     relationshipMap.aps221Pct     || 0,
       confidence:    relationshipMap.confidence,

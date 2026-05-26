@@ -13,7 +13,75 @@
 ## Phase 7 complete (2026-05-25): SSE + Solace dual-publish per node via graph.stream(). UI fully wired — anomaly strings, relationship finding, forward position, synthesis findings all live. Admin data browser: PostgreSQL sidebar with real COUNT(*) and Clear All. Security hardening: admin IP guard, APS 221 GROUP limit fix, orphaned-approve 404, real audit latency. Relationship Agent 45s timeout + SPARQL 8s AbortSignal. Logo added.
 ## Phase 8 — HDI Deploy + PAL Investigation (2026-05-25): BP_RELATIONSHIP_GRAPH.hdbgraphworkspace + 3 CDS views deployed to HANA Cloud HDI via hdi-deploy v5.6.1. PAL Isolation Forest CONFIRMED NOT AVAILABLE on HANA Cloud Free Tier — ScriptServer requires 3 vCPU minimum; Free Tier has 1 vCPU. PAL code preserved in pattern-agent.js (calls PAL_RUN_ISOLATION_FOREST procedure) — non-fatal on Free Tier (warns, continues). Deploy to paid 3vCPU HANA Cloud + grant AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user to enable PAL (see SAP KB 3655407). Key deploy fix: VCAP_SERVICES needs "tags": ["hana"] + "plan": "hdi-shared" for xsenv.filterServices to pick up the service. db/src/.hdiconfig added for hdbgraphworkspace + hdbprocedure plugins.
 ## HDI Deploy command (2026-05-25): npx cds build --for hana → Copy-Item default-env.json gen\db\default-env.json → cd gen\db; node node_modules\@sap\cds-dk\node_modules\@sap\hdi-deploy\deploy.js --exit
-## Last updated: 2026-05-25
+## Last updated: 2026-05-27
+
+## SESSION 2026-05-27 — UI Polish Sprint (Phases 9 continuation)
+
+### What was completed this session:
+
+**Graph chain fix (Phase 4b follow-up):**
+- Rewrote SPARQL in hana_graph_traverse: 3 queries — reachability, real chain edges (VALUES clause), node names
+- Star-graph bug fixed: edges now represent actual A→B pairs, not startNode→every-partner fan-out
+- Guarantor contamination fixed: loan lookup scoped to startNode only (was fetching all traversed nodes)
+- nodeDetails enrichment: returns {id, name, hop, relType} — preserved in relationshipAgent.js toolGraphData
+- Canvas drawGraph() rewritten: directed BFS layout, arrowheads, edge type labels, two-line node labels (name + BP number)
+- Canvas height: 120px → 240px; graph-wrap now clickable → expand modal (92vw × 85vh)
+
+**Agent ordering bug discovered and fixed:**
+- ACTUAL backend execution order: pattern → trajectory (a4) → relationship (a3) → selfRagCheck → humanApproval → synthesis
+- UI labels showed a3=Relationship, a4=Trajectory — OPPOSITE of execution order (by intent: trajectory needs pattern output, relationship uses trajectory DTI context)
+- SSE nextMap was completely wrong — `{ relationship: 'a4', trajectory: 'a4' }` caused a4 to flash-complete and a3 to never show active
+- Fixed: `{ intake: 'a2', trajectory: 'a3' }` — now correctly activates a3 (relationship) after a4 (trajectory) completes
+- Pattern handler now activates a4 on HIGH/MEDIUM risk path
+- "7 / 5 complete" bug fixed: `data-counted` flag on DOM element prevents double-counting when a4 gets marked complete twice (trajectory + selfRagCheck both fire complete)
+
+**20 UI improvements (Banking-Sentinel-AustralianBank.html):**
+- WCAG AA contrast: `--light` changed from `#A0A0A0` (2.85:1) to `#767676` (4.54:1)
+- Agent status badges: `● Thinking`, `↻ Re-querying`, `✓ Complete`, `○ Waiting` — symbol+text, not color-only
+- Severity badges: `.sev-badge` classes (CRITICAL/HIGH/MEDIUM/LOW) replacing color-only `.bsev` in breach cards
+- Regulatory Alerts (left panel): REMOVED — duplicate of Regulatory Breaches (right panel) which has more info
+- Skip-state guard updated for new badge text strings
+
+**Graph expand modal:**
+- `drawGraph()` refactored to accept optional canvas param; stores `lastGraphData`
+- Click graph-wrap → `openGraphModal()` → redraws at 92vw × 85vh
+- Hover shows `⤢ expand` hint; close via ✕, backdrop click, or Escape key
+
+**Admin.js — items 21–30:**
+- 21: Color tokens: body `#e5e7eb`, muted `#94a3b8`, dim `#a3b1c6`, row border `#2b3145`
+- 22: Table: th/td padding 10/14px, line-height 1.45, zebra even rows `#151a28`
+- 23: Semantic badges: `.low` `.medium` `.high` `.critical`
+- 24: Tab active `font-weight:700`, entity-btn active `font-weight:600`, active bg `#20263a`
+- 25: Sticky context bar on all 3 panels (Engine, Table/Rows/Last loaded / Triples etc)
+- 26: SKIPPED — Confidence & Data Gaps: admin browser has no session state to populate this from
+- 27: Focus styles: `button:focus-visible, .tab:focus-visible` 2px blue outline
+- 28: Error panels: Retry/Reload tables/Retry SPARQL buttons; `display:flex` actionable layout
+- 29: Numeric column alignment: COUNT/AMOUNT/TOTAL/PCT/RISK_SCORE → right-aligned tabular-nums
+- 30: Header: normal case, no `⬡` symbol, accent only on interactive elements
+
+**Files cleaned up:**
+- Deleted: `.tmp-dns-check.js`, `.tmp-hana-check.js`, `.tmp-tls-check.js` (debug temp scripts)
+- Deleted: `scripts/test-neo4j.js` (Neo4j never used — GraphDB is the graph store)
+- Deleted: `Docs/code-review.md` (superseded — all bugs from it were fixed)
+
+### PENDING:
+- **Education popup rework** — current implementation needs full rework. Defer to dedicated session. Current: slide-in drawer per agent triggered by SSE completion. Needed: cleaner design, better content structure, ON/OFF toggle working correctly.
+- **RAGAS faithfulness fix** — faithfulness:0.25 (1/4 findings supported). Retrieved APRA chunks are generic; synthesis findings cite specific clauses not in retrieved chunks. Grounding gap investigation needed.
+- **BCA_COLLATERAL not seeded** — collateralCount always 0
+- **validate.js** — never connected to graph (HIGH — APRA CPS 230)
+- **Phase 10** — CF deployment, architecture diagram, blog post
+
+### KEY ARCHITECTURAL DECISION (confirmed this session):
+Trajectory (a4) runs BEFORE Relationship (a3) in the backend. This is intentional:
+- Relationship Agent uses trajectoryAnalysis.forwardPosition + daysToExpiry as context for judging whether group exposure is material
+- The UI label order (03=Relationship, 04=Trajectory) does NOT match execution order
+- This is correct design — document it so future sessions don't try to "fix" the graph edge order
+
+### LangGraph graph edge order (ACTUAL — banking-sentinel.js):
+```
+pattern → trajectory → relationship → selfRagCheck → humanApproval → synthesis
+```
+(NOT: pattern → relationship → trajectory as the UI numbering implies)
 
 ---
 
@@ -839,10 +907,12 @@ For every pattern: AI meaning, banking meaning, SAP meaning.
 | 4 | Pattern Agent — RPT-1 + PAL Isolation Forest + LLM simultaneously | ✅ COMPLETE (2026-05-24) |
 | 4b | Relationship Agent — ReAct loop, BFS graph traversal, exposure + APS 221 check | ✅ COMPLETE (2026-05-24) |
 | 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt | ✅ COMPLETE (2026-05-24) |
-| 6 | Self-RAG — real confidence evaluation + re-query loop | 🔲 NEXT |
-| 7 | Solace events + risk state change + regulatory document upload (Twinkle 2) | 🔲 PENDING |
-| 8 | Langfuse tracing every node + RAGAS scoring + cost per analysis + CF restart test | 🔲 PENDING |
-| 9 | HTML UI wired to A2A + all five Solace topics + demo rehearsed | 🔲 PENDING |
+| 6 | Self-RAG — real confidence evaluation + re-query loop | ✅ COMPLETE (2026-05-25) |
+| 7 | Solace events + SSE dual-publish + UI fully wired + admin security | ✅ COMPLETE (2026-05-25) |
+| 8 | HDI deploy + PAL investigation + observability + RAGAS baseline | ✅ COMPLETE (2026-05-25) |
+| 9 | UI polish: graph chain, agent ordering, severity badges, admin redesign, graph modal | 🔄 IN PROGRESS (2026-05-27) |
+| 9a | Education popup rework | 🔲 NEXT |
+| 9b | RAGAS faithfulness fix (current score 0.25, target > 0.85) | 🔲 PENDING |
 | 10 | CF deployment + architecture diagram + demo video + blog post | 🔲 PENDING |
 
 **Graph Engine — Final Decision (2026-05-24):**

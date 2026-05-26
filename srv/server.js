@@ -202,7 +202,9 @@ cds.on('bootstrap', async (app) => {
             palCount:       finalState.patternAssessment?.pal?.anomalyCount ?? 0,
             llmCount:       finalState.patternAssessment?.llm?.anomalies?.length ?? 0,
             nodes:          finalState.relationshipMap?.nodes?.length,
-            graphNodes:     finalState.relationshipMap?.nodes,
+            graphNodes:     finalState.relationshipMap?.nodeDetails?.length > 0
+                              ? finalState.relationshipMap.nodeDetails
+                              : finalState.relationshipMap?.nodes,
             graphEdges:     finalState.relationshipMap?.edges,
             groupExposure:  finalState.relationshipMap?.groupExposure,
             aps221Pct:      finalState.relationshipMap?.aps221Pct,

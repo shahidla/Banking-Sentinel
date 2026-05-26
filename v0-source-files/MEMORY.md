@@ -145,7 +145,7 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 
 ---
 
-## BUILD PHASES — CURRENT STATUS (updated 2026-05-25)
+## BUILD PHASES — CURRENT STATUS (updated 2026-05-27)
 
 | Phase | What | Status |
 |---|---|---|
@@ -158,9 +158,16 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop (interruptBefore humanApproval) | ✅ DONE (2026-05-24) |
 | 6 | Self-RAG — real LLM confidence evaluation (4 dimensions) + targeted re-query loop | ✅ DONE (2026-05-25) |
 | 7 | Solace events (graph.stream) + Twinkle 2 (APRA sync) + UI wired + security hardening | ✅ DONE (2026-05-25) |
-| 8 | Langfuse tracing every node + RAGAS scoring + cost tracking + CF restart test | 🔲 NEXT |
-| 9 | Educational slide-in drawer per agent (ON/OFF toggle) + demo rehearsal | 🔲 PENDING |
+| 8 | HDI deploy + PAL investigation + Langfuse + RAGAS baseline | ✅ DONE (2026-05-25) |
+| 9 | UI polish sprint — graph chain, agent ordering, severity badges, admin redesign, graph modal | 🔄 IN PROGRESS (2026-05-27) |
+| 9a | Education popup rework (needs full redesign) | 🔲 NEXT |
+| 9b | RAGAS faithfulness fix (current 0.25, target > 0.85) | 🔲 PENDING |
 | 10 | BTP CF deployment + architecture diagram + demo video + blog post | 🔲 PENDING |
+
+### CRITICAL ARCHITECTURE NOTE (discovered 2026-05-27):
+Backend execution order is trajectory (a4) → relationship (a3), NOT a3 → a4.
+Relationship agent uses trajectory DTI forward position as context. This is correct and intentional.
+UI labels do NOT match execution order — do not "fix" the LangGraph edge order to match UI numbering.
 
 ---
 

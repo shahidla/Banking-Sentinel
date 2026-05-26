@@ -116,8 +116,7 @@ async function hana_graph_traverse({ startNode, depth = 6 }) {
   const maxDepth = Math.min(depth, 8);
   const startUri = `${BASE_URI}partner/${startNode}`;
 
-  // Build UNION of fixed-length paths — each arm binds its hop count
-  // SPARQL property path {1,N} doesn't return path length, so we enumerate explicitly
+  // ── SPARQL 1: multi-hop reachability — finds all nodes within maxDepth hops ──
   const hopClauses = [];
   let path = 'bs:relatedTo';
   for (let h = 1; h <= maxDepth; h++) {
@@ -125,7 +124,7 @@ async function hana_graph_traverse({ startNode, depth = 6 }) {
     path += '/bs:relatedTo';
   }
 
-  const sparql = `
+  const reachabilitySparql = `
     PREFIX bs: <${BASE_URI}>
     SELECT ?partnerId (MIN(?hop) AS ?minHop) ?reltyp WHERE {
       ${hopClauses.join('\n      UNION\n      ')}
@@ -140,20 +139,72 @@ async function hana_graph_traverse({ startNode, depth = 6 }) {
     GROUP BY ?partnerId ?reltyp
   `;
 
-  const result = await sparqlQuery(sparql);
-  const traversalRows = result.results.bindings.map(b => ({
+  const reach = await sparqlQuery(reachabilitySparql);
+  const traversalRows = reach.results.bindings.map(b => ({
     PARTNER:  b.partnerId.value,
-    REL_TYPE: b.reltyp?.value || 'RELATED',
+    REL_TYPE: b.reltyp?.value || null,
     HOP:      parseInt(b.minHop.value)
   }));
 
   const connectedPartners = traversalRows.map(r => r.PARTNER);
   const allPartners = [...new Set([startNode, ...connectedPartners])];
 
-  // Enrich with guarantor connections (BCA_GUARANTOR edge: loan → guarantor BP)
+  // ── SPARQL 2: real edge pairs within the discovered subgraph ─────────────────
+  // Returns actual A→B links — corrects the star-graph bug where everything
+  // appeared as startNode→partner regardless of hop depth.
+  const valuesList = allPartners.map(id => `"${id}"`).join(' ');
+  const edgeSparql = `
+    PREFIX bs: <${BASE_URI}>
+    SELECT DISTINCT ?fromId ?reltype ?toId WHERE {
+      ?s ?rel ?o .
+      FILTER(STRSTARTS(STR(?rel), "${BASE_URI}relatedTo/"))
+      ?s bs:partnerId ?fromId .
+      ?o bs:partnerId ?toId .
+      VALUES ?fromId { ${valuesList} }
+      VALUES ?toId   { ${valuesList} }
+      BIND(STRAFTER(STR(?rel), "relatedTo/") AS ?reltype)
+    }
+  `;
+  const edgeResult = await sparqlQuery(edgeSparql);
+  const chainEdges = edgeResult.results.bindings.map(b => ({
+    from: b.fromId.value,
+    to:   b.toId.value,
+    type: b.reltype.value
+  }));
+
+  // ── SPARQL 3: node names for the full discovered set ────────────────────────
+  const nameSparql = `
+    PREFIX bs: <${BASE_URI}>
+    SELECT ?partnerId ?name WHERE {
+      VALUES ?partnerId { ${valuesList} }
+      ?node bs:partnerId ?partnerId .
+      OPTIONAL { ?node bs:name ?name }
+    }
+  `;
+  const nameResult = await sparqlQuery(nameSparql);
+  const nameMap = {};
+  nameResult.results.bindings.forEach(b => {
+    nameMap[b.partnerId.value] = b.name?.value || b.partnerId.value;
+  });
+
+  // ── Enriched node details — used by UI for rich graph rendering ──────────────
+  const nodeDetails = [
+    { id: startNode, name: nameMap[startNode] || startNode, hop: 0, relType: null },
+    ...traversalRows.map(r => ({
+      id:      r.PARTNER,
+      name:    nameMap[r.PARTNER] || r.PARTNER,
+      hop:     r.HOP,
+      relType: r.REL_TYPE
+    }))
+  ];
+
+  // ── Guarantor enrichment (startNode loans only) — exposure calculation only ──
+  // Guarantor edges are NOT added to the graph: guarantors already appear via
+  // SPARQL through BUT050 relatedTo triples. Adding loan-based edges creates
+  // LOAN_ID dangling nodes that aren't in the partner node set.
   const loanRows = await cds.run(
     SELECT.from('bankingsentinel.Loans')
-      .where({ PARTNER: { in: allPartners } })
+      .where({ PARTNER: startNode })
       .columns('LOAN_ID', 'PARTNER')
   );
   const loanIds = loanRows.map(l => l.LOAN_ID);
@@ -169,21 +220,19 @@ async function hana_graph_traverse({ startNode, depth = 6 }) {
     });
   }
 
-  const edges = [
-    ...traversalRows.map(r => ({ from: startNode, to: r.PARTNER, type: r.REL_TYPE, hop: r.HOP })),
-    ...guarantors.map(g => ({ from: g.LOAN_ID, to: g.GUARANTOR_PARTNER, type: 'GUARANTOR', hop: 1 }))
-  ];
-
   const groupExposure = guarantors.reduce((sum, g) => sum + parseFloat(g.COVER_AMOUNT || 0), 0);
-
   const limits = await cds.run(SELECT.from('bankingsentinel.ExposureLimits').where({ LIMIT_TYPE: 'GROUP' }));
   const aps221Pct = limits[0] ? (groupExposure / parseFloat(limits[0].LIMIT_AUD)) * 100 : 0;
-
   const maxHop = traversalRows.length > 0 ? Math.max(...traversalRows.map(r => r.HOP || 0)) : 0;
 
-  console.log(`  [GraphTraverse] nodes:${allPartners.length} edges:${edges.length} guarantors:${guarantors.length} groupExposure:${groupExposure} aps221Pct:${aps221Pct.toFixed(1)}%`);
+  console.log(`  [GraphTraverse] nodes:${allPartners.length} chainEdges:${chainEdges.length} guarantors:${guarantors.length} groupExposure:${groupExposure} aps221Pct:${aps221Pct.toFixed(1)}%`);
 
-  return { nodes: allPartners, edges, groupExposure, aps221Pct, hops: maxHop };
+  return {
+    nodes:       allPartners,   // flat string[] — backward compat for exposure_calculator
+    nodeDetails,                // enriched objects — for UI graph rendering
+    edges:       chainEdges,    // real A→B pairs from SPARQL — not a star
+    groupExposure, aps221Pct, hops: maxHop
+  };
 }
 
 // ─── TOOL 4: apra_threshold_check ───────────────────────────────────────────

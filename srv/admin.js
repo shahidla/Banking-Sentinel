@@ -18,59 +18,84 @@ const HTML = `<!DOCTYPE html>
 <title>Banking Sentinel — Data Browser</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; font-size: 16px; }
-  header { background: #1a1d2e; border-bottom: 2px solid #f59e0b; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
-  header h1 { font-size: 18px; font-weight: 600; color: #f59e0b; letter-spacing: 0.05em; }
-  header span { font-size: 14px; color: #64748b; }
-  .tabs { display: flex; background: #1a1d2e; border-bottom: 1px solid #2d3148; }
-  .tab { padding: 10px 24px; font-size: 15px; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; transition: all 0.15s; }
-  .tab:hover { color: #e2e8f0; }
-  .tab.active { color: #f59e0b; border-bottom-color: #f59e0b; }
+  /* 21 — Improved color tokens */
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e5e7eb; height: 100vh; display: flex; flex-direction: column; font-size: 16px; }
+  /* 30 — Header: normal case, accent on interactive only */
+  header { background: #1a1d2e; border-bottom: 1px solid #2b3145; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; font-weight: 600; color: #e5e7eb; letter-spacing: 0; }
+  header span { font-size: 13px; color: #94a3b8; }
+  /* 24 — Tab nav clarity */
+  .tabs { display: flex; background: #1a1d2e; border-bottom: 1px solid #2b3145; }
+  .tab { padding: 10px 24px; font-size: 14px; cursor: pointer; color: #94a3b8; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab:hover { color: #e5e7eb; }
+  .tab.active { color: #60a5fa; border-bottom-color: #60a5fa; font-weight: 700; }
+  /* 27 — Focus styles */
+  button:focus-visible, .tab:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
   .layout { display: flex; flex: 1; overflow: hidden; }
-  .sidebar { width: 220px; background: #12141f; border-right: 1px solid #2d3148; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
-  .sidebar-header { padding: 10px 14px; font-size: 12px; font-weight: 700; color: #475569; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid #2d3148; flex-shrink: 0; }
+  .sidebar { width: 220px; background: #12141f; border-right: 1px solid #2b3145; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+  .sidebar-header { padding: 10px 14px; font-size: 11px; font-weight: 700; color: #a3b1c6; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid #2b3145; flex-shrink: 0; }
   .sidebar-tables { flex: 1; overflow-y: auto; }
-  .sidebar-actions { padding: 8px 10px; border-top: 1px solid #2d3148; flex-shrink: 0; }
-  .btn-clear-all { width: 100%; padding: 6px 10px; background: #3d1515; color: #fca5a5; border: 1px solid #7f1d1d; font-size: 12px; cursor: pointer; text-align: left; }
+  .sidebar-actions { padding: 8px 10px; border-top: 1px solid #2b3145; flex-shrink: 0; }
+  .btn-clear-all { width: 100%; padding: 6px 10px; background: #3d1515; color: #fca5a5; border: 1px solid #7f1d1d; font-size: 12px; cursor: pointer; text-align: left; border-radius: 3px; }
   .btn-clear-all:hover { background: #7f1d1d; }
-  .entity-btn { display: block; width: 100%; text-align: left; padding: 8px 14px; font-size: 14px; color: #94a3b8; background: none; border: none; cursor: pointer; border-left: 2px solid transparent; transition: all 0.1s; }
-  .entity-btn:hover { background: #1a1d2e; color: #e2e8f0; }
-  .entity-btn.active { background: #1a1d2e; color: #f59e0b; border-left-color: #f59e0b; }
-  .entity-btn .count { float: right; font-size: 12px; color: #475569; }
+  .entity-btn { display: block; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px; color: #94a3b8; background: none; border: none; cursor: pointer; border-left: 2px solid transparent; transition: all 0.1s; }
+  .entity-btn:hover { background: #20263a; color: #e5e7eb; }
+  /* 24 — Active nav clarity */
+  .entity-btn.active { background: #20263a; color: #60a5fa; border-left-color: #60a5fa; font-weight: 600; }
+  .entity-btn .count { float: right; font-size: 11px; color: #a3b1c6; }
   .entity-btn .clr { float: right; font-size: 10px; color: #7f1d1d; margin-right: 6px; opacity: 0; transition: opacity 0.1s; }
   .entity-btn:hover .clr { opacity: 1; }
   .main { flex: 1; overflow: auto; padding: 16px; }
   .panel { display: none; height: 100%; }
   .panel.active { display: flex; flex-direction: column; height: 100%; }
   .data-area { flex: 1; overflow: auto; }
+  /* 25 — Sticky context bar */
+  .context-bar { position: sticky; top: 0; z-index: 20; background: #111827; border: 1px solid #2b3145; padding: 7px 12px; margin-bottom: 12px; display: flex; gap: 20px; flex-shrink: 0; border-radius: 3px; }
+  .context-field { display: flex; flex-direction: column; gap: 1px; }
+  .context-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #a3b1c6; }
+  .context-value { font-size: 12px; color: #e5e7eb; font-variant-numeric: tabular-nums; }
   .info-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-shrink: 0; }
-  .info-bar h2 { font-size: 16px; font-weight: 600; color: #e2e8f0; }
-  .badge { background: #1e3a5f; color: #60a5fa; font-size: 13px; padding: 2px 8px; border-radius: 10px; }
-  .badge.green { background: #14532d; color: #4ade80; }
+  .info-bar h2 { font-size: 15px; font-weight: 600; color: #e5e7eb; }
+  /* 23 — Semantic badges */
+  .badge { background: #1e3a5f; color: #60a5fa; font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+  .badge.green  { background: #14532d; color: #4ade80; }
   .badge.yellow { background: #451a03; color: #f59e0b; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .badge.low      { background: #163a2b; color: #86efac; }
+  .badge.medium   { background: #3a2f16; color: #fcd34d; }
+  .badge.high     { background: #3a1f16; color: #fb923c; }
+  .badge.critical { background: #3f1a1a; color: #fca5a5; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead { position: sticky; top: 0; z-index: 10; }
-  th { background: #1a1d2e; color: #94a3b8; font-weight: 600; padding: 8px 12px; text-align: left; border-bottom: 1px solid #2d3148; white-space: nowrap; font-size: 13px; letter-spacing: 0.05em; }
-  td { padding: 7px 12px; border-bottom: 1px solid #1e2235; color: #cbd5e1; vertical-align: top; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  tr:hover td { background: #1a1d2e; }
+  /* 22 — Table readability */
+  th { background: #1a1d2e; color: #94a3b8; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid #2b3145; white-space: nowrap; font-size: 12px; letter-spacing: 0.05em; }
+  td { padding: 10px 14px; border-bottom: 1px solid #2b3145; color: #cbd5e1; vertical-align: top; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }
+  /* 22 — Zebra rows */
+  tbody tr:nth-child(even) td { background: #151a28; }
+  tr:hover td { background: #20263a !important; }
+  /* 29 — Numeric column alignment */
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
   .null { color: #3d4461; font-style: italic; }
   .bool-true { color: #4ade80; }
   .bool-false { color: #f87171; }
-  .empty { padding: 40px; text-align: center; color: #3d4461; font-size: 15px; }
-  .loading { padding: 40px; text-align: center; color: #64748b; font-size: 15px; }
-  .error { padding: 16px; background: #2d1515; border: 1px solid #7f1d1d; border-radius: 6px; color: #fca5a5; font-size: 15px; margin-bottom: 12px; }
+  .empty { padding: 40px; text-align: center; color: #3d4461; font-size: 14px; }
+  .loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
+  /* 28 — Actionable error states */
+  .error { padding: 14px 16px; background: #2d1515; border: 1px solid #7f1d1d; border-radius: 6px; color: #fca5a5; font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .error-msg { flex: 1; }
+  .error-retry { padding: 4px 12px; background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; border-radius: 3px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .error-retry:hover { background: #991b1b; }
   .pg-section { margin-bottom: 24px; }
-  .pg-section h3 { font-size: 15px; color: #94a3b8; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #2d3148; }
-  .pg-section .purpose { font-size: 13px; color: #64748b; margin-bottom: 8px; font-style: italic; background: #12141f; padding: 6px 10px; border-left: 2px solid #2d3148; border-radius: 0 4px 4px 0; }
-  .refresh-btn { padding: 5px 12px; background: #1e3a5f; color: #60a5fa; border: 1px solid #2563eb; border-radius: 4px; font-size: 14px; cursor: pointer; }
+  .pg-section h3 { font-size: 14px; color: #94a3b8; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #2b3145; }
+  .pg-section .purpose { font-size: 12px; color: #94a3b8; margin-bottom: 8px; font-style: italic; background: #12141f; padding: 6px 10px; border-left: 2px solid #2b3145; border-radius: 0 4px 4px 0; }
+  .refresh-btn { padding: 5px 12px; background: #1e3a5f; color: #60a5fa; border: 1px solid #2563eb; border-radius: 4px; font-size: 13px; cursor: pointer; }
   .refresh-btn:hover { background: #2563eb; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>⬡ BANKING SENTINEL — DATA BROWSER</h1>
-  <span>HANA Cloud + PostgreSQL</span>
+  <h1>Banking Sentinel — Data Browser</h1>
+  <span>HANA Cloud · PostgreSQL · GraphDB</span>
 </header>
 
 <div class="tabs">
@@ -93,7 +118,7 @@ const HTML = `<!DOCTYPE html>
   <div class="sidebar" id="pg-sidebar" style="display:none;">
     <div class="sidebar-header">Tables</div>
     <div class="sidebar-tables" id="pg-table-list">
-      <div style="padding:14px;font-size:13px;color:#475569;">Loading...</div>
+      <div style="padding:14px;font-size:13px;color:#94a3b8;">Loading...</div>
     </div>
     <div class="sidebar-actions">
       <button class="btn-clear-all" onclick="clearAllPg()">✕ Clear All Checkpoints</button>
@@ -105,6 +130,12 @@ const HTML = `<!DOCTYPE html>
 
     <!-- HANA panel -->
     <div class="panel active" id="panel-hana">
+      <div class="context-bar">
+        <div class="context-field"><span class="context-label">Engine</span><span class="context-value">SAP HANA Cloud</span></div>
+        <div class="context-field"><span class="context-label">Table</span><span class="context-value" id="ctx-hana-table">—</span></div>
+        <div class="context-field"><span class="context-label">Rows</span><span class="context-value" id="ctx-hana-rows">—</span></div>
+        <div class="context-field"><span class="context-label">Last loaded</span><span class="context-value" id="ctx-hana-time">—</span></div>
+      </div>
       <div class="info-bar">
         <h2 id="hana-title">Select a table →</h2>
         <span class="badge" id="hana-badge" style="display:none"></span>
@@ -113,13 +144,19 @@ const HTML = `<!DOCTYPE html>
       <div class="data-area">
         <div class="empty" id="hana-empty">Select a table from the sidebar to browse data.</div>
         <div id="hana-loading" class="loading" style="display:none">Loading...</div>
-        <div id="hana-error" class="error" style="display:none"></div>
+        <div id="hana-error" class="error" style="display:none"><span class="error-msg"></span><button class="error-retry" onclick="reloadHana()">Retry</button></div>
         <div id="hana-table"></div>
       </div>
     </div>
 
     <!-- PostgreSQL panel -->
     <div class="panel" id="panel-pg">
+      <div class="context-bar">
+        <div class="context-field"><span class="context-label">Engine</span><span class="context-value">PostgreSQL (LangGraph)</span></div>
+        <div class="context-field"><span class="context-label">Table</span><span class="context-value" id="ctx-pg-table">—</span></div>
+        <div class="context-field"><span class="context-label">Rows</span><span class="context-value" id="ctx-pg-rows">—</span></div>
+        <div class="context-field"><span class="context-label">Last loaded</span><span class="context-value" id="ctx-pg-time">—</span></div>
+      </div>
       <div class="info-bar">
         <h2 id="pg-title">Select a table →</h2>
         <span class="badge" id="pg-badge" style="display:none"></span>
@@ -128,20 +165,26 @@ const HTML = `<!DOCTYPE html>
       <div class="data-area">
         <div class="empty" id="pg-empty">Select a table from the sidebar to view its data.</div>
         <div id="pg-loading" class="loading" style="display:none">Loading...</div>
-        <div id="pg-error" class="error" style="display:none"></div>
+        <div id="pg-error" class="error" style="display:none"><span class="error-msg"></span><button class="error-retry" onclick="reloadPg()">Reload tables</button></div>
         <div id="pg-content"></div>
       </div>
     </div>
 
     <!-- GraphDB KGE panel -->
     <div class="panel" id="panel-graph">
+      <div class="context-bar">
+        <div class="context-field"><span class="context-label">Engine</span><span class="context-value">GraphDB (SPARQL/RDF)</span></div>
+        <div class="context-field"><span class="context-label">Triples</span><span class="context-value" id="ctx-graph-triples">—</span></div>
+        <div class="context-field"><span class="context-label">Partners</span><span class="context-value" id="ctx-graph-partners">—</span></div>
+        <div class="context-field"><span class="context-label">Relations</span><span class="context-value" id="ctx-graph-relations">—</span></div>
+      </div>
       <div class="info-bar">
-        <h2>GraphDB — Knowledge Graph (KGE Equivalent)</h2>
+        <h2>GraphDB — Knowledge Graph (KGE equivalent)</h2>
         <button class="refresh-btn" onclick="loadGraph()">↻ Refresh</button>
       </div>
       <div class="data-area">
         <div id="graph-loading" class="loading">Loading...</div>
-        <div id="graph-error" class="error" style="display:none"></div>
+        <div id="graph-error" class="error" style="display:none"><span class="error-msg"></span><button class="error-retry" onclick="loadGraph()">Retry SPARQL</button></div>
         <div id="graph-content"></div>
       </div>
     </div>
@@ -179,8 +222,8 @@ async function loadHana(entity) {
     const d = await r.json();
     document.getElementById('hana-loading').style.display = 'none';
     if (d.error) {
-      document.getElementById('hana-error').textContent = d.error;
-      document.getElementById('hana-error').style.display = 'block';
+      document.getElementById('hana-error').querySelector('.error-msg').textContent = d.error;
+      document.getElementById('hana-error').style.display = 'flex';
       return;
     }
     const badge = document.getElementById('hana-badge');
@@ -188,27 +231,32 @@ async function loadHana(entity) {
     badge.className = 'badge ' + (d.count > 0 ? 'green' : '');
     badge.style.display = 'inline';
     document.getElementById('cnt-' + entity).textContent = d.count;
+    document.getElementById('ctx-hana-table').textContent = entity;
+    document.getElementById('ctx-hana-rows').textContent  = d.count.toLocaleString();
+    document.getElementById('ctx-hana-time').textContent  = new Date().toLocaleTimeString();
     document.getElementById('hana-table').innerHTML = renderTable(d.rows);
   } catch(e) {
     document.getElementById('hana-loading').style.display = 'none';
-    document.getElementById('hana-error').textContent = e.message;
-    document.getElementById('hana-error').style.display = 'block';
+    document.getElementById('hana-error').querySelector('.error-msg').textContent = e.message;
+    document.getElementById('hana-error').style.display = 'flex';
   }
 }
 
 function reloadHana() { if (currentEntity) loadHana(currentEntity); }
 
+const NUMERIC_COL_RE = /COUNT|AMOUNT|TOTAL|PCT|RISK_SCORE|LIMIT|EXPOSURE|DTI|BALANCE|RATE/i;
 function renderTable(rows) {
   if (!rows || rows.length === 0) return '<div class="empty">No data in this table.</div>';
   const cols = Object.keys(rows[0]);
-  const head = '<thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead>';
+  const head = '<thead><tr>' + cols.map(c => '<th' + (NUMERIC_COL_RE.test(c) ? ' class="num"' : '') + '>' + c + '</th>').join('') + '</tr></thead>';
   const body = '<tbody>' + rows.map(row =>
     '<tr>' + cols.map(c => {
       const v = row[c];
-      if (v === null || v === undefined) return '<td class="null">null</td>';
-      if (v === true) return '<td class="bool-true">true</td>';
-      if (v === false) return '<td class="bool-false">false</td>';
-      return '<td title="' + String(v).replace(/"/g,'&quot;') + '">' + String(v).substring(0,120) + '</td>';
+      const numCls = NUMERIC_COL_RE.test(c) ? ' class="num"' : '';
+      if (v === null || v === undefined) return '<td class="null">N/A</td>';
+      if (v === true)  return '<td' + numCls + ' class="bool-true">true</td>';
+      if (v === false) return '<td' + numCls + ' class="bool-false">false</td>';
+      return '<td' + numCls + ' title="' + String(v).replace(/"/g,'&quot;') + '">' + String(v).substring(0,120) + '</td>';
     }).join('') + '</tr>'
   ).join('') + '</tbody>';
   return '<table>' + head + body + '</table>';
@@ -252,20 +300,27 @@ async function loadPgTable(table) {
     const r = await fetch('/admin/api/pg');
     const d = await r.json();
     document.getElementById('pg-loading').style.display = 'none';
-    if (d.error) { document.getElementById('pg-error').textContent = d.error; document.getElementById('pg-error').style.display = 'block'; return; }
+    if (d.error) {
+      document.getElementById('pg-error').querySelector('.error-msg').textContent = d.error;
+      document.getElementById('pg-error').style.display = 'flex';
+      return;
+    }
     const td = d[table];
     if (!td) { document.getElementById('pg-content').innerHTML = '<div class="empty">Table not found.</div>'; return; }
     const badge = document.getElementById('pg-badge');
     badge.textContent = td.count + ' rows';
     badge.className = 'badge ' + (td.count > 0 ? 'green' : '');
     badge.style.display = 'inline';
+    document.getElementById('ctx-pg-table').textContent = table;
+    document.getElementById('ctx-pg-rows').textContent  = td.count.toLocaleString();
+    document.getElementById('ctx-pg-time').textContent  = new Date().toLocaleTimeString();
     document.getElementById('pg-content').innerHTML = td.rows.length === 0
       ? '<div class="empty">No data in this table.</div>'
       : renderTable(td.rows);
   } catch(e) {
     document.getElementById('pg-loading').style.display = 'none';
-    document.getElementById('pg-error').textContent = e.message;
-    document.getElementById('pg-error').style.display = 'block';
+    document.getElementById('pg-error').querySelector('.error-msg').textContent = e.message;
+    document.getElementById('pg-error').style.display = 'flex';
   }
 }
 
@@ -299,10 +354,13 @@ async function loadGraph() {
     const d = await r.json();
     document.getElementById('graph-loading').style.display = 'none';
     if (d.error) {
-      document.getElementById('graph-error').textContent = d.error;
-      document.getElementById('graph-error').style.display = 'block';
+      document.getElementById('graph-error').querySelector('.error-msg').textContent = d.error;
+      document.getElementById('graph-error').style.display = 'flex';
       return;
     }
+    document.getElementById('ctx-graph-triples').textContent   = Number(d.tripleCount).toLocaleString();
+    document.getElementById('ctx-graph-partners').textContent  = d.partnerCount;
+    document.getElementById('ctx-graph-relations').textContent = d.relationCount;
     let html = '';
 
     // GraphDB status
@@ -339,8 +397,9 @@ async function loadGraph() {
     document.getElementById('graph-content').innerHTML = html;
   } catch(e) {
     document.getElementById('graph-loading').style.display = 'none';
-    document.getElementById('graph-error').textContent = e.message;
-    document.getElementById('graph-error').style.display = 'block';
+    document.getElementById('graph-loading').style.display = 'none';
+    document.getElementById('graph-error').querySelector('.error-msg').textContent = e.message;
+    document.getElementById('graph-error').style.display = 'flex';
   }
 }
 
