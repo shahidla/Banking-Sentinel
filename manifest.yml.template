@@ -1,0 +1,45 @@
+---
+applications:
+  - name: banking-sentinel
+    memory: 1G
+    disk_quota: 1G
+    instances: 1
+    buildpacks:
+      - nodejs_buildpack
+    command: npm start
+    routes:
+      - route: banking-sentinel.cfapps.us10-001.hana.ondemand.com
+    services:
+      - banking-sentinel-db
+    env:
+      NODE_ENV: development
+      # Anthropic
+      ANTHROPIC_API_KEY: ((ANTHROPIC_API_KEY))
+      ANTHROPIC_MODEL: claude-haiku-4-5-20251001
+      # OpenAI (embeddings)
+      OPENAI_API_KEY: ((OPENAI_API_KEY))
+      OPENAI_EMBEDDING_MODEL: text-embedding-3-small
+      # Langfuse observability
+      LANGFUSE_SECRET_KEY: ((LANGFUSE_SECRET_KEY))
+      LANGFUSE_PUBLIC_KEY: ((LANGFUSE_PUBLIC_KEY))
+      LANGFUSE_HOST: https://us.cloud.langfuse.com
+      LANGFUSE_BASE_URL: https://us.cloud.langfuse.com
+      # LangGraph PostgreSQL checkpointer (Supabase — public internet, works from CF)
+      POSTGRES_URL: ((POSTGRES_URL))
+      # GraphDB (external sandbox — KGE equivalent)
+      GRAPHDB_ENDPOINT: https://t5f027c83a0e2488da5e.sandbox.graphwise.ai
+      GRAPHDB_REPOSITORY: banking-sentinel
+      GRAPHDB_USERNAME: ((GRAPHDB_USERNAME))
+      GRAPHDB_PASSWORD: ((GRAPHDB_PASSWORD))
+      # RPT-1 tabular risk scoring
+      SAP_RPT_API_KEY: ((SAP_RPT_API_KEY))
+      # Anomaly engine — scikit service unavailable on CF, fails gracefully
+      ANOMALY_ENGINE: scikit
+      SCIKIT_SERVICE_URL: http://localhost:5001
+      # Solace event mesh
+      SOLACE_URL: wss://mr-connection-rcgt0ju559a.messaging.solace.cloud:443
+      SOLACE_VPN: mj-live
+      SOLACE_USERNAME: solace-cloud-client
+      SOLACE_PASSWORD: ((SOLACE_PASSWORD))
+      # Admin access (disabled in CF — no IP guard needed for demo)
+      ADMIN_IP_WHITELIST: disabled
