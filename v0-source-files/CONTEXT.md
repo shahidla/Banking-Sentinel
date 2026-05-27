@@ -66,6 +66,13 @@
 
 ### PENDING:
 - **Twinkle 2 UI button** — backend fully built (`/a2a/sync-apra`, `apra-embedder.js`, Solace event, SSE banner all wired). Only missing: "Sync Latest APRA Standards" button in UI that POSTs to `/a2a/sync-apra` with real APRA PDF URL. One button = complete Twinkle 2 demo moment.
+- **Human Approval panel — show agent summary before approve button** — Currently shows only "APRA CPS 230 — Risk officer approval required before final brief is generated" with no data. Risk officer approves blind. FIX: Show one-line summary per agent above the Approve button, populated from LangGraph state at the time of interrupt:
+  - Pattern: `HIGH risk · RPT-1 82% confidence · 5 anomalies`
+  - Trajectory: `DTI 7.2 — in breach 116 days · DETERIORATING`
+  - Relationship: `7 connected parties · APS 221 168% of limit`
+  - Self-RAG: `confidence 0.82 · evidence sufficient` (or "re-queried 2x · gaps remain" if unresolved)
+  Data is already in LangGraph state at humanApproval interrupt — just needs to be sent in the Solace `banking/human/approval` SSE event payload and rendered in the UI approval panel. Also add [Reject] button alongside [Approve] — currently only Approve exists.
+- **Human-in-the-Loop toggle** — Add `[Human Approval: OFF | ON]` toggle to top bar. Default: OFF (pipeline runs end-to-end without interruption). When ON: existing approve button behaviour. UI sends `hitlEnabled: true/false` in POST body → flows through LangGraph state. In `humanApproval` node (`srv/graph/banking-sentinel.js`): if `!state.hitlEnabled` → return `{ approvalStatus: 'auto-approved', approvedAt: new Date().toISOString() }` immediately, skip `interrupt()`. When auto-approved, emit Solace SSE event so UI skips approval panel and shows synthesis progress directly. State schema: add `hitlEnabled: Boolean` to `srv/graph/state.js`.
 - **Education drawer REMOVED — merged into View Details popup** — The separate educational slide-in drawer is eliminated. Each agent's "View Details" popup now shows two sections: (1) HOW IT WORKS — AI pattern, SAP tech, why this agent exists; (2) WHAT IT FOUND — full raw output from the agent. Remove all existing education drawer code from `Banking-Sentinel-AustralianBank.html` when building View Details popups.
 
 ### VIEW DETAILS POPUP — EDUCATIONAL CONTENT (ready to build — do not re-derive)
@@ -181,7 +188,19 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
       - Collateral: `collateralCount`, LTV ratio — not passed
       - Days in breach: `timeToBreach` IS passed but means 0 (hardcoded bug — fix item 6 first)
       FIX: Expand `agentContext` to include all of the above. Add `selfRag: { history: state.selfRagHistory, finalConfidence, reQueryCount }` block.
-  19. BUG: Synthesis system prompt (line 82) does not instruct the LLM to use `conflictingSignals`, Scikit-IF reason codes, relationship node names, or Self-RAG gaps in findings. LLM ignores them even though they are in the context. FIX: Add explicit instructions: "Use conflictingSignals from trajectory to identify early warning vs confirmed breach. Use Scikit-IF reason codes as evidence for payment anomaly findings. Name specific connected parties from relationship nodeDetails in APS 221 findings. Surface unresolved Self-RAG gaps in the uncertainties field."
+  19. BUG: Synthesis system prompt (line 82) does not instruct the LLM to use `conflictingSignals`, Scikit-IF reason codes, relationship node names, or Self-RAG gaps in findings. LLM ignores them even though they are in the context. FIX: Add explicit instructions: "Use conflictingSignals from trajectory to identify early warning vs confirmed breach. Use Scikit-IF reason codes as evidence for payment anomaly findings. Name specific connected parties from relationship nodeDetails in APS 221 findings. Surface unresolved Self-RAG gaps in the uncertainties field." Also define riskScore scale explicitly in prompt: "riskScore 0-100 where LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100. Must be consistent with riskLevel." This ensures consistent scoring across runs.
+  22. BUG: Synthesis system prompt (line 96) hardcodes "Max 4 findings, 3 recommendations, 3 uncertainties." If 5 CRITICAL findings exist, one is silently dropped — compliance gap. FIX: Remove all count limits from the system prompt. Let the LLM return as many findings, recommendations, and uncertainties as the evidence supports. Only constraint: each finding must have severity, standard, evidenceSource, and confidence fields.
+  21. BUG: `apraReady` is decided by the LLM (system prompt just says `"apraReady": <true|false>`) — non-deterministic, not a compliance flag. In banking, apraReady means the brief meets minimum standard for board notification or APRA submission. FIX: Remove apraReady from LLM output schema. Calculate deterministically in synthesis-agent.js AFTER LLM returns, overriding whatever the LLM said:
+      ```javascript
+      brief.apraReady =
+        brief.findings.length > 0 &&
+        brief.findings.every(f => f.evidenceSource) &&
+        (state.selfRagHistory?.at(-1)?.gaps?.length === 0) &&
+        brief.regulatoryRefs.length > 0 &&
+        brief.confidence > 0.70 &&
+        (!state.hitlEnabled || state.approvalStatus === 'approved');
+      ```
+      Rules: (1) findings exist and every finding has an evidenceSource, (2) no unresolved Self-RAG gaps, (3) at least one APRA standard cited, (4) confidence > 0.70, (5) if HITL is ON then human must have approved. All 5 must pass. Any failure → apraReady = false.
   20. NEW: "View Details" popup on Synthesis Agent badge. Shows full raw LLM output — no reformatting:
       - riskScore (final integer 0-100)
       - riskLevel (LOW / MEDIUM / HIGH / CRITICAL)
