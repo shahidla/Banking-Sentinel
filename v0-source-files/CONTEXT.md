@@ -65,7 +65,9 @@
 - Deleted: `Docs/code-review.md` (superseded — all bugs from it were fixed)
 
 ### PENDING:
+- **Twinkle 2 UI button** — backend fully built (`/a2a/sync-apra`, `apra-embedder.js`, Solace event, SSE banner all wired). Only missing: "Sync Latest APRA Standards" button in UI that POSTs to `/a2a/sync-apra` with real APRA PDF URL. One button = complete Twinkle 2 demo moment.
 - **Education popup rework** — current implementation needs full rework. Defer to dedicated session. Current: slide-in drawer per agent triggered by SSE completion. Needed: cleaner design, better content structure, ON/OFF toggle working correctly.
+- **Explainability / Investigation Report** — post-run report showing WHY a BP was flagged: what data each agent saw, how each algorithm reasoned, how agents handed off to each other, full investigative trail. NOT the same as educational drawer (which explains AI patterns). This shows actual data + actual reasoning for a specific run. Data source: PostgresSaver checkpoint in PostgreSQL already holds full LangGraph state per session. Needs: `GET /api/report/:sessionId` endpoint + dedicated report page. Replaces admin item 26 (confidence block) and educational drawer for technical audience. Defer to dedicated session.
 - **RAGAS faithfulness fix** — faithfulness:0.25 (1/4 findings supported). Retrieved APRA chunks are generic; synthesis findings cite specific clauses not in retrieved chunks. Grounding gap investigation needed.
 - **BCA_COLLATERAL not seeded** — collateralCount always 0
 - **validate.js** — never connected to graph (HIGH — APRA CPS 230)

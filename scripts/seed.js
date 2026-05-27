@@ -80,6 +80,16 @@ function mapBCA_GUARANTOR(records) {
   }));
 }
 
+function mapBCA_COLLATERAL(records) {
+  return records.map(r => ({
+    LOAN_ID:    r.LOAN_ID,
+    COLLAT_ID:  r.COLLAT_ID,
+    COLLAT_TYPE: r.COLLAT_TYPE,
+    VALUE:      r.VALUE,
+    CURRENCY:   r.CURRENCY || 'AUD',
+  }));
+}
+
 function mapBKKN(records) {
   return records.map(r => ({
     VKONT: r.VKONT,
@@ -221,6 +231,7 @@ async function seed() {
     LoanConditions:      'bankingsentinel.LoanConditions',
     LoanSchedule:        'bankingsentinel.LoanSchedule',
     BCA_GUARANTOR:       'bankingsentinel.BCA_GUARANTOR',
+    BCA_COLLATERAL:      'bankingsentinel.BCA_COLLATERAL',
     DFKKOP:              'bankingsentinel.DFKKOP',
     DFKKZP:              'bankingsentinel.DFKKZP',
     BCA_SECTOR:          'bankingsentinel.BCA_SECTOR',
@@ -272,6 +283,9 @@ async function seed() {
 
   // Guarantor assignments — graph edge 2
   await insert(E.BCA_GUARANTOR, mapBCA_GUARANTOR(await loadFile('BCA_GUARANTOR.json')), 'BCA_GUARANTOR');
+
+  // Collateral assets — offsets exposure, used by pattern-agent LLM anomaly detection
+  await insert(E.BCA_COLLATERAL, mapBCA_COLLATERAL(await loadFile('BCA_COLLATERAL.json')), 'BCA_COLLATERAL');
 
   // Open items — primary risk signal
   await insert(E.DFKKOP, mapDFKKOP(await loadFile('DFKKOP.json')), 'DFKKOP');
