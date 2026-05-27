@@ -66,7 +66,60 @@
 
 ### PENDING:
 - **Twinkle 2 UI button** — backend fully built (`/a2a/sync-apra`, `apra-embedder.js`, Solace event, SSE banner all wired). Only missing: "Sync Latest APRA Standards" button in UI that POSTs to `/a2a/sync-apra` with real APRA PDF URL. One button = complete Twinkle 2 demo moment.
-- **Education popup rework** — current implementation needs full rework. Defer to dedicated session. Current: slide-in drawer per agent triggered by SSE completion. Needed: cleaner design, better content structure, ON/OFF toggle working correctly.
+- **Education drawer REMOVED — merged into View Details popup** — The separate educational slide-in drawer is eliminated. Each agent's "View Details" popup now shows two sections: (1) HOW IT WORKS — AI pattern, SAP tech, why this agent exists; (2) WHAT IT FOUND — full raw output from the agent. Remove all existing education drawer code from `Banking-Sentinel-AustralianBank.html` when building View Details popups.
+
+### VIEW DETAILS POPUP — EDUCATIONAL CONTENT (ready to build — do not re-derive)
+Each agent popup has two sections. "How it works" content is below. "What it found" content is in the agent fix items (1-20) above.
+
+**AGENT 1 — INTAKE**
+- AI Pattern: Router / Classifier
+- Model: Claude Haiku (claude-haiku-4-5-20251001) — fast, cheap, structured output
+- SAP Tech: CAP service endpoint, Solace topic `banking/intake/complete`
+- Why this agent: Natural language queries cannot go directly to risk models. Intake extracts structured intent — customerId, query type, routing decision — as JSON. Without this, every downstream agent would need to parse free text.
+- What it decides: routes to RISK_ASSESS (full pipeline), SIMPLE_QUERY (direct HANA lookup), or REJECTION (inappropriate request)
+
+**AGENT 2 — PATTERN DETECTION**
+- AI Pattern: Parallel multi-model execution — three independent signals run simultaneously, no single model decides alone
+- Models: RPT-1 (rpt.cloud.sap consumer API) + Scikit Isolation Forest (ml/anomaly-service.py Flask) + Claude Haiku (LLM anomaly narrative)
+- SAP Tech: rpt.cloud.sap tabular foundation model (in-context learning), HANA PAL Isolation Forest (production — requires 3 vCPU ScriptServer), Solace topic `banking/pattern/progress` per sub-result
+- Why this agent: Establishes baseline risk signal before graph traversal. RPT-1 classifies risk category from financial ratios. Isolation Forest detects statistical payment outliers. LLM narrates anomalies in human-readable form for APRA CPS 230 justification requirement.
+- Data read: BCA_DTI (DTI ratio, income, debt, breach flag), Loans (loan amounts, types), DFKKOP (payment records), BCA_COLLATERAL (collateral assets)
+
+**AGENT 3 — RELATIONSHIP (executes AFTER Trajectory — see execution order)**
+- AI Pattern: ReAct loop — LLM reasons about graph findings and decides which tool to call next, iteratively
+- Model: Claude Haiku with tool calling — up to 6 ReAct steps
+- SAP Tech: GraphDB (RDF triple store + SPARQL) — trial equivalent of HANA Knowledge Graph Engine. Same SPARQL queries run on HANA KGE in production (one endpoint change). Tools: hana_graph_traverse, exposure_calculator, apra_threshold_check
+- Why this agent: APS 221 requires banks to aggregate exposure across ALL connected parties — parent, subsidiary, guarantor, family trust. No SQL query finds multi-hop relationships. Graph traversal finds what structured queries miss.
+- What it decides: connected party network, total group exposure (AUD), APS 221 % of limit, whether board notification is required
+
+**AGENT 4 — TRAJECTORY (executes BEFORE Relationship — intentional, do not change)**
+- AI Pattern: Threshold proximity + conflicting signal resolution — deterministic rule engine, no LLM
+- Model: None — pure formula and rule-based logic
+- SAP Tech: BCA_DTI.INCOME_EXPIRY + BCA_DTI.BREACH_DATE + LoanSchedule — all HANA relational tables via CAP CDS
+- Why this agent runs before Relationship: Relationship Agent needs forward DTI position to judge whether group exposure is material. A 168% APS 221 breach means more with DETERIORATING trajectory than with STABLE.
+- Why no LLM: DTI projection is deterministic arithmetic. Forward DTI = totalDebt / (annualIncome × daysToExpiry/365). Conflicting signals are rule-based if/else. LLM adds no value here — adds latency and hallucination risk.
+- What it produces: currentDti, futureDti, daysToExpiry, timeToBreach (days in breach or days until breach), forwardPosition (DETERIORATING/STABLE/IMPROVING/MONITORING), conflictingSignals list
+
+**AGENT 5 — SELF-RAG (quality gate, not a data agent)**
+- AI Pattern: Epistemic self-evaluation — LLM reads ALL previous agent outputs and judges if evidence is complete enough to present to a human
+- Model: Claude Haiku — evaluates 4 dimensions: graph completeness, signal consistency, conflicting signals resolved, evidence trail
+- SAP Tech: LangGraph conditional edge (addConditionalEdges) — routes back to Relationship Agent with targeted hint if confidence < 0.70, forward to Human Approval if >= 0.70. Max 2 re-queries.
+- Why this agent: Prevents the pipeline from presenting incomplete findings to a risk officer. A graph that found 0 connected parties when RPT-1 scored HIGH is suspicious — Self-RAG catches this and re-queries with a targeted instruction.
+- What it produces: overallConfidence (0-1), gaps (list of specific missing evidence), reQueryHint (exact instruction to Relationship Agent if re-querying), reasoning (one sentence). Stored as selfRagHistory array — one entry per iteration.
+
+**HUMAN APPROVAL (not an agent — a LangGraph interrupt)**
+- AI Pattern: Human-in-the-loop (HITL) — LangGraph interruptBefore pauses execution before Synthesis
+- Model: None — human decision
+- SAP Tech: LangGraph interrupt() + PostgresSaver checkpoint (PostgreSQL). Solace topic `banking/human/approval`. Resume event resumes the graph from the saved checkpoint.
+- Why: APRA CPS 230 requires human sign-off before an AI system generates a board-level risk notification. The interrupt proves the human saw the findings before the brief was written.
+- What it shows: pending findings from all agents, Approve / Reject button
+
+**AGENT 6 — SYNTHESIS**
+- AI Pattern: RAG (Retrieval-Augmented Generation) + synthesis under uncertainty
+- Model: Claude Haiku — receives full agent evidence + retrieved APRA regulatory chunks, produces structured JSON brief
+- SAP Tech: HANA Vector Engine — cosine similarity search over RegulatoryDocuments (APRA PDFs chunked + embedded via OpenAI text-embedding-3-small). Writes result to HANA RiskAssessments table.
+- Why this agent: Risk brief must cite specific APRA standards, not general knowledge. RAG retrieves the exact regulatory clauses relevant to what was found — DTI breach → APS 221 large exposure section, income expiry → CPS 230 risk management. Without RAG, the LLM cites standards from training data which may be outdated.
+- What it produces: riskScore, riskLevel, confidence, findings (with severity + standard + evidence source per finding), recommendations, regulatoryRefs, uncertainties, apraReady flag
 - **Agent data + logic fixes** — do all together in one session. Files: `srv/agents/pattern-agent.js`, `srv/agents/trajectory-agent.js`, `srv/agents/relationship-agent.js`, `srv/agents/synthesis-agent.js`, `srv/tools/mcp-tools.js`, `Data/processed/BCA_DTI.json`, `Banking-Sentinel-AustralianBank.html`
 
   **DATA FIX:**
