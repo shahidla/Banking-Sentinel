@@ -67,9 +67,83 @@
 ### PENDING:
 - **Twinkle 2 UI button** — backend fully built (`/a2a/sync-apra`, `apra-embedder.js`, Solace event, SSE banner all wired). Only missing: "Sync Latest APRA Standards" button in UI that POSTs to `/a2a/sync-apra` with real APRA PDF URL. One button = complete Twinkle 2 demo moment.
 - **Education popup rework** — current implementation needs full rework. Defer to dedicated session. Current: slide-in drawer per agent triggered by SSE completion. Needed: cleaner design, better content structure, ON/OFF toggle working correctly.
+- **Agent data + logic fixes** — do all together in one session. Files: `srv/agents/pattern-agent.js`, `srv/agents/trajectory-agent.js`, `srv/agents/relationship-agent.js`, `srv/agents/synthesis-agent.js`, `srv/tools/mcp-tools.js`, `Data/processed/BCA_DTI.json`, `Banking-Sentinel-AustralianBank.html`
+
+  **DATA FIX:**
+  1. FILE: `Data/processed/BCA_DTI.json` — Add `"INCOME_EXPIRY": "2026-09-15"` (approx 110 days from 2026-05-27) to the 30100003 record. Without this field, `futureDti`, `daysToExpiry`, `timeToBreach` in trajectory-agent.js all return null because the `if (dti.INCOME_EXPIRY)` block at line 41 never executes. After adding, re-run `node scripts/seed.js` to push to HANA.
+
+  **PATTERN AGENT FIXES — FILE: `srv/agents/pattern-agent.js`:**
+  2. BUG: `scoreMap` at line 88 maps RPT-1 category to hardcoded number (HIGH→70, MEDIUM→45, LOW→15, CRITICAL→90). RPT-1 API returns real confidence at `myPrediction?.risk_category?.[0]?.confidence` (e.g. 0.82) — already read at line 85 but discarded. FIX: Remove `scoreMap`. Return `{ category, confidence }` from `callRpt1()`. Remove the `score` field entirely from `patternAssessment`. Display in UI as "HIGH · 82%" not "70".
+  3. BUG: `patternAssessment.confidence` at line 283 is hardcoded: `rpt1Result.success ? 0.85 : 0.60` — not derived from any model. FIX: Use `rpt1Result.confidence` (the real RPT-1 API value) as `patternAssessment.confidence`.
+  4. BUG: Scikit-IF UI shows "0 anomalies" — meaningless without denominator. FIX: Flask response at `result.scored` already contains total rows scored. Display as "0 / 3 payment rows flagged" using `outliers.length` / `result.scored`. Pass `result.scored` through in the progress event and into `patternAssessment.pal`.
+  5. NEW: "View Details" clickable popup on Pattern Agent badge. Shows raw unmodified output from all three models — no reformatting, no interpretation:
+     - RPT-1 section: Category (HIGH/MEDIUM/LOW/CRITICAL) + Confidence (e.g. 0.82)
+     - Scikit-IF section: "X / Y payment rows flagged" + for each flagged row: id, score, reason_code (e.g. "DAYS_OVERDUE 45 (z=3.21, portfolio mean=12)")
+     - LLM section: numbered list of anomaly strings exactly as returned by Claude Haiku
+     Data for popup must be stored in SSE event and in DOM — `patternAssessment.rpt1`, `patternAssessment.pal.findings`, `patternAssessment.llm.anomalies` all exist in state already.
+
+  **TRAJECTORY AGENT FIXES — FILE: `srv/agents/trajectory-agent.js`:**
+  6. BUG: `timeToBreach` at line 104 is hardcoded to `0` when `breachFlag=true`. This loses the information that the breach happened on a specific date. FIX: When `breachFlag=true`, calculate `timeToBreach = Math.floor((today - new Date(dti.BREACH_DATE)) / (1000*60*60*24))` — "days in breach". Field meaning changes: positive = days already in breach, negative = days until projected breach. `BREACH_DATE` field exists in BCA_DTI table (30100003 has `"BREACH_DATE": "2026-02-01"`).
+  7. BUG: `conflictingSignals` array is computed correctly but only logged to console (trajectory-agent.js line 124). Never displayed in UI. Never used by Synthesis (it is passed in state but Synthesis prompt doesn't reference it explicitly). FIX: Surface in UI via "View Details" popup (see item 8) AND ensure Synthesis prompt explicitly lists conflictingSignals.
+  8. NEW: "View Details" clickable popup on Trajectory Agent badge. Shows:
+     - currentDti (e.g. 7.2) vs APRA limit (6.0) — already in breach
+     - futureDti (calculated after INCOME_EXPIRY fix) — projected DTI post income expiry
+     - daysToExpiry — days until income contract ends
+     - timeToBreach — "in breach for X days" (after fix) or "projected breach in X days"
+     - forwardPosition — DETERIORATING / STABLE / IMPROVING / MONITORING
+     - conflictingSignals — numbered list of all signals (e.g. "RPT-1 scored HIGH but no formal breach recorded", "Income expires in 110 days")
+
+  **RELATIONSHIP AGENT FIXES — FILES: `srv/tools/mcp-tools.js`, `srv/agents/relationship-agent.js`:**
+  9. BUG: `groupExposure` in `hana_graph_traverse` (mcp-tools.js line 223) = SUM(BCA_GUARANTOR.COVER_AMOUNT) for startNode's loans only. This is guarantor coverage on ONE entity's loans — not APS 221 group exposure. APS 221 requires total credit facilities across ALL connected entities. FIX: `exposure_calculator` should SUM(Loans.AMOUNT) WHERE PARTNER IN (all connected entity IDs found by graph traversal). Change `exposure_calculator` to query `Loans` table (not `BCA_GUARANTOR`) and sum `AMOUNT` across all entity IDs in the group.
+  10. BUG: Synthesis only receives `{ groupExposure, aps221Pct, nodeCount, edgeCount }` from Relationship Agent (synthesis-agent.js line 72-76). Missing: `finding` text (the one-sentence APS 221 verdict), connected party names, hop distances, edge relationship types, ReAct step count, confidence score. FIX: Pass full `relationshipMap` fields to Synthesis agentContext — specifically `finding`, `nodeDetails` (array of {id, name, hop, relType}), `confidence`, and `steps` (ReAct iteration count).
+  11. NEW: "View Details" clickable popup on Relationship Agent badge. Shows:
+      - Connected parties table: name, BP ID, hop distance, relationship type (guarantor/director/subsidiary)
+      - Group exposure: AUD amount vs APS 221 limit (corrected calculation)
+      - aps221Pct — % of limit used
+      - APS 221 finding sentence
+      - ReAct steps taken (e.g. "3 tool calls")
+      - Confidence score
+
+  **SELF-RAG FIXES — FILES: `srv/agents/self-rag.js`, `srv/graph/state.js`, `srv/server.js`, `Banking-Sentinel-AustralianBank.html`:**
+  14. BUG: Self-RAG has no UI badge. Its SSE completion event is wired to update a4 (Trajectory) badge — wrong. This caused the "7/5 complete" double-count bug (fixed with data-counted workaround but root cause not fixed). FIX: Add a dedicated Self-RAG badge in the UI between Relationship (a3) and Human Approval. Renumber subsequent badges. Wire selfRagCheck SSE event to the new badge.
+  15. BUG: `selfRagEvaluation` in LangGraph state is overwritten each iteration — only the last evaluation survives. If Self-RAG re-queries twice, only the second evaluation is kept; the first is lost. FIX: Change state field from `selfRagEvaluation` (single object) to `selfRagHistory` (array). Each call to `selfRagCheckNode` appends to the array: `selfRagHistory: [...(state.selfRagHistory || []), evaluation]`. Update `checkConfidence()` to read from `selfRagHistory[selfRagHistory.length - 1]`.  FILE: `srv/graph/state.js` — add `selfRagHistory` field. FILE: `srv/agents/self-rag.js` — change return value from `selfRagEvaluation: evaluation` to `selfRagHistory: [...(state.selfRagHistory || []), evaluation]`.
+  16. NEW: Badge shows re-query state in real time. When confidence < 0.70 and re-query triggers: badge shows "↻ Re-querying (1/2)". When passes: "✓ Complete — confidence 0.82". Audience sees the system self-correcting live.
+  17. NEW: "View Details" popup on Self-RAG badge. Shows ALL iterations — one section per re-query run. If re-queried twice, shows two full sections. Each section contains:
+      - Iteration number (e.g. "Evaluation 1 of 2")
+      - Overall confidence score (e.g. 0.62 → below threshold, triggered re-query)
+      - Reasoning — one sentence why
+      - Gaps identified — numbered list of specific gaps found
+      - Re-query hint sent to Relationship Agent — exact instruction (e.g. "Start from 30910005, traverse deeper than 2 hops")
+      - Decision: "RE-QUERIED" or "PASSED TO HUMAN APPROVAL"
+      Final iteration also shows: total re-query count, final confidence, whether it passed or hit the max 2 re-query limit.
+      Data source: `selfRagHistory` array in LangGraph state (after fix 15).
+
+  **SYNTHESIS AGENT FIXES — FILE: `srv/agents/synthesis-agent.js`:**
+  18. BUG: `agentContext` passed to Synthesis LLM (lines 54-77) is a thin summary. Specifically missing from what the LLM receives:
+      - RPT-1 real confidence value (only hardcoded 0.85 is passed)
+      - Scikit-IF: scored count, flagged count, reason codes for flagged rows
+      - Relationship: `finding` text, connected party names, ReAct step count, confidence
+      - Trajectory: `conflictingSignals` array IS passed (line 68) but not referenced in the system prompt
+      - Self-RAG: `selfRagHistory` (all iterations), final confidence, gaps, reQueryCount — not in agentContext at all
+      - Collateral: `collateralCount`, LTV ratio — not passed
+      - Days in breach: `timeToBreach` IS passed but means 0 (hardcoded bug — fix item 6 first)
+      FIX: Expand `agentContext` to include all of the above. Add `selfRag: { history: state.selfRagHistory, finalConfidence, reQueryCount }` block.
+  19. BUG: Synthesis system prompt (line 82) does not instruct the LLM to use `conflictingSignals`, Scikit-IF reason codes, relationship node names, or Self-RAG gaps in findings. LLM ignores them even though they are in the context. FIX: Add explicit instructions: "Use conflictingSignals from trajectory to identify early warning vs confirmed breach. Use Scikit-IF reason codes as evidence for payment anomaly findings. Name specific connected parties from relationship nodeDetails in APS 221 findings. Surface unresolved Self-RAG gaps in the uncertainties field."
+  20. NEW: "View Details" popup on Synthesis Agent badge. Shows full raw LLM output — no reformatting:
+      - riskScore (final integer 0-100)
+      - riskLevel (LOW / MEDIUM / HIGH / CRITICAL)
+      - confidence (overall brief confidence 0.00-1.00)
+      - findings — full list, each with: finding text, severity (CRITICAL/HIGH/MEDIUM/LOW), standard (APS221/CPS230/DTI_NOTICE), evidenceSource (which agent), confidence per finding
+      - recommendations — all action items as numbered list
+      - regulatoryRefs — APRA standards cited (e.g. APS221, CPS230)
+      - uncertainties — data gaps + any unresolved Self-RAG gaps
+      - apraReady — true/false — whether brief is ready for board notification
+      - retrievedDocs — APRA regulatory chunks retrieved from HANA Vector: title, standard, content snippet for each
+      - tokens — input token count + output token count (shows LLM work done)
+      Data source: `synthesisResult` + `retrievedDocs` already in LangGraph state — just needs UI wiring.
+
 - **Explainability / Investigation Report** — post-run report showing WHY a BP was flagged: what data each agent saw, how each algorithm reasoned, how agents handed off to each other, full investigative trail. NOT the same as educational drawer (which explains AI patterns). This shows actual data + actual reasoning for a specific run. Data source: PostgresSaver checkpoint in PostgreSQL already holds full LangGraph state per session. Needs: `GET /api/report/:sessionId` endpoint + dedicated report page. Replaces admin item 26 (confidence block) and educational drawer for technical audience. Defer to dedicated session.
 - **RAGAS faithfulness fix** — faithfulness:0.25 (1/4 findings supported). Retrieved APRA chunks are generic; synthesis findings cite specific clauses not in retrieved chunks. Grounding gap investigation needed.
-- **BCA_COLLATERAL not seeded** — collateralCount always 0
 - **validate.js** — never connected to graph (HIGH — APRA CPS 230)
 - **Phase 10** — CF deployment, architecture diagram, blog post
 
