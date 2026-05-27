@@ -13,7 +13,19 @@
 ## Phase 7 complete (2026-05-25): SSE + Solace dual-publish per node via graph.stream(). UI fully wired — anomaly strings, relationship finding, forward position, synthesis findings all live. Admin data browser: PostgreSQL sidebar with real COUNT(*) and Clear All. Security hardening: admin IP guard, APS 221 GROUP limit fix, orphaned-approve 404, real audit latency. Relationship Agent 45s timeout + SPARQL 8s AbortSignal. Logo added.
 ## Phase 8 — HDI Deploy + PAL Investigation (2026-05-25): BP_RELATIONSHIP_GRAPH.hdbgraphworkspace + 3 CDS views deployed to HANA Cloud HDI via hdi-deploy v5.6.1. PAL Isolation Forest CONFIRMED NOT AVAILABLE on HANA Cloud Free Tier — ScriptServer requires 3 vCPU minimum; Free Tier has 1 vCPU. PAL code preserved in pattern-agent.js (calls PAL_RUN_ISOLATION_FOREST procedure) — non-fatal on Free Tier (warns, continues). Deploy to paid 3vCPU HANA Cloud + grant AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user to enable PAL (see SAP KB 3655407). Key deploy fix: VCAP_SERVICES needs "tags": ["hana"] + "plan": "hdi-shared" for xsenv.filterServices to pick up the service. db/src/.hdiconfig added for hdbgraphworkspace + hdbprocedure plugins.
 ## HDI Deploy command (2026-05-25): npx cds build --for hana → Copy-Item default-env.json gen\db\default-env.json → cd gen\db; node node_modules\@sap\cds-dk\node_modules\@sap\hdi-deploy\deploy.js --exit
-## Last updated: 2026-05-27
+## Last updated: 2026-05-27 (Session 2)
+## Session 2 (2026-05-27) — Cleanup sprint + APRA Notice hardening:
+## - Deleted 6 unused HANA tables (BPRoles, ContractAccounts, BKKN, LoanConditions, DFKKZP, BCA_RISK_CLASS) from schema.cds + admin.js + seed.js + 6 CSVs + 3 processed JSONs
+## - Created scripts/archive/ — moved 10 one-time scripts + 10 gen_*.js files there
+## - Deleted: tsconfig.json, stubs.js, Bloomberg.html, Context-v6.md, code-review.md, Data/regulatory/*.json, Data/ragas-*.json, Data/ABPRelationship.json, Data/ABusinessPartnerRole.json
+## - Removed all "twinkle" references — button renamed: id=apraBtn, fn=triggerApraNotice()
+## - Fixed banner: revert button always shown (removed display:none guard)
+## - Added /api/dti-status endpoint + checkApraState() on page load (restores APRA Notice state from HANA)
+## - Added parseDtiLimit() in apra-embedder.js (parses DTI value from PDF text — regex handles ≥ and word-numbers)
+## - Session ID in admin Sessions tab now shows full UUID
+## - History button now yellow (matches APRA Notice style)
+## PENDING (Task 2): seed-regulatory.js needs rewrite to read 3 live APRA URLs + manipulate DTI text 6→8 for Demo 1 baseline. JSON source files deleted — script will fail until rewritten.
+## PENDING: parseDtiLimit() regex not yet confirmed working against real PDF — needs test after server restart + APRA Notice click
 
 ## SESSION 2026-05-27 — UI Polish Sprint (Phases 9 continuation)
 
@@ -64,16 +76,60 @@
 - Deleted: `scripts/test-neo4j.js` (Neo4j never used — GraphDB is the graph store)
 - Deleted: `Docs/code-review.md` (superseded — all bugs from it were fixed)
 
-### PENDING:
-- **Twinkle 2 UI button** — backend fully built (`/a2a/sync-apra`, `apra-embedder.js`, Solace event, SSE banner all wired). Only missing: "Sync Latest APRA Standards" button in UI that POSTs to `/a2a/sync-apra` with real APRA PDF URL. One button = complete Twinkle 2 demo moment.
-- **Human Approval panel — show agent summary before approve button** — Currently shows only "APRA CPS 230 — Risk officer approval required before final brief is generated" with no data. Risk officer approves blind. FIX: Show one-line summary per agent above the Approve button, populated from LangGraph state at the time of interrupt:
-  - Pattern: `HIGH risk · RPT-1 82% confidence · 5 anomalies`
-  - Trajectory: `DTI 7.2 — in breach 116 days · DETERIORATING`
-  - Relationship: `7 connected parties · APS 221 168% of limit`
-  - Self-RAG: `confidence 0.82 · evidence sufficient` (or "re-queried 2x · gaps remain" if unresolved)
-  Data is already in LangGraph state at humanApproval interrupt — just needs to be sent in the Solace `banking/human/approval` SSE event payload and rendered in the UI approval panel. Also add [Reject] button alongside [Approve] — currently only Approve exists.
-- **Human-in-the-Loop toggle** — Add `[Human Approval: OFF | ON]` toggle to top bar. Default: OFF (pipeline runs end-to-end without interruption). When ON: existing approve button behaviour. UI sends `hitlEnabled: true/false` in POST body → flows through LangGraph state. In `humanApproval` node (`srv/graph/banking-sentinel.js`): if `!state.hitlEnabled` → return `{ approvalStatus: 'auto-approved', approvedAt: new Date().toISOString() }` immediately, skip `interrupt()`. When auto-approved, emit Solace SSE event so UI skips approval panel and shows synthesis progress directly. State schema: add `hitlEnabled: Boolean` to `srv/graph/state.js`.
-- **Education drawer REMOVED — merged into View Details popup** — The separate educational slide-in drawer is eliminated. Each agent's "View Details" popup now shows two sections: (1) HOW IT WORKS — AI pattern, SAP tech, why this agent exists; (2) WHAT IT FOUND — full raw output from the agent. Remove all existing education drawer code from `Banking-Sentinel-AustralianBank.html` when building View Details popups.
+### PENDING — 41 ITEMS (master list — do not derive from elsewhere):
+
+**TOP-LEVEL (4):**
+1. **Twinkle 2 UI button** — "Sync Latest APRA Standards" button in top bar. Backend fully built (`/a2a/sync-apra`, `apra-embedder.js`, Solace event, SSE banner all wired). Button POSTs `{ docTitle, standard, pdfUrl }` to `/a2a/sync-apra`. Use hardcoded APRA PDF URLs for demo: APS 221 → `https://www.apra.gov.au/sites/default/files/2025-12/Prudential%20Standard%20APS%20221%20Large%20Exposures.pdf`; CPS 230 → `https://www.apra.gov.au/sites/default/files/2026-04/Prudential%20Standard%20-%20CPS%20230%20Operational%20Risk%20Management%20-%20clean.pdf`. SSE banner (`regulatory_update` event) shows strip: "Syncing APRA Standards... 47 chunks embedded" then dismisses. Button lives in top bar alongside HITL toggle.
+2. **Human Approval panel** — show one-line agent summary above Approve button + add Reject button. Currently risk officer approves blind. FIX: send agent summaries in Solace `banking/human/approval` SSE event payload: Pattern: `HIGH risk · RPT-1 82% · 5 anomalies` / Trajectory: `DTI 7.2 — in breach 116 days · DETERIORATING` / Relationship: `7 connected parties · APS 221 168% of limit` / Self-RAG: `confidence 0.82 · evidence sufficient`. Data already in LangGraph state at interrupt. Also add [Reject] button.
+3. **HITL toggle** — `[Human Approval: OFF | ON]` in top bar. Default OFF. UI sends `hitlEnabled` in POST body → state. In `humanApproval` node: if `!state.hitlEnabled` → auto-approve, skip `interrupt()`. FILES: `srv/graph/state.js` (add `hitlEnabled: Boolean`), humanApproval node in `srv/graph/banking-sentinel.js`.
+4. **Education drawer removal + View Details popup build** — Remove all edu drawer code from `Banking-Sentinel-AustralianBank.html`. Each agent gets a "View Details" popup with two sections: (1) HOW IT WORKS — content written in CONTEXT.md below; (2) WHAT IT FOUND — raw agent output. Build for all 7 agents + Human Approval.
+
+**AGENT DATA + LOGIC FIXES (21):**
+5. Add `"INCOME_EXPIRY": "2026-09-15"` to `Data/processed/BCA_DTI.json` for 30100003 record → re-run `node scripts/seed.js`. Without this field, futureDti / daysToExpiry / timeToBreach all return null in trajectory-agent.js.
+6. RPT-1: drop `scoreMap` at `pattern-agent.js` line 88. Use real confidence from `myPrediction?.risk_category?.[0]?.confidence` (e.g. 0.82). Display as "HIGH · 82%" not "70". FILE: `srv/agents/pattern-agent.js`.
+7. Drop hardcoded `patternAssessment.confidence = 0.85` at `pattern-agent.js` line 283. Use `rpt1Result.confidence` instead.
+8. Scikit-IF: display "0 / 3 payment rows flagged" using `outliers.length` / `result.scored`. Pass `result.scored` through in progress event. FILE: `srv/agents/pattern-agent.js`.
+9. Pattern "View Details" popup — raw unmodified output from all 3 models: RPT-1 (category + confidence), Scikit-IF (X/Y flagged + reason codes per row), LLM (numbered anomaly list). FILE: `Banking-Sentinel-AustralianBank.html`.
+10. timeToBreach: when `breachFlag=true` calculate `Math.floor((today - new Date(dti.BREACH_DATE)) / (1000*60*60*24))` days in breach. Not hardcoded 0. FILE: `srv/agents/trajectory-agent.js` line 104.
+11. Trajectory "View Details" popup — currentDti, futureDti, daysToExpiry, timeToBreach, forwardPosition, conflictingSignals list. Also surface conflictingSignals in Synthesis prompt (currently only console.log'd). FILE: `Banking-Sentinel-AustralianBank.html`.
+12. aps221Pct fix: `exposure_calculator` must SUM(`Loans.AMOUNT`) WHERE PARTNER IN (all connected entity IDs from graph traversal). Currently wrong: SUM(`BCA_GUARANTOR.COVER_AMOUNT`) on start node only. FILE: `srv/tools/mcp-tools.js` line 223.
+13. Relationship "View Details" popup — connected parties table (name, BP ID, hop, relType), group exposure vs APS 221 limit, aps221Pct, finding sentence, ReAct steps, confidence. FILE: `Banking-Sentinel-AustralianBank.html`.
+14. Pass full relationship data to Synthesis: `finding`, `nodeDetails` (array of {id, name, hop, relType}), `confidence`, `steps`. Currently only `{ groupExposure, aps221Pct, nodeCount, edgeCount }` sent. FILE: `srv/agents/synthesis-agent.js` lines 72-76.
+15. Self-RAG: add dedicated UI badge between Relationship (a3) and Human Approval. FILE: `Banking-Sentinel-AustralianBank.html`.
+16. SSE wiring: wire `selfRagCheck` SSE event to new Self-RAG badge, not a4 (Trajectory). FILE: `Banking-Sentinel-AustralianBank.html` SSE handler.
+17. selfRagHistory array: change `selfRagEvaluation` (overwritten each iteration) to `selfRagHistory` array (append each iteration). FILES: `srv/graph/state.js` (add field), `srv/agents/self-rag.js` (change return value).
+18. Self-RAG badge shows re-query state live: "↻ Re-querying (1/2)" when confidence < 0.70, "✓ Complete — confidence 0.82" when passes. FILE: `Banking-Sentinel-AustralianBank.html`.
+19. Self-RAG "View Details" popup — one section per iteration. Each shows: iteration number, confidence, reasoning, gaps, reQueryHint, decision (RE-QUERIED / PASSED). Data from `selfRagHistory`. FILE: `Banking-Sentinel-AustralianBank.html`.
+20. Pass `selfRagHistory` to Synthesis agentContext. FILE: `srv/agents/synthesis-agent.js`.
+21. Synthesis agentContext: expand with full evidence — RPT-1 real confidence, Scikit-IF scored/flagged counts + reason codes, Relationship finding + nodeDetails + confidence + steps, Trajectory conflictingSignals, Self-RAG history + gaps + reQueryCount, collateral LTV. FILE: `srv/agents/synthesis-agent.js` lines 54-77.
+22. Synthesis prompt: add explicit instructions to use conflictingSignals, Scikit-IF reason codes, relationship node names, Self-RAG gaps. Define riskScore scale: LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100. Remove "Max 4 findings" limit (see item 25). FILE: `srv/agents/synthesis-agent.js` line 82+.
+23. Synthesis "View Details" popup — full raw LLM output: riskScore, riskLevel, confidence, all findings, recommendations, regulatoryRefs, uncertainties, apraReady, retrievedDocs snippets, token counts. FILE: `Banking-Sentinel-AustralianBank.html`.
+24. apraReady: remove from LLM output schema. Calculate deterministically after LLM returns: `findings.length > 0 && findings.every(f => f.evidenceSource) && selfRagHistory?.at(-1)?.gaps?.length === 0 && regulatoryRefs.length > 0 && confidence > 0.70 && (!hitlEnabled || approvalStatus === 'approved')`. FILE: `srv/agents/synthesis-agent.js`.
+25. Remove "Max 4 findings, 3 recommendations, 3 uncertainties" limits from Synthesis system prompt. LLM returns as many as evidence supports. Only constraint: each finding must have severity, standard, evidenceSource, confidence. FILE: `srv/agents/synthesis-agent.js` line 96.
+
+**OTHER FIXES (3):**
+26. NB-2 SPARQL multi-hop relType null — partners at hop 2+ show `relType: null`. Fix: build `Map<partnerId, relType>` from chain edges SPARQL (query 2) and use to enrich `traversalRows`. FILE: `srv/tools/mcp-tools.js` lines 127-145.
+27. validate.js: connect CPS 230 guardrails — import and call `validateAgentOutput(brief)` in `srv/agents/synthesis-agent.js` before returning risk brief; call `crossCheckClaimsAgainstSources(evaluation)` in `srv/agents/self-rag.js` after confidence check. FILE: `srv/guardrails/validate.js` already built, just not imported.
+28. RAGAS faithfulness fix (0.25 → >0.85): (1) per-signal retrieval — separate `hana_vector_search` per active risk signal (DTI→APS221 DTI clauses, group exposure→APS221 connected party, income expiry→CPS230 risk mgmt); (2) topK 3→5-7; (3) `useHyDE: false` → `true` in synthesis-agent.js. After fix: re-run `node scripts/test-rag.js` then `python scripts/ragas-eval.py`. FILE: `srv/agents/synthesis-agent.js`.
+
+**EXPLAINABILITY REPORT (2):**
+29. Backend — `GET /api/report/:sessionId` endpoint reading PostgresSaver checkpoint. Returns full per-agent data + reasoning for one specific BP run. FILE: `srv/server.js` (new route).
+30. UI view — dedicated report page: what data each agent saw, how each algorithm reasoned, how agents handed off, full investigative trail. NOT the educational drawer. Shows actual data + actual decisions for one run.
+
+**PHASE 10 (4):**
+31. CF deployment — PostgresSaver bound service, env vars, `manifest.yml`.
+32. Architecture diagram.
+33. Blog post.
+34. Demo video.
+35. Cleanup unused regulatory files — delete `Data/regulatory/credit-policy-7-3.json` (sector concentration — not in demo story), delete any APS112 regulatory files, remove APS112 rows from `RegulatoryDocuments` in HANA, remove from seed data. Neither APS112 nor credit-policy-7-3 are used in the demo pipeline.
+36. Export all HANA tables to CSV when dev is complete — one CSV per table, all records, for final data documentation and handover.
+
+**TWINKLE 2 — DTI THRESHOLD DEMO FLOW (5):**
+37. **De-hardcode DTI threshold** — Remove `APRA_DTI_LIMIT = 6.0` from `trajectory-agent.js` line 10. Read `LIMIT_PCT` from `RegulatoryThresholds` table (THRESHOLD_ID='APRA-DTI') at agent runtime via `cds.run(SELECT...)`. Same fix in `mcp-tools.js` `apra_threshold_check` line 255: remove `limit = 6.0`, query `RegulatoryThresholds` instead. Makes threshold fully dynamic — no code change needed when APRA updates the limit.
+38. **Seed Demo 1 threshold = 8** — Update `Data/processed/RISK_THRESHOLD.json` APRA-DTI record: change `LIMIT_PCT` from 6 → 8. Re-run `node scripts/seed.js`. Demo 1 result: DTI 7.2 < 8.0 = compliant, no DTI breach flagged.
+39. **Update `apra-embedder.js` for Twinkle 2** — After embedding DTI notice PDF chunks into `RegulatoryDocuments`, also run `UPDATE RegulatoryThresholds SET LIMIT_PCT=6 WHERE THRESHOLD_ID='APRA-DTI'`. Only triggers when `standard === 'DTI_NOTICE'`. This atomically updates both vector knowledge and the threshold in one Twinkle 2 click. FILE: `srv/rag/apra-embedder.js`.
+40. **Prepare Demo 1 regulatory knowledge base** — Clear existing synthetic RegulatoryDocuments chunks from HANA. Seed with: (1) real APS 221 PDF — `https://www.apra.gov.au/sites/default/files/2025-12/Prudential%20Standard%20APS%20221%20Large%20Exposures.pdf`; (2) real CPS 230 PDF — `https://www.apra.gov.au/sites/default/files/2026-04/Prudential%20Standard%20-%20CPS%20230%20Operational%20Risk%20Management%20-%20clean.pdf`; (3) synthetic DTI notice with threshold=8.0 (`Data/regulatory/dti-notice-feb2026.json` — update all threshold references from 6.0 → 8.0 before embedding). Re-embed all via OpenAI `text-embedding-3-small`. One-time setup before Demo 1.
+41. **Twinkle 2 button — add DTI notice URL** — Add DTI notice as third sync target: `https://www.apra.gov.au/sites/default/files/2025-11/Implementation%20Details%20-%20DTI%20limit.pdf` with `standard: 'DTI_NOTICE'`. During Twinkle 2 demo: this sync embeds real DTI clauses (threshold=6.0) into RegulatoryDocuments AND updates RegulatoryThresholds.LIMIT_PCT=6 via item 39. Re-run analysis → DTI 7.2 now breaches → Synthesis cites real APRA language. Demo 1→Demo 2 outcome change: COMPLIANT → BREACH.
 
 ### VIEW DETAILS POPUP — EDUCATIONAL CONTENT (ready to build — do not re-derive)
 Each agent popup has two sections. "How it works" content is below. "What it found" content is in the agent fix items (1-20) above.
@@ -215,8 +271,13 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
       Data source: `synthesisResult` + `retrievedDocs` already in LangGraph state — just needs UI wiring.
 
 - **Explainability / Investigation Report** — post-run report showing WHY a BP was flagged: what data each agent saw, how each algorithm reasoned, how agents handed off to each other, full investigative trail. NOT the same as educational drawer (which explains AI patterns). This shows actual data + actual reasoning for a specific run. Data source: PostgresSaver checkpoint in PostgreSQL already holds full LangGraph state per session. Needs: `GET /api/report/:sessionId` endpoint + dedicated report page. Replaces admin item 26 (confidence block) and educational drawer for technical audience. Defer to dedicated session.
-- **RAGAS faithfulness fix** — faithfulness:0.25 (1/4 findings supported). Retrieved APRA chunks are generic; synthesis findings cite specific clauses not in retrieved chunks. Grounding gap investigation needed.
-- **validate.js** — never connected to graph (HIGH — APRA CPS 230)
+- **RAGAS faithfulness fix** — faithfulness:0.25 (1/4 findings supported). Root cause: one combined search query returns 3 generic APRA chunks; LLM cites specific clauses not in those chunks (uses training data = hallucination). Fix — three changes all in `synthesis-agent.js`:
+  1. Per-signal retrieval: run separate `hana_vector_search` calls per active risk signal (DTI breach → APS 221 DTI clauses, group exposure → APS 221 connected party section, income expiry → CPS 230 risk management) and combine results instead of one long concatenated query
+  2. Increase topK from 3 to 5-7 per signal search
+  3. Enable HyDE: change `useHyDE: false` to `useHyDE: true` — HyDE generates a hypothetical APRA clause first, embeds that, finds chunks that look like the real clause rather than matching keywords. Already built in `mcp-tools.js` hana_vector_search, just disabled.
+  After fixing: re-run `node scripts/test-rag.js` to regenerate `Data/ragas-dataset.json`, then `python scripts/ragas-eval.py` to confirm faithfulness > 0.85.
+- **NB-2: SPARQL multi-hop relType null** — Partners at hop 2+ show `relType: null` in the Relationship popup table. Root cause: reachability SPARQL OPTIONAL clause only walks one step from startNode. Fix: build `Map<partnerId, relType>` from the chain edges SPARQL (query 2, which already has correct relType for all pairs) and use it to enrich `traversalRows` before returning from `hana_graph_traverse`. FILE: `srv/tools/mcp-tools.js` lines 127–145.
+- **validate.js** — CPS 230 compliance guardrails disconnected. `validateAgentOutput()` and `crossCheckClaimsAgainstSources()` exist in `srv/guardrails/validate.js` but nothing imports them. CPS 230 requires AI outputs used in credit decisions to be validated against source data. FIX: (1) In `srv/agents/synthesis-agent.js` — import validate.js and call `validateAgentOutput(brief)` before returning the risk brief. If validation fails, add failure reason to `uncertainties`. (2) In `srv/agents/self-rag.js` — call `crossCheckClaimsAgainstSources(evaluation)` after the confidence check. These two call sites cover the two AI output boundaries that APRA CPS 230 requires to be validated.
 - **Phase 10** — CF deployment, architecture diagram, blog post
 
 ### KEY ARCHITECTURAL DECISION (confirmed this session):

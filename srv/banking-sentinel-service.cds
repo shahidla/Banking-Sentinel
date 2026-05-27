@@ -14,7 +14,7 @@ service BankingSentinelService {
   // Human-in-the-loop resume — risk officer approves after interrupt()
   action approveRiskBrief(sessionId: String) returns Boolean;
 
-  // Regulatory document upload — Twinkle 2: zero code change policy update
+  // Regulatory document upload — zero code change policy update via APRA Notice
   action uploadRegulatoryDocument(content: String, title: String, standard: String) returns Boolean;
 
   // Session management

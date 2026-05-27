@@ -7,7 +7,6 @@
 const cds = require('@sap/cds');
 const { startSpan, endSpan } = require('../observability/langfuse-client');
 
-const APRA_DTI_LIMIT         = 6.0;
 const INCOME_EXPIRY_WARN_DAYS = 180; // flag if income expires within 6 months
 
 async function trajectoryAgent(state) {
@@ -16,6 +15,12 @@ async function trajectoryAgent(state) {
   console.log(`  [Trajectory] Analysing forward position: ${customerId}`);
 
   if (!customerId) throw new Error('Trajectory Agent: no customerId in state');
+
+  // Fetch DTI threshold dynamically — APRA Notice button updates this to 6.0 via apra-embedder.js
+  const thresholdRows = await cds.run(
+    SELECT.from('bankingsentinel.RegulatoryThresholds').where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' }).limit(1)
+  );
+  const APRA_DTI_LIMIT = parseFloat(thresholdRows[0]?.LIMIT_PCT) || 8.0;
 
   // Fetch DTI data
   const dtiRows = await cds.run(
@@ -100,9 +105,16 @@ async function trajectoryAgent(state) {
   }
 
   // ── Time to breach ─────────────────────────────────────────────────────────
+  // Negative = days since breach (already active), positive = days until projected breach
   let timeToBreach = null;
   if (breachFlag) {
-    timeToBreach = 0;  // already in breach
+    if (dti.BREACH_DATE) {
+      const breachDate = new Date(dti.BREACH_DATE);
+      const today      = new Date();
+      timeToBreach = -Math.floor((today - breachDate) / (1000 * 60 * 60 * 24));
+    } else {
+      timeToBreach = 0;
+    }
   } else if (futureDti !== null && futureDti > APRA_DTI_LIMIT) {
     timeToBreach = daysToExpiry; // breach projected at income expiry
   }

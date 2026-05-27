@@ -9,6 +9,7 @@
 'use strict';
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { getLangchainHandler } = require('../observability/langfuse-client');
+const { validateAgentOutput } = require('../guardrails/validate');
 
 async function selfRagCheckNode(state) {
   const customerId = state.intent?.customerId || state.customerId;
@@ -111,6 +112,12 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
     evaluation = { overallConfidence: 0.60, gaps: ['Self-RAG evaluation unavailable — response malformed'], reQueryHint: '', reasoning: 'Self-RAG parse failure — routing to requery rather than proceeding blindly' };
   }
 
+  // CPS 230 guardrail — log validation result (non-blocking: Self-RAG routing is not blocked by this)
+  const validation = validateAgentOutput({ confidence: evaluation.overallConfidence }, 'self-rag');
+  if (!validation.valid) {
+    console.warn(`  [SelfRAG] CPS 230 guardrail: ${validation.issues.join('; ')}`);
+  }
+
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;
   const tokensOut = response.usage_metadata?.output_tokens || 0;
 
@@ -119,8 +126,13 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
   console.log(`  [SelfRAG] reQueryHint: ${evaluation.reQueryHint || '(none)'}`);
   (evaluation.gaps || []).forEach((g, i) => console.log(`  [SelfRAG] Gap ${i+1}: ${g}`));
 
+  // Append to selfRagHistory — each iteration preserved, not overwritten
+  const prevHistory = Array.isArray(state.selfRagHistory) ? state.selfRagHistory : [];
+  const selfRagHistory = [...prevHistory, { iteration: reqCount + 1, ...evaluation }];
+
   return {
-    selfRagEvaluation: evaluation,
+    selfRagEvaluation: evaluation,           // still available for routing function
+    selfRagHistory,                          // full iteration log → Synthesis agentContext
     reQueryHint:       evaluation.reQueryHint,
     requeryCount:      reqCount + 1,
     totalInputTokens:  tokensIn,

@@ -140,6 +140,7 @@ cds.on('bootstrap', async (app) => {
   app.post('/a2a/agent', async (req, res) => {
     const { method = 'analyseRisk', params = {}, id = uuid() } = req.body || {};
     const sessionId = params.sessionId || uuid();
+    const hitlEnabled = params.hitl !== false; // default true; UI sends false when HITL toggle is OFF
     const startTime = Date.now();
 
     console.log(`\n[A2A] ${method} | session: ${sessionId} | query: "${(params.query || '').substring(0, 60)}"`);
@@ -198,8 +199,10 @@ cds.on('bootstrap', async (app) => {
             anomalyCount:   finalState.patternAssessment?.anomalies?.length,
             anomalies:      finalState.patternAssessment?.anomalies,
             patternConf:    finalState.patternAssessment?.confidence,
-            rpt1Success:    finalState.patternAssessment?.rpt1?.success,
+            rpt1Category:   finalState.patternAssessment?.rpt1?.category,
+            rpt1Confidence: finalState.patternAssessment?.rpt1?.confidence,
             palCount:       finalState.patternAssessment?.pal?.anomalyCount ?? 0,
+            palTotalScored: finalState.patternAssessment?.pal?.totalScored  ?? 0,
             llmCount:       finalState.patternAssessment?.llm?.anomalies?.length ?? 0,
             nodes:          finalState.relationshipMap?.nodes?.length,
             graphNodes:     finalState.relationshipMap?.nodeDetails?.length > 0
@@ -211,7 +214,13 @@ cds.on('bootstrap', async (app) => {
             relationshipFinding: finalState.relationshipMap?.finding,
             forwardPosition:finalState.trajectoryAnalysis?.forwardPosition,
             daysToExpiry:   finalState.trajectoryAnalysis?.daysToExpiry,
-            confidence:     finalState.selfRagEvaluation?.overallConfidence,
+            conflictingSignals: finalState.trajectoryAnalysis?.conflictingSignals,
+            timeToBreach:   finalState.trajectoryAnalysis?.timeToBreach,
+            selfRagConf:    finalState.selfRagEvaluation?.overallConfidence,
+            selfRagHistory: finalState.selfRagHistory,
+            selfRagIteration: finalState.requeryCount,
+            selfRagReasoning: finalState.selfRagEvaluation?.reasoning,
+            selfRagGaps:    finalState.selfRagEvaluation?.gaps,
             reQueryHint:    finalState.reQueryHint,
             requeryCount:   finalState.requeryCount,
             findingsCount:  finalState.synthesisResult?.findings?.length,
@@ -234,12 +243,34 @@ cds.on('bootstrap', async (app) => {
       const checkpoint = await graph.getState(config);
       const interrupted = checkpoint.next && checkpoint.next.includes('humanApproval');
 
-      if (interrupted) {
-        // Push SSE to browser + Solace event for enterprise consumers
+      if (interrupted && !hitlEnabled) {
+        // HITL OFF — auto-advance past humanApproval and continue to synthesis
+        console.log(`  [A2A] HITL=OFF — auto-advancing past humanApproval for ${sessionId}`);
+        await graph.updateState(config, {}, 'humanApproval');
+        for await (const chunk of await graph.stream(null, { ...config, streamMode: 'updates' })) {
+          for (const [nodeName, nodeState] of Object.entries(chunk)) {
+            finalState = { ...finalState, ...nodeState };
+            const autoEvt = { agent: nodeName, status: 'complete', customerId: finalState.intent?.customerId || params.customerId };
+            pushSSE(sessionId, 'pipeline_status', { ...autoEvt, ...finalState.patternAssessment ? { riskScore: finalState.patternAssessment.riskScore, findingsCount: finalState.synthesisResult?.findings?.length, apraReady: finalState.synthesisResult?.apraReady } : {} });
+          }
+        }
+        if (finalState.synthesisResult) {
+          pushSSE(sessionId, 'risk_findings', { synthesisResult: finalState.synthesisResult });
+          await publishRiskFindings(sessionId, finalState.synthesisResult);
+        }
+      } else if (interrupted) {
+        // HITL ON — Push SSE with full agent context so risk officer sees summary in approveBar
         pushSSE(sessionId, 'human_approval', {
-          riskScore:  finalState.patternAssessment?.riskScore,
-          riskLevel:  finalState.patternAssessment?.riskLevel,
-          message:    'Risk officer approval required'
+          riskScore:    finalState.patternAssessment?.riskScore,
+          riskLevel:    finalState.patternAssessment?.riskLevel,
+          signal:       finalState.patternAssessment?.signal,
+          nodes:        finalState.relationshipMap?.nodes?.length,
+          groupExposure:finalState.relationshipMap?.groupExposure,
+          forwardPosition: finalState.trajectoryAnalysis?.forwardPosition,
+          daysToExpiry: finalState.trajectoryAnalysis?.daysToExpiry,
+          selfRagConf:  finalState.selfRagEvaluation?.overallConfidence,
+          selfRagIteration: finalState.requeryCount,
+          message:      'Risk officer approval required'
         });
         await publishHumanApproval(sessionId, {
           customerId:         finalState.intent?.customerId,
@@ -448,7 +479,23 @@ cds.on('bootstrap', async (app) => {
     }
   });
 
-  // ── Twinkle 2 — Regulatory Document Sync ─────────────────────────────────
+  // ── Reject ────────────────────────────────────────────────────────────────
+  app.post('/a2a/reject', async (req, res) => {
+    const { sessionId, rejectedBy = 'risk_officer' } = req.body || {};
+    console.log(`[A2A] /reject | session:${sessionId} | by:${rejectedBy}`);
+    if (sessionId) {
+      try {
+        await cds.run(
+          UPDATE('bankingsentinel.RiskAssessments')
+            .set({ APPROVED_BY: `REJECTED:${rejectedBy}`, APPROVED_AT: new Date().toISOString() })
+            .where({ SESSION_ID: sessionId })
+        );
+      } catch (e) { /* best-effort — table may not have this session yet */ }
+    }
+    res.json({ jsonrpc: '2.0', result: { sessionId, status: 'rejected', rejectedBy }, id: uuid() });
+  });
+
+  // ── APRA Notice — Regulatory Document Sync ───────────────────────────────
   // AI: RAG knowledge base update — fetch PDF, chunk, embed, store in HANA Vector
   // Banking: New APRA standard published → risk officer uploads it → applies immediately
   //          No code change, no redeployment — knowledge base updates at runtime
@@ -469,23 +516,131 @@ cds.on('bootstrap', async (app) => {
 
     try {
       const { embedAndStoreApraDoc } = require('./rag/apra-embedder');
-      const chunkCount = await embedAndStoreApraDoc({ docTitle, standard, pdfUrl, pdfBase64 });
+      const { stored: chunkCount, thresholdUpdated } = await embedAndStoreApraDoc({ docTitle, standard, pdfUrl, pdfBase64 });
 
-      pushSSE(sessionId, 'regulatory_update', { docTitle, standard, chunkCount });
+      pushSSE(sessionId, 'regulatory_update', { docTitle, standard, chunkCount, thresholdUpdated });
       await publishRegulatoryUpdate(sessionId, docTitle, standard, chunkCount);
 
-      console.log(`[A2A] /sync-apra complete | ${chunkCount} chunks embedded | event published`);
-      res.json({
-        status: 'ok',
-        docTitle,
-        standard,
-        chunkCount,
-        message: `${chunkCount} chunks embedded in HANA Vector. Synthesis will use on next query.`
-      });
+      const msg = thresholdUpdated
+        ? `${chunkCount} chunks embedded. DTI threshold updated to 6.0x — re-run pipeline to see breach.`
+        : `${chunkCount} chunks embedded in HANA Vector. Synthesis will use on next query.`;
+
+      console.log(`[A2A] /sync-apra complete | ${chunkCount} chunks embedded | thresholdUpdated:${thresholdUpdated} | event published`);
+      res.json({ status: 'ok', docTitle, standard, chunkCount, thresholdUpdated, message: msg });
     } catch (err) {
       console.error(`[A2A] /sync-apra error: ${err.message}`);
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // ── DTI Status — on-load state check for UI button restore ──────────────
+  app.get('/api/dti-status', async (req, res) => {
+    try {
+      const row = await cds.run(
+        SELECT.one.from('bankingsentinel.RegulatoryThresholds')
+          .where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' })
+      );
+      const limit = parseFloat(row?.LIMIT_PCT ?? 8.0);
+      res.json({ dtiLimit: limit, apraNoticeActive: limit <= 6.0 });
+    } catch (e) {
+      res.json({ dtiLimit: 8.0, apraNoticeActive: false });
+    }
+  });
+
+  // ── Regulatory Threshold Reset ────────────────────────────────────────────
+  // Reverts DTI threshold from 6.0x (APRA Notice) back to 8.0x (Demo 1 baseline)
+  app.post('/api/reset-threshold', async (req, res) => {
+    try {
+      await cds.run(
+        UPDATE('bankingsentinel.RegulatoryThresholds')
+          .set({ LIMIT_PCT: 8.0 })
+          .where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' })
+      );
+      console.log('[API] DTI threshold reset to 8.0x (Demo 1 baseline)');
+      res.json({ status: 'ok', message: 'DTI threshold reset to 8.0x' });
+    } catch (err) {
+      console.error('[API] reset-threshold error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Explainability Report — JSON API ─────────────────────────────────────
+  // Reads the LangGraph checkpoint for a session and returns full per-agent data
+  app.get('/api/report/:sessionId', async (req, res) => {
+    const { sessionId } = req.params;
+    try {
+      if (!graph) return res.status(503).json({ error: 'Graph not ready' });
+      const checkpoint = await graph.getState({ configurable: { thread_id: sessionId } });
+      if (!checkpoint || !checkpoint.values) return res.status(404).json({ error: 'Session not found' });
+      const s = checkpoint.values;
+
+      // Pull AuditLog rows for this session from HANA
+      let auditTrail = [];
+      try {
+        auditTrail = await cds.run(
+          SELECT.from('bankingsentinel.AuditLog').where({ SESSION_ID: sessionId }).orderBy('TIMESTAMP asc')
+        );
+      } catch (_) {}
+
+      const synth = s.synthesisResult || {};
+      res.json({
+        sessionId,
+        generatedAt:  new Date().toISOString(),
+        standard:     'CPS 230 · APS 221',
+        partner:      s.customerId || '—',
+        query:        s.query || '—',
+        // Intent
+        intent:       s.intent || null,
+        // Pattern Agent
+        patternAssessment: s.patternAssessment || null,
+        // Trajectory Agent
+        trajectoryAnalysis: s.trajectoryAnalysis || null,
+        // Relationship Agent
+        relationshipMap: s.relationshipMap ? {
+          nodes:         s.relationshipMap.nodes,
+          edges:         s.relationshipMap.edges,
+          groupExposure: s.relationshipMap.groupExposure,
+          aps221Pct:     s.relationshipMap.aps221Pct,
+          confidence:    s.relationshipMap.confidence
+        } : null,
+        // Self-RAG
+        selfRagEvaluation: s.selfRagEvaluation || null,
+        requeryCount:  s.requeryCount || 0,
+        reQueryHint:   s.reQueryHint || null,
+        // Synthesis
+        riskScore:    synth.riskScore,
+        riskLevel:    synth.riskLevel,
+        confidence:   synth.confidence,
+        findings:     synth.findings || [],
+        recommendations: synth.recommendations || [],
+        regulatoryRefs:  synth.regulatoryRefs || [],
+        uncertainties:   synth.uncertainties || [],
+        apraReady:    synth.apraReady,
+        // Tokens
+        totalInputTokens:  s.totalInputTokens || 0,
+        totalOutputTokens: s.totalOutputTokens || 0,
+        // Audit
+        approvedBy:   auditTrail.find(r => r.ACTION === 'human_approval')?.DETAILS || null,
+        auditTrail:   auditTrail.map(r => ({
+          action:    r.ACTION,
+          model:     r.MODEL,
+          tokensIn:  r.TOKENS_IN,
+          tokensOut: r.TOKENS_OUT,
+          costAUD:   r.COST_AUD,
+          latencyMs: r.LATENCY_MS
+        }))
+      });
+    } catch (err) {
+      console.error('[Report]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Explainability Report — HTML page ────────────────────────────────────
+  // Self-contained page; fetches /api/report/:sessionId and renders full trail
+  app.get('/report/:sessionId', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(require('./report-page').renderReportPage(req.params.sessionId));
   });
 
   // ── Session Reset ─────────────────────────────────────────────────────────
@@ -515,6 +670,53 @@ cds.on('bootstrap', async (app) => {
       anomalyEngine:      engine,
       anomalyEngineLabel: engine === 'pal' ? 'HANA PAL' : 'Scikit-IF'
     });
+  });
+
+  // ── Explainability Report — CPS 230 audit trail ────────────────────────────
+  // AI: Aggregates all agent outputs for a session into a structured audit report
+  // Banking: Risk officer or auditor can retrieve the full reasoning chain and regulatory citations
+  // SAP: Reads RiskAssessments + AuditLog from HANA by sessionId
+  app.get('/api/report/:sessionId', async (req, res) => {
+    const { sessionId } = req.params;
+    try {
+      const [assessment, auditRows] = await Promise.all([
+        cds.run(SELECT.from('bankingsentinel.RiskAssessments').where({ SESSION_ID: sessionId }).limit(1)),
+        cds.run(SELECT.from('bankingsentinel.AuditLog').where({ SESSION_ID: sessionId }).orderBy('CREATED_AT'))
+      ]);
+
+      const ra = assessment[0] || null;
+      const report = {
+        sessionId,
+        generatedAt:    new Date().toISOString(),
+        standard:       'APRA CPS 230 — AI Governance & Explainability',
+        partner:        ra?.PARTNER,
+        riskScore:      ra?.RISK_SCORE,
+        riskLevel:      ra?.RISK_LEVEL,
+        confidence:     ra?.CONFIDENCE,
+        apraReady:      !!ra?.APPROVED_BY && !ra.APPROVED_BY.startsWith('REJECTED'),
+        approvedBy:     ra?.APPROVED_BY,
+        approvedAt:     ra?.APPROVED_AT,
+        findings:       ra?.FINDINGS ? JSON.parse(ra.FINDINGS) : [],
+        auditTrail:     auditRows.map(r => ({
+          action:      r.ACTION,
+          model:       r.MODEL,
+          tokensIn:    r.TOKENS_IN,
+          tokensOut:   r.TOKENS_OUT,
+          costAUD:     r.COST_AUD,
+          latencyMs:   r.LATENCY_MS,
+          createdAt:   r.CREATED_AT
+        }))
+      };
+
+      if (!ra) {
+        return res.status(404).json({ error: `No report found for session: ${sessionId}` });
+      }
+
+      res.json(report);
+    } catch (err) {
+      console.error(`[Report] GET /api/report/${sessionId} error: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   console.log('  [Server] A2A endpoint ready: POST /a2a/agent');

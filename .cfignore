@@ -1,0 +1,14 @@
+node_modules/
+gen/
+.git/
+.env
+default-env.json
+.cdsrc-private.json
+Data/ragas-results.json
+Data/ragas-dataset.json
+Data/ABPRelationship.json
+Data/ABusinessPartner.json
+Data/ABusinessPartnerRole.json
+*.log
+.vscode/
+ml/

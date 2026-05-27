@@ -11,7 +11,7 @@
 //   banking/pipeline/status    → each agent start + complete (Panel 2 live progress)
 //   banking/risk/findings      → synthesis result ready (Panel 3 risk brief)
 //   banking/human/approval     → pipeline paused, awaiting risk officer approval
-//   banking/regulatory/update  → new APRA document uploaded and embedded (Twinkle 2)
+//   banking/regulatory/update  → new APRA document uploaded and embedded
 //   banking/session/reset      → demo reset before new scenario
 
 'use strict';

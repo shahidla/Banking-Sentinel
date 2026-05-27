@@ -248,64 +248,39 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); }
 
-  /* ── Educational Drawer — Phase 9 ─────────────────────────────────────── */
-  .edu-toggle {
-    font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase;
-    padding: 4px 10px; border-radius: 2px; cursor: pointer; border: 1px solid rgba(255,208,0,0.4);
-    background: rgba(255,208,0,0.12); color: var(--yellow); transition: all 0.2s; margin-left: 8px;
-  }
-  .edu-toggle.off { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.12); }
-
-  .edu-drawer {
-    position: fixed; top: calc(5 * var(--H) + 3px); right: 0; bottom: calc(5 * var(--H) + 3px);
-    width: 380px; background: rgba(8,8,8,0.97); border-left: 3px solid var(--yellow);
-    z-index: 100; overflow-y: auto; transform: translateX(100%);
-    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-    scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
-  }
-  .edu-drawer.visible { transform: translateX(0); }
-
-  .edu-drawer-hdr {
-    padding: 14px 16px 12px; border-bottom: 1px solid #1e1e1e; position: sticky; top: 0;
-    background: rgba(8,8,8,0.98); z-index: 10;
-    display: flex; align-items: flex-start; justify-content: space-between;
-  }
-  .edu-drawer-title { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: var(--yellow); }
-  .edu-drawer-sub { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 3px; }
-  .edu-drawer-close { font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,0.25); cursor: pointer; padding: 2px 6px; border: 1px solid rgba(255,255,255,0.1); border-radius: 2px; }
-  .edu-drawer-close:hover { color: var(--yellow); border-color: var(--yellow); }
-
-  .edu-section { border-bottom: 1px solid #181818; }
-  .edu-section-head {
-    padding: 11px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;
-    transition: background 0.15s;
-  }
-  .edu-section-head:hover { background: rgba(255,255,255,0.02); }
-  .edu-num { font-family: var(--mono); font-size: 9px; color: var(--yellow); width: 26px; flex-shrink: 0; }
-  .edu-agent-name { font-family: var(--sans); font-size: 11px; font-weight: 600; color: #e8e8e8; flex: 1; }
-  .edu-pattern-tag { font-family: var(--mono); font-size: 7px; color: rgba(255,255,255,0.25); letter-spacing: 0.5px; }
-  .edu-chevron { color: rgba(255,255,255,0.2); font-size: 9px; transition: transform 0.2s; }
-  .edu-section.open .edu-chevron { transform: rotate(90deg); }
-
-  .edu-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-  .edu-section.open .edu-body { max-height: 600px; }
-  .edu-body-inner { padding: 4px 16px 14px; }
-
-  .edu-row { margin-bottom: 9px; }
-  .edu-lbl { font-family: var(--mono); font-size: 7px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,208,0,0.55); margin-bottom: 3px; }
-  .edu-val { font-family: var(--sans); font-size: 10px; color: rgba(255,255,255,0.65); line-height: 1.5; }
-
-  .edu-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 6px 0 9px; }
-  .edu-chip { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); padding: 5px 8px; }
-  .edu-chip-lbl { font-family: var(--mono); font-size: 7px; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.25); }
-  .edu-chip-val { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--yellow); margin-top: 2px; }
-
-  .edu-next { background: rgba(255,208,0,0.04); border: 1px solid rgba(255,208,0,0.12);
-    border-left: 3px solid var(--yellow); padding: 6px 10px; margin-top: 8px;
-    font-size: 10px; color: rgba(255,208,0,0.7); line-height: 1.4; }
-
-  .edu-empty { padding: 32px 16px; text-align: center; font-family: var(--mono);
-    font-size: 9px; color: rgba(255,255,255,0.18); letter-spacing: 1px; line-height: 1.8; }
+  /* ── Agent Detail Popup Modal ─────────────────────────────────────────── */
+  .adm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; display: none; align-items: center; justify-content: center; }
+  .adm-overlay.open { display: flex; }
+  .adm-modal { background: var(--white); width: min(760px, 92vw); max-height: 88vh; border-radius: 4px; display: flex; flex-direction: column; box-shadow: 0 24px 64px rgba(0,0,0,0.35); border: 1px solid var(--border); overflow: hidden; }
+  .adm-hdr { background: var(--dark); padding: 16px 22px; display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0; }
+  .adm-hdr-left { display: flex; flex-direction: column; gap: 4px; }
+  .adm-pattern { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,208,0,0.7); }
+  .adm-name { font-family: var(--sans); font-size: 17px; font-weight: 700; color: var(--white); }
+  .adm-close { background: none; border: none; font-size: 20px; cursor: pointer; color: rgba(255,255,255,0.4); padding: 0 4px; line-height: 1; }
+  .adm-close:hover { color: var(--white); }
+  .adm-close:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  .adm-body { overflow-y: auto; padding: 22px; flex: 1; }
+  .adm-section { margin-bottom: 24px; }
+  .adm-section-title { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--amber); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .adm-how-item { margin-bottom: 12px; }
+  .adm-how-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.5px; color: var(--light); text-transform: uppercase; margin-bottom: 3px; }
+  .adm-how-val { font-size: 13px; color: var(--dark); line-height: 1.6; }
+  .adm-kv { display: flex; flex-direction: column; }
+  .adm-row { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(0,0,0,0.06); align-items: baseline; }
+  .adm-key { font-family: var(--mono); font-size: 11px; color: var(--mid); min-width: 150px; flex-shrink: 0; }
+  .adm-val { font-size: 13px; color: var(--dark); }
+  .adm-tbl { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .adm-tbl th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--light); text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--border); }
+  .adm-tbl td { padding: 7px 10px; border-bottom: 1px solid rgba(0,0,0,0.05); color: var(--dark); vertical-align: top; }
+  .adm-tbl tr:last-child td { border-bottom: none; }
+  .adm-iteration { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; margin-bottom: 10px; }
+  .adm-iter-hdr { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--dark); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .adm-badge-pass { font-family: var(--mono); font-size: 10px; padding: 2px 7px; background: rgba(13,122,62,0.1); color: var(--green); border: 1px solid rgba(13,122,62,0.3); border-radius: 2px; }
+  .adm-badge-requery { font-family: var(--mono); font-size: 10px; padding: 2px 7px; background: rgba(196,122,0,0.1); color: var(--amber); border: 1px solid rgba(196,122,0,0.3); border-radius: 2px; }
+  /* View Details link — visible only when agent is complete */
+  .vd-link { font-family: var(--mono); font-size: 9px; letter-spacing: 0.5px; color: var(--blue); cursor: pointer; margin-top: 5px; display: none; text-decoration: underline; text-underline-offset: 2px; background: none; border: none; padding: 0; }
+  .vd-link:hover { color: var(--dark); }
+  .agent-item.complete .vd-link { display: inline; }
 
   /* ── Design System Uplift ────────────────────────────────────────────────── */
 
@@ -355,8 +330,7 @@
   button:focus-visible,
   .query-send:focus-visible,
   .eq:focus-visible,
-  .nav-item:focus-visible,
-  .edu-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .nav-item:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
   /* 15 — Limit narrative text width (~68ch) to reduce horizontal eye travel */
   .bt, .rt, .rdd { max-width: 68ch; }
@@ -397,8 +371,12 @@
     <div class="hpill warn" id="alertCountPill" style="display:none;"></div>
     <div class="hpill live">Graph Live</div>
     <div class="hpill info">APRA · APS221 · CPS230</div>
+    <!-- HITL toggle: default OFF = auto-approve; ON = pause for human approval -->
+    <button id="hitlToggle" onclick="toggleHITL()" style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:2px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.15);cursor:pointer" title="Human-in-the-Loop approval: OFF = auto-approve, ON = pause for risk officer review">HITL: OFF</button>
+    <!-- APRA Notice: upload real DTI notice (threshold 6x) → triggers breach on next pipeline run -->
+    <button id="apraBtn" onclick="triggerApraNotice()" style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:2px;background:rgba(255,208,0,0.12);color:var(--yellow);border:1px solid rgba(255,208,0,0.35);cursor:pointer" title="Apply APRA DTI Implementation Notice — tightens threshold 8.0x → 6.0x. Re-run pipeline to see breach.">↓ APRA Notice</button>
+    <a href="/admin?tab=sessions" target="_blank" style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:2px;background:rgba(255,208,0,0.12);color:var(--yellow);border:1px solid rgba(255,208,0,0.35);text-decoration:none;cursor:pointer" title="View all pipeline runs and risk analysis reports">⬡ History</a>
     <div class="hpill info" onclick="resetSession()" style="cursor:pointer;margin-left:8px">↺ Reset</div>
-    <button class="edu-toggle" id="eduToggle" onclick="toggleEdu()">Edu: ON</button>
   </div>
 </header>
 
@@ -407,17 +385,26 @@
   <div class="ab-items" id="liveAlertItems"></div>
 </div>
 
-<!-- Phase 9 — Educational Drawer -->
-<div class="edu-drawer" id="eduDrawer">
-  <div class="edu-drawer-hdr">
-    <div>
-      <div class="edu-drawer-title">Architecture Walkthrough</div>
-      <div class="edu-drawer-sub">Live data from pipeline · Each agent explained</div>
+<!-- Agent Detail Popup Modal -->
+<div class="adm-overlay" id="agentDetailModal" onclick="if(event.target===this)closeAgentDetail()">
+  <div class="adm-modal">
+    <div class="adm-hdr">
+      <div class="adm-hdr-left">
+        <div class="adm-pattern" id="admAgentPattern">Pattern</div>
+        <div class="adm-name" id="admAgentName">Agent</div>
+      </div>
+      <button class="adm-close" onclick="closeAgentDetail()" aria-label="Close">✕</button>
     </div>
-    <div class="edu-drawer-close" onclick="document.getElementById('eduDrawer').classList.remove('visible')">✕ Close</div>
-  </div>
-  <div id="eduSections">
-    <div class="edu-empty">Run a risk analysis<br>to begin the walkthrough</div>
+    <div class="adm-body">
+      <div class="adm-section">
+        <div class="adm-section-title">How It Works</div>
+        <div id="admHow"></div>
+      </div>
+      <div class="adm-section">
+        <div class="adm-section-title">What It Found</div>
+        <div id="admFound"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -459,9 +446,9 @@
     <div class="panel-header">
       <div>
         <div class="panel-label">02 · Agent Pipeline</div>
-        <div class="panel-title">TRBK Graph Traversal · 5 Specialist Agents</div>
+        <div class="panel-title">TRBK Graph Traversal · 6 Specialist Agents</div>
       </div>
-      <div class="panel-count" id="agentProgress">0 / 5 complete</div>
+      <div class="panel-count" id="agentProgress">0 / 6 complete</div>
     </div>
     <div class="panel-body">
 
@@ -472,6 +459,7 @@
         <div>
           <div class="anr">Intake Agent <span class="ab ab-waiting">Waiting</span></div>
           <div class="ao">Parses NL query · Identifies customer · Classifies intent · Routes: risk analysis / simple query / rejection</div>
+          <button class="vd-link" onclick="openAgentDetail('intake')">View Details</button>
         </div>
       </div>
 
@@ -480,6 +468,7 @@
         <div>
           <div class="anr">Pattern Agent <span class="ab ab-waiting">Waiting</span></div>
           <div class="ao" id="a2desc">RPT-1 tabular foundation model · Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled</div>
+          <button class="vd-link" onclick="openAgentDetail('pattern')">View Details</button>
         </div>
       </div>
 
@@ -489,26 +478,43 @@
           <div class="anr">Relationship Agent <span class="ab ab-waiting">Waiting</span></div>
           <div class="ao">ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check</div>
           <div class="graph-wrap" id="gw" onclick="openGraphModal()" title="Click to expand graph"><canvas id="graphCanvas"></canvas></div>
+          <button class="vd-link" onclick="openAgentDetail('relationship')">View Details</button>
         </div>
       </div>
 
       <div class="agent-item" id="a4">
         <div class="an">04</div>
         <div>
-          <div class="anr">Trajectory + Self-RAG <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">Forward DTI after income expiry · Conflicting signal resolution · Self-RAG re-queries if confidence &lt; 0.70</div>
+          <div class="anr">Trajectory Agent <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">Forward DTI after income expiry · Income contract expiry window · Conflicting signals detection</div>
+          <button class="vd-link" onclick="openAgentDetail('trajectory')">View Details</button>
+        </div>
+      </div>
+
+      <div class="agent-item" id="a4b">
+        <div class="an" style="font-size:9px;letter-spacing:0">↻ SR</div>
+        <div>
+          <div class="anr">Self-RAG <span class="ab ab-waiting">Waiting</span></div>
+          <div class="ao">Evidence quality evaluation · Re-queries Relationship Agent if confidence &lt; 0.70 · Max 2 re-queries</div>
           <div class="conf-wrap" id="cw">
             <span class="cl">Confidence</span>
             <div class="cb"><div class="cf" id="cf" style="width:0%"></div></div>
             <span class="cv" id="cv">0%</span>
           </div>
+          <button class="vd-link" onclick="openAgentDetail('selfRagCheck')">View Details</button>
         </div>
       </div>
 
-      <!-- Human approval bar — shown when pipeline pauses -->
-      <div id="approveBar" style="display:none;align-items:center;gap:12px;padding:12px 14px;margin:8px 0;background:var(--yellow-pale);border:1.5px solid var(--yellow);border-left:4px solid var(--amber)">
-        <div style="flex:1;font-size:11px;color:var(--dark)"><strong>APRA CPS 230</strong> — Risk officer approval required before final brief is generated</div>
-        <button onclick="approve()" style="background:var(--yellow);border:none;padding:8px 18px;font-family:var(--sans);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">▶ APPROVE</button>
+      <!-- Human approval bar — shown when pipeline pauses (HITL: ON) -->
+      <div id="approveBar" style="display:none;flex-direction:column;gap:8px;padding:12px 14px;margin:8px 0;background:var(--yellow-pale);border:1.5px solid var(--yellow);border-left:4px solid var(--amber)">
+        <div style="font-size:11px;color:var(--dark);font-weight:600">APRA CPS 230 — Risk officer approval required</div>
+        <!-- Agent summary — populated from SSE data before showing approveBar -->
+        <div id="approvalSummary" style="font-size:10px;color:var(--mid);display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--yellow);padding-top:8px;margin-top:2px"></div>
+        <div style="display:flex;gap:8px;margin-top:4px;align-items:center">
+          <button onclick="approve()" style="background:var(--yellow);border:none;padding:8px 18px;font-family:var(--sans);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px;flex:1">▶ APPROVE — Generate APRA Brief</button>
+          <button onclick="reject()" style="background:var(--red-light);border:1.5px solid var(--red);padding:8px 14px;font-family:var(--sans);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px;color:var(--red)">✕ REJECT</button>
+          <button class="vd-link" style="display:inline" onclick="openAgentDetail('humanApproval')">View Details</button>
+        </div>
       </div>
 
       <div class="agent-item" id="a5">
@@ -516,6 +522,7 @@
         <div>
           <div class="anr">Synthesis Agent <span class="ab ab-waiting">Waiting</span></div>
           <div class="ao">HANA Vector RAG · APRA regulatory retrieval · Evidence trail · APRA-ready risk brief with confidence per finding</div>
+          <button class="vd-link" onclick="openAgentDetail('synthesis')">View Details</button>
         </div>
       </div>
 
@@ -544,6 +551,9 @@
           <div class="rdl" id="rdl">Awaiting Analysis</div>
           <div class="rdd" id="rdd">Run a query to generate the risk brief</div>
         </div>
+        <div id="reportBtnWrap" style="display:none;padding:12px 14px;flex-direction:column;justify-content:center;border-left:1px solid rgba(255,255,255,0.1)">
+          <button onclick="openExplainReport()" style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:7px 12px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.2);cursor:pointer;border-radius:2px;white-space:nowrap">⬡ Risk Analysis Report ↗</button>
+        </div>
       </div>
 
       <div class="section-title">Connected Risk Chain</div>
@@ -558,8 +568,10 @@
       <div class="section-title">Evidence Trail · CPS 230</div>
       <div id="evs"><div class="ev-item"><span class="ed">◆</span>Awaiting retrieval...</div></div>
 
+
     </div>
   </div>
+
 
 </main>
 
@@ -577,7 +589,7 @@
 
 <script>
 // ── Config ───────────────────────────────────────────────────────────────────
-const API = 'http://localhost:4004';
+const API = window.location.port === '4004' ? 'http://localhost:4004' : '';
 let sessionId = null;
 let evtSource = null;
 let agentsDone = 0;
@@ -620,7 +632,8 @@ const AGENT_MAP = {
   intake: 'a1', simpleQuery: 'a1', rejection: 'a1',
   pattern: 'a2',
   relationship: 'a3',
-  trajectory: 'a4', selfRagCheck: 'a4',
+  trajectory: 'a4',
+  selfRagCheck: 'a4b',
   humanApproval: null,
   synthesis: 'a5'
 };
@@ -634,15 +647,15 @@ function showError(msg) {
   const errEl = document.getElementById('pipelineError');
   errEl.textContent = '⚠ ' + msg;
   errEl.style.display = 'block';
-  ['a1','a2','a3','a4','a5'].forEach(id => {
+  ['a1','a2','a3','a4','a4b','a5'].forEach(id => {
     const el = document.getElementById(id);
-    if (el && el.querySelector('.as')?.textContent === 'THINKING') setAgent(id, 'idle', null);
+    if (el && el.querySelector('.ab')?.textContent === '● Thinking') setAgent(id, 'idle', null);
   });
 }
 
 function resetUI() {
   agentsDone = 0; startTime = Date.now();
-  document.getElementById('agentProgress').textContent = '0 / 5 complete';
+  document.getElementById('agentProgress').textContent = '0 / 6 complete';
   document.getElementById('approveBar').style.display = 'none';
   document.getElementById('regulatoryBanner').style.display = 'none';
   document.getElementById('liveAlertsBar').style.display = 'none';
@@ -663,6 +676,8 @@ function resetUI() {
   document.getElementById('rq').textContent = '0';
   document.getElementById('gh').textContent = '0';
   patternParts.rpt1 = null; patternParts.pal = null; patternParts.llm = null;
+  Object.keys(agentData).forEach(k => delete agentData[k]);
+  closeAgentDetail();
   document.getElementById('rag').textContent = '—';
   document.getElementById('ragScore').textContent = '—';
   document.getElementById('ragScore').style.color = '';
@@ -675,20 +690,16 @@ function resetUI() {
   document.getElementById('recs').innerHTML = '<div class="rec" style="opacity:0.3"><div class="rh"><span class="rp">—</span></div><div class="rt">Awaiting synthesis...</div></div>';
   document.getElementById('evs').innerHTML = '<div class="ev-item"><span class="ed">◆</span>Awaiting retrieval...</div>';
   const AGENT_DEFAULTS = {
-    a1: 'Parses NL query · Identifies customer · Classifies intent · Routes: risk analysis / simple query / rejection',
-    a2: 'RPT-1 tabular foundation model · Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled',
-    a3: 'ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check',
-    a4: 'Forward DTI after income expiry · Conflicting signal resolution · Self-RAG re-queries if confidence &lt; 0.70',
-    a5: 'HANA Vector RAG · APRA regulatory retrieval · Evidence trail · APRA-ready risk brief with confidence per finding'
+    a1:  'Parses NL query · Identifies customer · Classifies intent · Routes: risk analysis / simple query / rejection',
+    a2:  'RPT-1 tabular foundation model · Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled',
+    a3:  'ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check',
+    a4:  'Forward DTI after income expiry · Income contract expiry window · Conflicting signals detection',
+    a4b: 'Evidence quality evaluation · Re-queries Relationship Agent if confidence &lt; 0.70 · Max 2 re-queries',
+    a5:  'HANA Vector RAG · APRA regulatory retrieval · Evidence trail · APRA-ready risk brief with confidence per finding'
   };
-  ['a1','a2','a3','a4','a5'].forEach(id => {
+  ['a1','a2','a3','a4','a4b','a5'].forEach(id => {
     setAgent(id, 'idle', AGENT_DEFAULTS[id]);
   });
-  // Clear educational drawer
-  const eduSec = document.getElementById('eduSections');
-  if (eduSec) eduSec.innerHTML = '<div class="edu-empty">Run a risk analysis<br>to begin the walkthrough</div>';
-  const eduDrawer = document.getElementById('eduDrawer');
-  if (eduDrawer) eduDrawer.classList.remove('visible');
 }
 
 function setAgent(id, state, html) {
@@ -708,7 +719,7 @@ function setAgent(id, state, html) {
     if (!el.dataset.counted) {
       el.dataset.counted = '1';
       agentsDone++;
-      document.getElementById('agentProgress').textContent = agentsDone + ' / 5 complete';
+      document.getElementById('agentProgress').textContent = agentsDone + ' / 6 complete';
     }
   } else if (state !== 'idle') {
     delete el.dataset.counted;
@@ -730,24 +741,23 @@ function handleEvent(evt) {
   if (startTime) document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
 
   if (e.type === 'pipeline_status') {
-    // selfRagCheck — update confidence bar and trajectory row with full outcome
+    // selfRagCheck — update dedicated Self-RAG badge + confidence bar
     if (e.agent === 'selfRagCheck') {
-      const pct = Math.round((e.confidence || 0) * 100);
+      const pct = Math.round((e.selfRagConf || 0) * 100);
       document.getElementById('cf').style.width = pct + '%';
       document.getElementById('cv').textContent = pct + '%';
       document.getElementById('cw').style.display = 'flex';
       document.getElementById('rq').textContent = e.requeryCount || '0';
-      const fp    = e.forwardPosition || '—';
-      const fpCol = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : fp === 'MONITORING' ? 'w' : 'w';
-      const dte   = e.daysToExpiry != null ? ` · Income expiry <span class="r">${e.daysToExpiry}d</span>` : '';
-      const rqTxt = e.requeryCount > 0 ? ` · ${e.requeryCount} re-quer${e.requeryCount === 1 ? 'y' : 'ies'}` : '';
-      if (e.confidence < 0.70) {
-        setAgent('a4', 'requery', `Forward: <span class="${fpCol}">${fp}</span>${dte} · Confidence <span class="w">${pct}%</span> — below 70% · Re-querying: <span class="h">${e.reQueryHint || 'expanding graph traversal...'}</span>`);
+      const iters  = e.selfRagIteration || 0;
+      const rqTxt  = iters > 1 ? ` · ${iters - 1} re-quer${iters - 1 === 1 ? 'y' : 'ies'}` : '';
+      const gapTxt = (e.selfRagGaps || []).length > 0 ? ` · ${e.selfRagGaps.length} gap${e.selfRagGaps.length === 1 ? '' : 's'} resolved` : '';
+      agentData.selfRagCheck = e;
+      if ((e.selfRagConf || 0) < 0.70) {
+        setAgent('a4b', 'requery', `Confidence <span class="w">${pct}%</span> — below 70% · Re-querying: <span class="h">${e.reQueryHint || 'expanding graph traversal...'}</span>`);
       } else {
-        setAgent('a4', 'complete', `Forward: <span class="${fpCol}">${fp}</span>${dte} · Confidence <span class="h">${pct}%</span>${rqTxt}`);
+        setAgent('a4b', 'complete', `Confidence <span class="h">${pct}%</span>${rqTxt}${gapTxt} · ${e.selfRagReasoning || 'Evidence quality confirmed'}`);
         setAgent('a5', 'active', 'HANA Vector RAG retrieving APRA standards · Building risk brief...');
       }
-      addEduSection('selfRagCheck', e);
       return;
     }
 
@@ -766,13 +776,14 @@ function handleEvent(evt) {
     const agentId = AGENT_MAP[e.agent];
     if (!agentId) return;
 
-    // Set next agent as active (pipeline hint) — matches actual execution order:
-    // trajectory (a4) runs before relationship (a3); selfRagCheck handles a4 requery/complete
-    const nextMap = { intake: 'a2', trajectory: 'a3' };
+    // Pipeline execution order hint: intake→pattern, trajectory→relationship, relationship→selfRag
+    // Note: trajectory(a4) runs BEFORE relationship(a3) — labels do not match execution order (intentional)
+    const nextMap = { intake: 'a2', trajectory: 'a3', relationship: 'a4b' };
     if (nextMap[e.agent]) setAgent(nextMap[e.agent], 'active', null);
 
     // Pattern: mark complete but preserve the progressive bold .ao built by pattern_progress events
     if (e.agent === 'pattern') {
+      agentData.pattern = e;
       setAgent('a2', 'complete', null);   // badge only — .ao already has bold progressive text
       const ao = document.querySelector('#a2 .ao');
       if (ao && e.patternConf != null) {
@@ -782,7 +793,6 @@ function handleEvent(evt) {
       document.getElementById('rdl').textContent = (e.riskLevel || '—') + ' RISK';
       const c = { HIGH:'#D42020', CRITICAL:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' };
       document.querySelector('.risk-score-block').style.background = c[e.riskLevel] || '#888';
-      addEduSection('pattern', e);
       // high-risk path: trajectory (a4) runs next; low-risk goes direct to synthesis
       if (e.riskLevel === 'HIGH' || e.riskLevel === 'CRITICAL' || e.riskLevel === 'MEDIUM') {
         setAgent('a4', 'active', 'Calculating forward DTI · Income expiry projection · Conflicting signal resolution...');
@@ -790,17 +800,15 @@ function handleEvent(evt) {
       return;
     }
 
+    agentData[e.agent] = e;
     setAgent(agentId, 'complete', getCompletionHtml(e));
-    addEduSection(e.agent, e);
 
-    // Low-risk path skips agents 3+4 — mark them so they don't show stale state
+    // Low-risk path skips agents 3+4+4b — mark them so they don't show stale state
     if (e.agent === 'synthesis') {
-      ['a3','a4'].forEach(id => {
+      [['a3','Connected party check not required'],['a4','Trajectory assessment not required'],['a4b','Self-RAG check not required']].forEach(([id, reason]) => {
         const badge = document.querySelector(`#${id} .ab`);
         if (badge && (badge.textContent === '● Thinking' || badge.textContent === '○ Waiting')) {
-          setAgent(id, 'idle', id === 'a3'
-            ? 'Skipped — risk score below threshold · Connected party check not required'
-            : 'Skipped — risk score below threshold · Trajectory assessment not required');
+          setAgent(id, 'idle', `Skipped — risk score below threshold · ${reason}`);
         }
       });
     }
@@ -824,10 +832,27 @@ function handleEvent(evt) {
     }
   }
 
-  if (e.type === 'risk_findings') renderRiskBrief(e.synthesisResult);
+  if (e.type === 'risk_findings') {
+    agentData.synthesis = e;
+    renderRiskBrief(e.synthesisResult);
+  }
   if (e.type === 'human_approval') {
+    if (!hitlEnabled) {
+      // HITL OFF — auto-approve immediately without showing the bar
+      console.log('[HITL] auto-approving (HITL=OFF)');
+      approve();
+      return;
+    }
+    // Populate agent summary lines before showing the bar
+    const summary = document.getElementById('approvalSummary');
+    const lines = [];
+    if (e.riskScore != null)    lines.push(`Pattern Agent — ${e.riskLevel || '?'} risk · score ${e.riskScore} · ${e.signal || '?'} signal`);
+    if (e.groupExposure != null) lines.push(`Relationship Agent — ${e.nodes || '?'} entities · group exposure AUD ${((e.groupExposure||0)/1e6).toFixed(2)}M`);
+    if (e.forwardPosition)      lines.push(`Trajectory Agent — forward position: ${e.forwardPosition}${e.daysToExpiry != null ? ` · income expiry ${e.daysToExpiry}d` : ''}`);
+    if (e.selfRagConf != null)  lines.push(`Self-RAG — evidence confidence ${Math.round((e.selfRagConf||0)*100)}%${e.selfRagIteration > 1 ? ` · ${e.selfRagIteration-1} re-quer${e.selfRagIteration-1===1?'y':'ies'}` : ''}`);
+    summary.innerHTML = lines.map(l => `<div>· ${l}</div>`).join('');
+    agentData.humanApproval = e;
     document.getElementById('approveBar').style.display = 'flex';
-    addEduSection('humanApproval', e);
   }
 
   if (e.type === 'ragas_scores') {
@@ -842,8 +867,19 @@ function handleEvent(evt) {
 
   if (e.type === 'regulatory_update') {
     const b = document.getElementById('regulatoryBanner');
-    b.textContent = `${e.standard} updated — ${e.chunkCount} chunks embedded in HANA Vector. Re-run analysis to apply new standards.`;
+    const revertHtml = e.thresholdUpdated
+      ? ` &nbsp;<button onclick="revertThreshold()" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(196,122,0,0.15);color:var(--amber);border:1px solid rgba(196,122,0,0.4);cursor:pointer">↩ Revert to 8.0x</button>`
+      : '';
+    const extra = e.thresholdUpdated
+      ? ` &nbsp;·&nbsp; DTI threshold → <strong>6.0x</strong>&nbsp; — re-run pipeline to see breach.${revertHtml}`
+      : ' Re-run analysis to apply new standards.';
+    b.innerHTML = `<strong>${e.standard}</strong> &nbsp;—&nbsp; ${e.chunkCount} chunks embedded in HANA Vector.${extra}`;
     b.style.display = 'block';
+    if (e.thresholdUpdated) {
+      b.style.background = 'rgba(196,122,0,0.1)';
+      b.style.borderLeftColor = 'var(--amber)';
+      b.style.color = 'var(--amber)';
+    }
   }
   if (e.type === 'session_reset') resetUI();
 }
@@ -889,10 +925,15 @@ function getCompletionHtml(e) {
       return `${e.nodes || '?'} entities · Group exposure: <span class="r">${exp}</span> · APS 221: <span class="r">${aps}</span>${limit}${findingHtml}`;
     }
     case 'trajectory': {
-      const fp = e.forwardPosition || '—';
-      const col = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : fp === 'MONITORING' ? 'w' : 'w';
-      const dte = e.daysToExpiry != null ? ` · Income expiry in <span class="r">${e.daysToExpiry}d</span>` : '';
-      return `Forward position: <span class="${col}">${fp}</span>${dte} · DTI trajectory calculated`;
+      const fp     = e.forwardPosition || '—';
+      const col    = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : fp === 'MONITORING' ? 'w' : 'w';
+      const dte    = e.daysToExpiry != null ? ` · Income expiry <span class="r">${e.daysToExpiry}d</span>` : '';
+      const sigs   = (e.conflictingSignals || []).length;
+      const sigTxt = sigs > 0 ? ` · <span class="w">${sigs} conflicting signal${sigs > 1 ? 's' : ''}</span>` : '';
+      const ttb    = e.timeToBreach != null
+        ? (e.timeToBreach < 0 ? ` · Breach active <span class="r">${Math.abs(e.timeToBreach)}d</span>` : ` · Breach projected <span class="w">${e.timeToBreach}d</span>`)
+        : '';
+      return `Forward: <span class="${col}">${fp}</span>${dte}${sigTxt}${ttb}`;
     }
     case 'synthesis': {
       const fc = e.findingsCount || '?';
@@ -928,7 +969,7 @@ async function runAnalysis() {
     const res = await fetch(`${API}/a2a/agent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: 'analyseRisk', params: { query, sessionId }, id: '1' })
+      body: JSON.stringify({ method: 'analyseRisk', params: { query, sessionId, hitl: hitlEnabled }, id: '1' })
     });
     const data = await res.json();
     if (data.error) {
@@ -944,6 +985,134 @@ async function runAnalysis() {
   } catch (err) {
     showError(err.message || 'Network error');
   }
+}
+
+// ── HITL Toggle ───────────────────────────────────────────────────────────────
+let hitlEnabled = false; // default OFF — auto-approve
+
+function toggleHITL() {
+  hitlEnabled = !hitlEnabled;
+  const btn = document.getElementById('hitlToggle');
+  if (hitlEnabled) {
+    btn.textContent = 'HITL: ON';
+    btn.style.background = 'rgba(255,208,0,0.15)';
+    btn.style.color = 'var(--yellow)';
+    btn.style.borderColor = 'rgba(255,208,0,0.4)';
+  } else {
+    btn.textContent = 'HITL: OFF';
+    btn.style.background = 'rgba(255,255,255,0.05)';
+    btn.style.color = 'rgba(255,255,255,0.45)';
+    btn.style.borderColor = 'rgba(255,255,255,0.15)';
+  }
+}
+
+// ── APRA Notice ───────────────────────────────────────────────────────────────
+// Uploads real APRA DTI notice (threshold 6.0x) → updates RegulatoryThresholds → triggers breach on re-run
+async function triggerApraNotice() {
+  const btn = document.getElementById('apraBtn');
+  btn.textContent = '↓ Syncing…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/a2a/sync-apra`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: sessionId || 'apra-notice-' + Date.now(),
+        docTitle:  'APRA Implementation Details — Activating Debt-to-Income Limits (6.0x)',
+        standard:  'DTI_NOTICE',
+        pdfUrl:    'https://www.apra.gov.au/sites/default/files/2025-11/Implementation%20Details%20-%20DTI%20limit.pdf'
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Button: show confirmed state
+    btn.textContent = data.thresholdUpdated ? '✓ DTI → 6.0x' : '✓ Applied';
+    btn.style.background = 'rgba(196,122,0,0.15)';
+    btn.style.color = 'var(--amber)';
+    btn.style.borderColor = 'rgba(196,122,0,0.4)';
+
+    // Banner — always update so revert button is always present after each click
+    const banner = document.getElementById('regulatoryBanner');
+    const revertHtml = data.thresholdUpdated
+      ? ` &nbsp;<button onclick="revertThreshold()" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(196,122,0,0.15);color:var(--amber);border:1px solid rgba(196,122,0,0.4);cursor:pointer">↩ Revert to 8.0x</button>`
+      : '';
+    const extra = data.thresholdUpdated
+      ? ` &nbsp;·&nbsp; DTI threshold → <strong>6.0x</strong> — re-run pipeline to see breach.${revertHtml}`
+      : ' Re-run analysis to apply new standards.';
+    banner.innerHTML = `<strong>DTI_NOTICE</strong> &nbsp;—&nbsp; ${data.chunkCount} chunks embedded in HANA Vector.${extra}`;
+    banner.style.display = 'block';
+    banner.style.background = 'rgba(196,122,0,0.1)';
+    banner.style.borderLeftColor = 'var(--amber)';
+    banner.style.color = 'var(--amber)';
+  } catch (err) {
+    btn.textContent = '↓ Error';
+    btn.disabled = false;
+    console.error('[ApraNotice]', err);
+  }
+}
+
+async function revertThreshold() {
+  const btn = document.getElementById('apraBtn');
+  try {
+    const res = await fetch(`${API}/api/reset-threshold`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Restore button to original state
+    btn.textContent = '↓ APRA Notice';
+    btn.style.background = 'rgba(255,208,0,0.12)';
+    btn.style.color = 'var(--yellow)';
+    btn.style.borderColor = 'rgba(255,208,0,0.35)';
+    btn.disabled = false;
+
+    // Update banner to confirm revert
+    const banner = document.getElementById('regulatoryBanner');
+    banner.innerHTML = '↩ DTI threshold restored to <strong>8.0x</strong> (Demo 1 baseline) — re-run pipeline to confirm compliant result.';
+    banner.style.background = 'rgba(13,122,62,0.08)';
+    banner.style.borderLeftColor = 'var(--green)';
+    banner.style.color = 'var(--green)';
+  } catch (err) {
+    console.error('[RevertThreshold]', err);
+  }
+}
+
+// ── APRA state restore on page load ──────────────────────────────────────────
+async function checkApraState() {
+  try {
+    const res  = await fetch(`${API}/api/dti-status`);
+    const data = await res.json();
+    if (!data.apraNoticeActive) return;
+    const btn = document.getElementById('apraBtn');
+    btn.textContent = '✓ DTI → 6.0x';
+    btn.style.background  = 'rgba(196,122,0,0.15)';
+    btn.style.color       = 'var(--amber)';
+    btn.style.borderColor = 'rgba(196,122,0,0.4)';
+    const banner    = document.getElementById('regulatoryBanner');
+    const revertBtn = `&nbsp;<button onclick="revertThreshold()" style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(196,122,0,0.15);color:var(--amber);border:1px solid rgba(196,122,0,0.4);cursor:pointer">↩ Revert to 8.0x</button>`;
+    banner.innerHTML         = `APRA Notice active &nbsp;·&nbsp; DTI threshold <strong>${data.dtiLimit}x</strong> — re-run pipeline to see breach.${revertBtn}`;
+    banner.style.display     = 'block';
+    banner.style.background  = 'rgba(196,122,0,0.1)';
+    banner.style.borderLeftColor = 'var(--amber)';
+    banner.style.color       = 'var(--amber)';
+  } catch(e) { /* silent — HANA not reachable on cold load */ }
+}
+checkApraState();
+
+// ── Reject ────────────────────────────────────────────────────────────────────
+async function reject() {
+  if (!sessionId) return;
+  document.getElementById('approveBar').style.display = 'none';
+  setAgent('a5', 'idle', '<span style="color:var(--red)">✕ Rejected by risk officer — analysis not signed off</span>');
+  // Log the rejection event (server handles gracefully if endpoint not present)
+  try {
+    await fetch(`${API}/a2a/reject`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, rejectedBy: 'risk_officer' })
+    });
+  } catch (e) { /* rejection is best-effort */ }
 }
 
 // ── Approve ───────────────────────────────────────────────────────────────────
@@ -990,166 +1159,219 @@ async function resetSession() {
     });
   } catch (e) {}
   resetUI();
-  // Clear educational drawer on reset
-  const sections = document.getElementById('eduSections');
-  if (sections) {
-    sections.innerHTML = '<div class="edu-empty">Run a risk analysis<br>to begin the walkthrough</div>';
-    document.getElementById('eduDrawer').classList.remove('visible');
-  }
 }
 
-// ── Phase 9 — Educational Drawer ─────────────────────────────────────────────
-let eduMode = true;
+// ── Agent Detail Popup — data cache + content builders ───────────────────────
+const agentData = {};
 
-function toggleEdu() {
-  eduMode = !eduMode;
-  const btn = document.getElementById('eduToggle');
-  const drawer = document.getElementById('eduDrawer');
-  btn.textContent = eduMode ? 'Edu: ON' : 'Edu: OFF';
-  btn.className = 'edu-toggle' + (eduMode ? '' : ' off');
-  if (!eduMode) {
-    drawer.classList.remove('visible');
-  } else if (document.querySelectorAll('.edu-section').length > 0) {
-    drawer.classList.add('visible');
-  }
-}
-
-const EDU_META = {
+const AGENT_HOW = {
   intake: {
-    num: '01', name: 'Intake Agent', pattern: 'Router / Classifier',
-    banking: 'Parses the risk query, extracts the customer ID, and classifies intent — full risk pipeline, simple lookup, or inappropriate request. Upstream of every specialist agent.',
-    sap: 'Claude Haiku · Structured JSON output · CAP A2A endpoint (JSON-RPC 2.0)'
+    name: 'Intake Agent', pattern: 'Router / Classifier',
+    how: [
+      { label: 'AI Model', val: 'Claude Haiku (claude-haiku-4-5-20251001) — fast, cheap, structured JSON output.' },
+      { label: 'What it does', val: 'Parses natural language risk queries, extracts customer ID, classifies intent, and routes to: RISK_ASSESS (full 6-agent pipeline), SIMPLE_QUERY (direct HANA lookup), or REJECTION (inappropriate request).' },
+      { label: 'Why needed', val: 'Risk models cannot process free text. Intake extracts structured intent as JSON — without this every downstream agent would need its own NL parser.' },
+      { label: 'SAP Technology', val: 'CAP A2A service endpoint (JSON-RPC 2.0) · Solace topic banking/intake/complete' }
+    ]
   },
   pattern: {
-    num: '02', name: 'Pattern Agent', pattern: 'Parallel Multi-Model',
-    banking: 'Three independent signals run simultaneously: tabular risk scoring (RPT-1), statistical anomaly detection (PAL Isolation Forest), and LLM narrative analysis for nuanced signals.',
-    sap: 'RPT-1 (rpt.cloud.sap) · HANA PAL Isolation Forest · Claude Haiku · ScriptServer'
+    name: 'Pattern Agent', pattern: 'Parallel Multi-Model Execution',
+    how: [
+      { label: 'AI Pattern', val: 'Three independent risk signals run simultaneously via Promise.allSettled — no single model decides alone.' },
+      { label: 'RPT-1', val: 'rpt.cloud.sap consumer API — tabular foundation model. Classifies risk category (HIGH/MEDIUM/LOW/CRITICAL) and returns real confidence (e.g. 0.82).' },
+      { label: 'Isolation Forest', val: 'Scikit-learn / HANA PAL — detects statistical payment outliers from DFKKOP records. Reports flagged rows as X/Y payment rows with z-score reason codes.' },
+      { label: 'LLM Narrative', val: 'Claude Haiku — generates human-readable anomaly narrative for CPS 230 justification, synthesising DTI, income, and overdue payment patterns.' },
+      { label: 'Why three models', val: 'RPT-1 scores financial ratios. Isolation Forest catches statistical outliers. LLM catches narrative signals like income expiry risk. Each catches what the others miss.' },
+      { label: 'SAP Technology', val: 'rpt.cloud.sap tabular API · HANA PAL ScriptServer (requires 3 vCPU AFL) · Solace banking/pattern/progress per sub-result' }
+    ]
   },
   relationship: {
-    num: '03', name: 'Relationship Agent', pattern: 'ReAct Loop (Reason + Act)',
-    banking: 'Multi-hop graph traversal finds ALL connected parties — subsidiaries, guarantors, family trusts — up to 8 hops. Calculates total APS 221 group exposure including guaranteed amounts.',
-    sap: 'HANA Knowledge Graph Engine · BUT050 + BCA_GUARANTOR tables · SPARQL · GraphDB sandbox'
+    name: 'Relationship Agent', pattern: 'ReAct Loop (Reason + Act)',
+    how: [
+      { label: 'AI Pattern', val: 'ReAct — Claude Haiku with tool-calling iteratively reasons about graph findings and decides which tool to invoke next. Up to 6 ReAct steps.' },
+      { label: 'Tools', val: 'hana_graph_traverse (BFS via BUT050 + BCA_GUARANTOR), exposure_calculator (SUM(Loans.AMOUNT) across all connected entities), apra_threshold_check (APS 221 % of limit).' },
+      { label: 'Why graph traversal', val: 'APS 221 requires exposure aggregation across ALL connected parties — parents, subsidiaries, guarantors, family trusts. SQL cannot find multi-hop relationships. SPARQL traverses up to 8 hops in one query.' },
+      { label: 'Execution order note', val: 'Runs AFTER Trajectory Agent — uses forward DTI position to judge whether group exposure is material given an imminent income expiry.' },
+      { label: 'SAP Technology', val: 'GraphDB RDF triple store (sandbox = HANA Knowledge Graph Engine in production) · SPARQL 1.1 property paths · 4035 triples from 1000 BusinessPartners + 12 BUT050 edges' }
+    ]
+  },
+  trajectory: {
+    name: 'Trajectory Agent', pattern: 'Deterministic Rule Engine (No LLM)',
+    how: [
+      { label: 'AI Pattern', val: 'Pure formula and rule-based logic — no LLM. DTI projection is deterministic arithmetic. Conflicting signals are if/else rules.' },
+      { label: 'Forward DTI formula', val: 'futureDti = totalDebt / (annualIncome × daysToExpiry / 365). Calculated when INCOME_EXPIRY is set in BCA_DTI.' },
+      { label: 'timeToBreach meaning', val: 'Negative = days already in breach (since BREACH_DATE). Positive = projected days until breach after income expiry.' },
+      { label: 'Why no LLM', val: 'Arithmetic projection does not need a language model. LLM would add latency and hallucination risk without any gain over deterministic calculation.' },
+      { label: 'Execution order note', val: 'Runs BEFORE Relationship Agent intentionally — provides forward DTI position as context for the APS 221 exposure assessment.' },
+      { label: 'SAP Technology', val: 'BCA_DTI.INCOME_EXPIRY + BREACH_DATE + LoanSchedule via HANA CAP CDS · No external ML call' }
+    ]
   },
   selfRagCheck: {
-    num: '04', name: 'Trajectory + Self-RAG', pattern: 'Self-Reflective RAG',
-    banking: 'Trajectory Agent projects the forward DTI when income contracts expire. Self-RAG then reads ALL agent outputs and judges whether the evidence is complete — below 70% confidence triggers a targeted re-query of the relationship graph.',
-    sap: 'BCA_DTI · INCOME_EXPIRY field · LangGraph conditional edge · Claude Haiku · Langfuse quality scores'
+    name: 'Self-RAG', pattern: 'Epistemic Self-Evaluation',
+    how: [
+      { label: 'AI Pattern', val: 'LLM reads ALL previous agent outputs and evaluates evidence quality — not a threshold check. Returns structured evaluation with gaps and a targeted re-query hint.' },
+      { label: 'Four dimensions', val: '(1) Graph completeness — did traversal reach parent entities? (2) Signal consistency — HIGH RPT-1 + zero APS 221 = inconsistency. (3) Conflicting signals resolved? (4) Evidence trail — every risk claim backed by specific data.' },
+      { label: 'Routing logic', val: 'confidence &lt; 0.70 → re-queries Relationship Agent with targeted reQueryHint. Max 2 re-queries. ≥ 0.70 → proceeds to Human Approval.' },
+      { label: 'Why needed', val: 'Prevents presenting incomplete findings to a risk officer. Catches cases where the graph found 0 connected parties despite an RPT-1 HIGH score — a suspicious inconsistency.' },
+      { label: 'SAP Technology', val: 'LangGraph addConditionalEdges · Claude Haiku · Langfuse quality scoring · selfRagHistory array — one entry per iteration preserved in state' }
+    ]
   },
   humanApproval: {
-    num: 'HIL', name: 'Human Approval', pattern: 'Human-in-the-Loop (HITL)',
-    banking: 'Execution pauses here. APRA CPS 230 co-pilot requirement — no risk brief is sealed without a risk officer reviewing the preliminary findings and explicitly approving.',
-    sap: 'LangGraph interruptBefore · PostgresSaver checkpoint · Supabase · graph.updateState() on resume'
+    name: 'Human Approval', pattern: 'Human-in-the-Loop (HITL)',
+    how: [
+      { label: 'AI Pattern', val: 'LangGraph interruptBefore pauses execution — not an agent, a deliberate break for human decision.' },
+      { label: 'Why required', val: 'APRA CPS 230 co-pilot requirement — no risk brief is sealed without a risk officer reviewing preliminary findings and explicitly signing off.' },
+      { label: 'HITL OFF mode', val: 'Default: auto-approves immediately without pausing. Toggle HITL: ON in the header to require explicit risk officer approval for every run.' },
+      { label: 'State preservation', val: 'PostgresSaver saves the complete LangGraph checkpoint. Resuming the graph after approval continues from the exact same state — all agent outputs intact.' },
+      { label: 'SAP Technology', val: 'LangGraph interrupt() · PostgresSaver (PostgreSQL/Supabase) · graph.updateState() on resume · Solace banking/human/approval' }
+    ]
   },
   synthesis: {
-    num: '05', name: 'Synthesis Agent', pattern: 'RAG + Brief Generation',
-    banking: 'Retrieves the most relevant APRA regulatory chunks from HANA Vector (cosine similarity), then generates the APRA-ready risk brief with per-finding confidence, evidence source, and recommended actions.',
-    sap: 'HANA Vector cosine search · Claude Haiku · RegulatoryDocuments HANA entity · Langfuse RAGAS eval'
+    name: 'Synthesis Agent', pattern: 'RAG + Brief Generation',
+    how: [
+      { label: 'AI Pattern', val: 'Retrieval-Augmented Generation — one targeted HANA Vector search per active risk signal, then Claude Haiku generates the APRA-ready brief from the retrieved regulatory chunks.' },
+      { label: 'Per-signal retrieval', val: 'Four separate searches: DTI → APS 220 DTI clauses, group exposure → APS 221 connected party limits, income expiry → CPS 230 risk management, governance → CPS 230 AI oversight. Deduped, capped at 7 chunks.' },
+      { label: 'Why RAG', val: 'Brief must cite specific APRA standards, not training data. APRA standards change — Vector store is updated via the APRA Notice button. Without RAG, LLM cites outdated training-data versions.' },
+      { label: 'apraReady flag', val: 'Deterministic — not LLM-decided. All must pass: synthesis confidence ≥ 0.70, regulatory refs retrieved, no unresolved Self-RAG gaps, no embedding service failure.' },
+      { label: 'SAP Technology', val: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity · Langfuse RAGAS evaluation' }
+    ]
   }
 };
 
-const EDU_NEXT = {
-  intake:        'Customer risk profile requested → Pattern Agent and Relationship Agent activate in parallel.',
-  pattern:       'Anomalies detected → Relationship Agent validates group exposure as root cause.',
-  relationship:  'Group exposure calculated → Trajectory Agent checks if DTI deterioration is imminent.',
-  selfRagCheck:  'Evidence quality confirmed → Human risk officer reviews before APRA brief is sealed.',
-  humanApproval: 'Approval received → Synthesis Agent retrieves APRA standards and generates the brief.',
-  synthesis:     'APRA-ready risk brief complete. Findings ready for board notification.'
-};
-
-function buildEduChips(agentKey, e) {
-  if (agentKey === 'intake') {
-    return `<div class="edu-chips">
-      <div class="edu-chip"><div class="edu-chip-lbl">Customer ID</div><div class="edu-chip-val">${e.customerId || '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Intent</div><div class="edu-chip-val">Risk Analysis</div></div>
-    </div>`;
-  }
-  if (agentKey === 'pattern') {
-    return `<div class="edu-chips">
-      <div class="edu-chip"><div class="edu-chip-lbl">Risk Score</div><div class="edu-chip-val">${e.riskScore ?? '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Level</div><div class="edu-chip-val">${e.riskLevel || '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Anomalies</div><div class="edu-chip-val">${e.anomalyCount ?? '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Confidence</div><div class="edu-chip-val">${e.patternConf != null ? Math.round(e.patternConf * 100) + '%' : '—'}</div></div>
-    </div>`;
-  }
-  if (agentKey === 'relationship') {
-    const exp = e.groupExposure ? '$' + (e.groupExposure / 1e6).toFixed(1) + 'M' : '—';
-    return `<div class="edu-chips">
-      <div class="edu-chip"><div class="edu-chip-lbl">Entities</div><div class="edu-chip-val">${e.nodes ?? '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Group Exposure</div><div class="edu-chip-val">${exp}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">APS 221 Used</div><div class="edu-chip-val">${e.aps221Pct != null ? e.aps221Pct.toFixed(1) + '%' : '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Max Hops</div><div class="edu-chip-val">8</div></div>
-    </div>`;
-  }
-  if (agentKey === 'selfRagCheck') {
-    const conf = e.confidence != null ? Math.round(e.confidence * 100) : null;
-    const fp = e.forwardPosition || '—';
-    return `<div class="edu-chips">
-      <div class="edu-chip"><div class="edu-chip-lbl">Confidence</div><div class="edu-chip-val">${conf != null ? conf + '%' : '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Decision</div><div class="edu-chip-val">${conf != null && conf >= 70 ? 'PROCEED' : 'RE-QUERY'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Forward DTI</div><div class="edu-chip-val">${fp}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Re-queries</div><div class="edu-chip-val">${e.requeryCount ?? 0}</div></div>
-    </div>`;
-  }
-  if (agentKey === 'synthesis') {
-    return `<div class="edu-chips">
-      <div class="edu-chip"><div class="edu-chip-lbl">Findings</div><div class="edu-chip-val">${e.findingsCount ?? '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Risk Score</div><div class="edu-chip-val">${e.riskScore ?? '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">Risk Level</div><div class="edu-chip-val">${e.riskLevel || '—'}</div></div>
-      <div class="edu-chip"><div class="edu-chip-lbl">APRA Ready</div><div class="edu-chip-val">${e.apraReady ? 'YES' : 'NO'}</div></div>
-    </div>`;
-  }
-  return '';
+function admRow(k, v) {
+  return `<div class="adm-row"><span class="adm-key">${k}</span><span class="adm-val">${v}</span></div>`;
 }
 
-function addEduSection(agentKey, eventData) {
-  if (!eduMode) return;
-  const meta = EDU_META[agentKey];
-  if (!meta) return;
-
-  const sections = document.getElementById('eduSections');
-  const drawer = document.getElementById('eduDrawer');
-
-  // Remove placeholder
-  const empty = sections.querySelector('.edu-empty');
-  if (empty) empty.remove();
-
-  // Deduplicate — one section per agent
-  if (document.getElementById('edu-' + agentKey)) return;
-
-  const chips = buildEduChips(agentKey, eventData);
-  const nextText = EDU_NEXT[agentKey] || '';
-
-  const div = document.createElement('div');
-  div.className = 'edu-section open';
-  div.id = 'edu-' + agentKey;
-  div.innerHTML = `
-    <div class="edu-section-head" onclick="toggleEduSection('${agentKey}')">
-      <div class="edu-num">${meta.num}</div>
-      <div class="edu-agent-name">${meta.name}</div>
-      <div class="edu-pattern-tag">${meta.pattern}</div>
-      <div class="edu-chevron">▶</div>
-    </div>
-    <div class="edu-body"><div class="edu-body-inner">
-      <div class="edu-row">
-        <div class="edu-lbl">Banking Context</div>
-        <div class="edu-val">${meta.banking}</div>
-      </div>
-      ${chips ? `<div class="edu-row"><div class="edu-lbl">Live Data</div></div>${chips}` : ''}
-      <div class="edu-row">
-        <div class="edu-lbl">SAP Technology</div>
-        <div class="edu-val">${meta.sap}</div>
-      </div>
-      ${nextText ? `<div class="edu-next">→ ${nextText}</div>` : ''}
-    </div></div>`;
-
-  sections.appendChild(div);
-  drawer.classList.add('visible');
-  setTimeout(() => div.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+function openAgentDetail(agentKey) {
+  const meta  = AGENT_HOW[agentKey];
+  const modal = document.getElementById('agentDetailModal');
+  if (!meta || !modal) return;
+  document.getElementById('admAgentName').textContent    = meta.name;
+  document.getElementById('admAgentPattern').textContent = meta.pattern;
+  document.getElementById('admHow').innerHTML = meta.how.map(h =>
+    `<div class="adm-how-item"><div class="adm-how-lbl">${h.label}</div><div class="adm-how-val">${h.val}</div></div>`
+  ).join('');
+  document.getElementById('admFound').innerHTML = buildFoundContent(agentKey, agentData[agentKey] || {});
+  modal.classList.add('open');
+  // Close on Escape
+  document.onkeydown = (ev) => { if (ev.key === 'Escape') closeAgentDetail(); };
 }
 
-function toggleEduSection(agentKey) {
-  const s = document.getElementById('edu-' + agentKey);
-  if (s) s.classList.toggle('open');
+function closeAgentDetail() {
+  document.getElementById('agentDetailModal').classList.remove('open');
+  document.onkeydown = null;
+}
+
+function buildFoundContent(agentKey, d) {
+  if (!d || Object.keys(d).length === 0)
+    return '<div style="color:var(--light);font-size:11px;padding:8px 0">No data yet — run an analysis first, then re-open this panel.</div>';
+
+  switch (agentKey) {
+    case 'intake':
+      return `<div class="adm-kv">${admRow('Customer ID', d.customerId || '—')}${admRow('Intent', 'Risk Analysis')}${admRow('Route', 'RISK_ASSESS → full 6-agent pipeline')}</div>`;
+
+    case 'pattern': {
+      const rpt1 = patternParts.rpt1 || {};
+      const pal  = patternParts.pal  || {};
+      let html = `<div class="adm-how-lbl">RPT-1 (Tabular Foundation Model)</div>
+        <div class="adm-kv">${admRow('Category', rpt1.category || d.riskLevel || '—')}${admRow('Confidence', rpt1.confidence != null ? (rpt1.confidence * 100).toFixed(0) + '%' : '—')}${rpt1.success === false ? admRow('Note', 'Estimated (RPT-1 API fallback)') : ''}</div>`;
+      html += `<div class="adm-how-lbl" style="margin-top:10px">${_anomalyLabel} (Isolation Forest)</div>
+        <div class="adm-kv">${admRow('Flagged rows', (pal.anomalyCount ?? 0) + ' / ' + (pal.totalScored || d.palTotalScored || '?') + ' payment rows')}</div>`;
+      if ((pal.findings || []).length > 0) {
+        html += pal.findings.slice(0, 5).map(f => `<div style="font-size:10px;color:var(--mid);padding:2px 0;border-bottom:1px solid var(--border)">· ${typeof f === 'object' ? JSON.stringify(f) : f}</div>`).join('');
+      }
+      html += `<div class="adm-how-lbl" style="margin-top:10px">LLM Anomaly Narrative</div>`;
+      html += (d.anomalies || []).length > 0
+        ? d.anomalies.map((a, i) => `<div style="font-size:11px;color:var(--dark);padding:4px 0;border-bottom:1px solid var(--border)">${i+1}. ${a}</div>`).join('')
+        : '<div style="color:var(--light);font-size:11px">No anomalies flagged</div>';
+      return html;
+    }
+
+    case 'relationship': {
+      const nodes = d.graphNodes || [];
+      let html = nodes.length > 0
+        ? `<table class="adm-tbl"><tr><th>Name</th><th>BP ID</th><th>Hop</th><th>Relationship</th></tr>${nodes.map(n => `<tr><td>${n.name||'—'}</td><td style="font-family:var(--mono);font-size:9px">${n.id}</td><td>${n.hop??'—'}</td><td>${(n.relType||'—').replace(/_/g,' ')}</td></tr>`).join('')}</table>`
+        : '<div style="color:var(--light);font-size:11px;margin-bottom:8px">No connected parties found</div>';
+      html += `<div class="adm-kv" style="margin-top:10px">
+        ${admRow('Group Exposure', d.groupExposure ? 'AUD ' + (d.groupExposure/1e6).toFixed(2) + 'M' : '—')}
+        ${admRow('APS 221 % of Limit', d.aps221Pct != null ? d.aps221Pct.toFixed(1) + '%' : '—')}
+        ${admRow('Finding', d.relationshipFinding || '—')}
+        ${admRow('Confidence', d.confidence != null ? (d.confidence * 100).toFixed(0) + '%' : '—')}
+      </div>`;
+      return html;
+    }
+
+    case 'trajectory': {
+      const ttb = d.timeToBreach != null
+        ? (d.timeToBreach < 0 ? Math.abs(d.timeToBreach) + ' days in breach' : d.timeToBreach + ' days until breach')
+        : '—';
+      let html = `<div class="adm-kv">
+        ${admRow('Current DTI', d.currentDti != null ? d.currentDti + 'x' : '—')}
+        ${admRow('Forward DTI', d.futureDti != null ? d.futureDti + 'x (post income expiry)' : '—')}
+        ${admRow('Days to Income Expiry', d.daysToExpiry != null ? d.daysToExpiry + ' days' : '—')}
+        ${admRow('Time to Breach', ttb)}
+        ${admRow('Forward Position', d.forwardPosition || '—')}
+      </div>`;
+      if ((d.conflictingSignals || []).length > 0) {
+        html += `<div class="adm-how-lbl" style="margin-top:10px">Conflicting Signals</div>`;
+        html += d.conflictingSignals.map((s, i) => `<div style="font-size:11px;color:var(--dark);padding:4px 0;border-bottom:1px solid var(--border)">${i+1}. ${s}</div>`).join('');
+      }
+      return html;
+    }
+
+    case 'selfRagCheck': {
+      const hist = d.selfRagHistory || (d.selfRagConf != null ? [{ iteration: 1, overallConfidence: d.selfRagConf, reasoning: d.selfRagReasoning, gaps: d.selfRagGaps || [], reQueryHint: d.reQueryHint }] : []);
+      if (hist.length === 0) return '<div style="color:var(--light);font-size:11px">No Self-RAG iterations recorded</div>';
+      return hist.map((it, i) => {
+        const conf   = it.overallConfidence ?? 0;
+        const passed = conf >= 0.70;
+        const isLast = i === hist.length - 1;
+        const decision = isLast && !passed ? 'MAX RE-QUERIES HIT' : (passed ? 'PASSED' : 'RE-QUERIED');
+        return `<div class="adm-iteration">
+          <div class="adm-iter-hdr">Evaluation ${it.iteration || i+1} <span class="${passed ? 'adm-badge-pass' : 'adm-badge-requery'}">${decision}</span></div>
+          <div class="adm-kv">
+            ${admRow('Confidence', (conf * 100).toFixed(0) + '%')}
+            ${admRow('Reasoning', it.reasoning || '—')}
+            ${it.reQueryHint ? admRow('Re-query hint', it.reQueryHint) : ''}
+          </div>
+          ${(it.gaps || []).length > 0 ? '<div class="adm-how-lbl" style="margin-top:6px">Gaps identified</div>' + it.gaps.map(g => `<div style="font-size:10px;color:var(--mid);padding:2px 0">· ${g}</div>`).join('') : ''}
+        </div>`;
+      }).join('');
+    }
+
+    case 'humanApproval':
+      return `<div class="adm-kv">
+        ${admRow('HITL mode', hitlEnabled ? 'ON — risk officer approval required' : 'OFF — auto-approved')}
+        ${d.riskScore != null ? admRow('Pattern Agent', (d.riskLevel||'?') + ' risk · score ' + d.riskScore) : ''}
+        ${d.groupExposure != null ? admRow('Relationship Agent', (d.nodes||'?') + ' entities · AUD ' + ((d.groupExposure||0)/1e6).toFixed(2) + 'M') : ''}
+        ${d.forwardPosition ? admRow('Trajectory Agent', d.forwardPosition + (d.daysToExpiry != null ? ' · expiry ' + d.daysToExpiry + 'd' : '')) : ''}
+        ${d.selfRagConf != null ? admRow('Self-RAG confidence', Math.round((d.selfRagConf||0)*100) + '%') : ''}
+      </div>`;
+
+    case 'synthesis': {
+      const s = d.synthesisResult || d;
+      if (!s || s.riskScore == null) return '<div style="color:var(--light);font-size:11px">Synthesis not yet complete.</div>';
+      let html = `<div class="adm-kv">
+        ${admRow('Risk Score', (s.riskScore ?? '—') + ' / 100')}
+        ${admRow('Risk Level', s.riskLevel || '—')}
+        ${admRow('Confidence', s.confidence != null ? Math.round(s.confidence * 100) + '%' : '—')}
+        ${admRow('APRA Ready', s.apraReady ? '✓ Yes' : '✗ No')}
+        ${admRow('Regulatory Refs', (s.regulatoryRefs || []).join(', ') || '—')}
+      </div>`;
+      html += `<div class="adm-how-lbl" style="margin-top:12px">Findings (${(s.findings||[]).length})</div>`;
+      html += (s.findings || []).length > 0
+        ? s.findings.map((f, i) => `<div style="padding:6px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;font-weight:600">${i+1}. ${f.finding}</div><div style="font-size:9px;color:var(--mid);margin-top:2px">${f.standard||''} · ${f.evidenceSource||''} · ${Math.round((f.confidence||0)*100)}% · ${f.severity||''}</div></div>`).join('')
+        : '<div style="color:var(--light);font-size:11px">No findings</div>';
+      if ((s.uncertainties || []).length > 0) {
+        html += `<div class="adm-how-lbl" style="margin-top:10px">Uncertainties</div>`;
+        html += s.uncertainties.map(u => `<div style="font-size:10px;color:var(--mid);padding:2px 0">· ${u}</div>`).join('');
+      }
+      return html;
+    }
+
+    default:
+      return '<div style="color:var(--light)">No detail available</div>';
+  }
 }
 
 // ── Render Panel 3 ────────────────────────────────────────────────────────────
@@ -1189,6 +1411,7 @@ function renderRiskBrief(s) {
   document.getElementById('rag').textContent = (s.confidence || 0).toFixed(2);
   document.getElementById('rag').style.color = '#FFD000';
   document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's total';
+  document.getElementById('reportBtnWrap').style.display = 'flex'; // show after synthesis
 
   // Populate live alerts bar (top ticker) from findings
   const findings = s.findings || [];
@@ -1202,6 +1425,12 @@ function renderRiskBrief(s) {
     pill.textContent = `▲ ${findings.length} Alert${findings.length !== 1 ? 's' : ''}`;
     pill.style.display = '';
   }
+}
+
+// ── Explainability Report ─────────────────────────────────────────────────────
+function openExplainReport() {
+  if (!sessionId) return;
+  window.open(`${API}/report/${sessionId}`, '_blank', 'noopener');
 }
 
 // ── Graph canvas ──────────────────────────────────────────────────────────────

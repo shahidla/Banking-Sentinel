@@ -8,6 +8,7 @@ const cds = require('@sap/cds');
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { hana_vector_search } = require('../tools/mcp-tools');
 const { getLangchainHandler } = require('../observability/langfuse-client');
+const { validateAgentOutput, crossCheckClaimsAgainstSources } = require('../guardrails/validate');
 
 async function synthesisAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
@@ -18,20 +19,36 @@ async function synthesisAgent(state) {
   const trajectory = state.trajectoryAnalysis || {};
   const relationship = state.relationshipMap  || {};
 
-  // ── HANA Vector search — retrieve relevant APRA regulatory chunks ──────────
-  // Query combines all active risk signals to retrieve the most relevant standards
-  const searchQuery = [
-    trajectory.currentDti > 6.0       ? 'DTI limit breach monitoring APS 221 large exposure' : 'DTI ratio CPS 230 risk management',
-    relationship.groupExposure > 0     ? 'connected party group exposure APS 221 concentration limit board notification' : '',
-    trajectory.forwardPosition === 'DETERIORATING' ? 'income expiry forward DTI deteriorating trajectory risk assessment' : '',
-    'operational risk management CPS 230 board notification requirements audit trail'
-  ].filter(Boolean).join(' ');
+  // ── HANA Vector search — per-signal retrieval for higher RAGAS faithfulness ──
+  // One targeted query per risk signal → more precise chunks, less generic content
+  const selfRag    = state.selfRagEvaluation || {};
+  const selfRagHistory = state.selfRagHistory || [];
+
+  const signalQueries = [
+    trajectory.currentDti > 0
+      ? `DTI ratio ${trajectory.currentDti} debt-to-income limit APS 220 residential mortgage APRA activation`
+      : null,
+    relationship.groupExposure > 0
+      ? `connected party group exposure APS 221 large exposure single obligor board notification ${(relationship.groupExposure/1e6).toFixed(1)}M`
+      : null,
+    (trajectory.conflictingSignals || []).length > 0
+      ? 'income contract expiry forward DTI trajectory deteriorating risk assessment APRA'
+      : null,
+    'CPS 230 operational resilience AI model governance audit trail evidence'
+  ].filter(Boolean);
 
   let regulatoryDocs = [];
   let regulatoryContextUnavailable = false;
   try {
-    regulatoryDocs = await hana_vector_search({ query: searchQuery, topK: 3, useHyDE: false });
-    console.log(`  [Synthesis] Retrieved ${regulatoryDocs.length} APRA regulatory chunks from HANA Vector`);
+    const seen = new Set();
+    for (const q of signalQueries) {
+      const chunks = await hana_vector_search({ query: q, topK: 5, useHyDE: false });
+      for (const c of chunks) {
+        if (!seen.has(c.DOC_ID)) { seen.add(c.DOC_ID); regulatoryDocs.push(c); }
+      }
+    }
+    regulatoryDocs = regulatoryDocs.slice(0, 7); // cap at 7 to stay within token budget
+    console.log(`  [Synthesis] Retrieved ${regulatoryDocs.length} APRA regulatory chunks (per-signal, deduped)`);
   } catch (e) {
     console.error('  [Synthesis] HANA Vector search failed:', e.message);
     regulatoryContextUnavailable = true;
@@ -54,25 +71,36 @@ async function synthesisAgent(state) {
   const agentContext = JSON.stringify({
     customerId,
     pattern: {
-      riskScore:  pattern.riskScore,
-      riskLevel:  pattern.riskLevel,
-      confidence: pattern.confidence,
-      signal:     pattern.signal,
-      anomalies:  (pattern.anomalies || []).slice(0, 5)
+      riskScore:    pattern.riskScore,
+      riskLevel:    pattern.riskLevel,
+      confidence:   pattern.confidence,
+      signal:       pattern.signal,
+      rpt1Category: pattern.rpt1?.category,
+      rpt1Conf:     pattern.rpt1?.confidence,
+      palFlagged:   `${pattern.pal?.anomalyCount ?? 0}/${pattern.pal?.totalScored ?? 0} payment rows`,
+      anomalies:    pattern.anomalies || []
     },
     trajectory: {
       currentDti:         trajectory.currentDti,
       futureDti:          trajectory.futureDti,
       daysToExpiry:       trajectory.daysToExpiry,
       timeToBreach:       trajectory.timeToBreach,
-      conflictingSignals: trajectory.conflictingSignals,
+      conflictingSignals: trajectory.conflictingSignals || [],
       forwardPosition:    trajectory.forwardPosition
     },
     relationship: {
       groupExposure: relationship.groupExposure,
       aps221Pct:     relationship.aps221Pct,
       nodeCount:     relationship.nodes?.length,
-      edgeCount:     relationship.edges?.length
+      edgeCount:     relationship.edges?.length,
+      finding:       relationship.finding,
+      confidence:    relationship.confidence
+    },
+    selfRag: {
+      overallConfidence: selfRag.overallConfidence,
+      iterations:        selfRagHistory.length,
+      gaps:              selfRag.gaps || [],
+      reasoning:         selfRag.reasoning
     }
   });
 
@@ -80,20 +108,27 @@ async function synthesisAgent(state) {
     {
       role:    'system',
       content: `You are a banking risk officer preparing an APRA-compliant risk assessment brief.
-Analyse the agent findings and produce a structured JSON risk brief.
-Return ONLY valid JSON matching this exact structure:
+Analyse ALL agent findings below and produce a structured JSON risk brief. Include EVERY finding the evidence supports — do not truncate.
+
+Risk score scale: LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100.
+riskLevel must match riskScore: score 51 = HIGH, score 76 = CRITICAL, score 25 = LOW, score 50 = MEDIUM.
+Reference the conflictingSignals array — each unresolved conflict reduces confidence and must appear as a finding or uncertainty.
+Pattern confidence (rpt1Conf) is the real RPT-1 confidence from the tabular model — cite it in findings.
+palFlagged shows anomaly count as "X/N payment rows" — use this exact format in findings.
+Self-RAG reasoning explains the evidence quality decision — cite it if relevant.
+
+Return ONLY valid JSON:
 {
   "riskScore": <0-100 integer>,
   "riskLevel": "<LOW|MEDIUM|HIGH|CRITICAL>",
   "confidence": <0.00-1.00>,
-  "findings": [{"finding": "<max 25 words>", "standard": "<APS221|CPS230|DTI_NOTICE>", "severity": "<HIGH|MEDIUM|LOW>", "evidenceSource": "<agent name>", "confidence": <0.00-1.00>}],
+  "findings": [{"finding": "<finding>", "standard": "<APS221|CPS230|DTI_NOTICE>", "severity": "<HIGH|MEDIUM|LOW>", "evidenceSource": "<agent name>", "confidence": <0.00-1.00>}],
   "recommendations": ["<action>"],
   "regulatoryRefs": ["<APS221|CPS230|DTI_NOTICE>"],
   "uncertainties": ["<data gap>"],
   "apraReady": <true|false>
 }
-Return ONLY the JSON object. No markdown, no explanation, no code fences.
-Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evidence trail is complete.`
+Return ONLY the JSON object. No markdown, no explanation, no code fences.`
     },
     {
       role:    'user',
@@ -139,8 +174,17 @@ Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evide
   // Surface regulatory context failure — ensures risk officer knows citations may be incomplete
   if (regulatoryContextUnavailable) {
     brief.uncertainties = [...(brief.uncertainties || []), 'Regulatory context unavailable — APRA citations may be incomplete (OpenAI embedding service unreachable)'];
-    brief.apraReady = false;
   }
+
+  // Deterministic apraReady — not LLM-decided (item 24)
+  // All four conditions must hold: sufficient confidence, Self-RAG passed, reg docs retrieved, no context failure
+  const selfRagPassed  = (selfRag.overallConfidence ?? 1) >= 0.70 || selfRagHistory.length === 0;
+  brief.apraReady = (
+    (brief.confidence || 0) >= 0.70 &&
+    selfRagPassed &&
+    regulatoryRefs.length > 0 &&
+    !regulatoryContextUnavailable
+  );
 
   // Merge retrieved regulatory refs into whatever the LLM produced
   if (regulatoryRefs.length > 0) {
@@ -149,6 +193,22 @@ Max 4 findings, 3 recommendations, 3 uncertainties. apraReady=true only if evide
 
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;
   const tokensOut = response.usage_metadata?.output_tokens || 0;
+
+  // ── CPS 230 guardrail validation ──────────────────────────────────────────────
+  const validation = validateAgentOutput(brief, 'synthesis-agent');
+  if (!validation.valid) {
+    console.warn(`  [Synthesis] CPS 230 validation issues: ${validation.issues.join('; ')}`);
+    if (validation.action === 'REFUSE') {
+      brief.uncertainties = [...(brief.uncertainties || []), `CPS 230 guardrail: confidence ${((brief.confidence || 0) * 100).toFixed(0)}% below minimum — finding generation blocked`];
+    }
+  }
+  const claimsText     = (brief.findings || []).map(f => f.finding).join(' ');
+  const hallucRisk     = crossCheckClaimsAgainstSources(claimsText, regulatoryDocs);
+  if (hallucRisk < 0.30 && regulatoryDocs.length > 0) {
+    console.warn(`  [Synthesis] Hallucination risk indicator: claim-source overlap ${(hallucRisk * 100).toFixed(0)}% — findings may not be grounded in retrieved regulatory context`);
+    brief.uncertainties = [...(brief.uncertainties || []), `CPS 230 guardrail: low claim-source overlap (${(hallucRisk * 100).toFixed(0)}%) — findings warrant manual review`];
+  }
+  console.log(`  [Synthesis] CPS 230 validation: ${validation.action} | claim-source overlap: ${(hallucRisk * 100).toFixed(0)}%`);
 
   // ── Persist to RiskAssessments HANA table (fire-and-forget — don't block return) ──
   const { v4: uuid } = require('uuid');

@@ -85,8 +85,12 @@ async function callRpt1(data, customerId) {
   const confidence   = myPrediction?.risk_category?.[0]?.confidence || null;
   if (!category) throw new Error('RPT-1 response missing prediction');
 
-  const scoreMap = { 'LOW': 15, 'MEDIUM': 45, 'HIGH': 70, 'CRITICAL': 90 };
-  const score    = scoreMap[category.toUpperCase()] ?? 50;
+  // Score within defined scale: LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100
+  // Confidence modulates position within that band (not across bands)
+  const conf = Math.min(1, Math.max(0, confidence || 0.5));
+  const scoreFloors = { LOW: 0, MEDIUM: 26, HIGH: 51, CRITICAL: 76 };
+  const floor = scoreFloors[category.toUpperCase()] ?? 26;
+  const score = Math.round(floor + 24 * conf);
   return { score, category, confidence };
 }
 
@@ -230,8 +234,8 @@ async function patternAgent(state) {
       const findings = await runAnomalyDetection(data, customerId);
       const outliers = findings.filter(f => f.label === -1);
       console.log(`  [Pattern/PAL] outliers:${outliers.length} / ${findings.length} payment rows scored`);
-      progressEmitter.emit('progress', { sessionId: sid, source: 'pal', anomalyCount: outliers.length, success: true });
-      return { findings, anomalyCount: outliers.length, success: true };
+      progressEmitter.emit('progress', { sessionId: sid, source: 'pal', anomalyCount: outliers.length, totalScored: findings.length, success: true });
+      return { findings, anomalyCount: outliers.length, totalScored: findings.length, success: true };
     } catch (e) {
       progressEmitter.emit('progress', { sessionId: sid, source: 'pal', success: false, error: e.message });
       throw e;
@@ -265,7 +269,7 @@ async function patternAgent(state) {
 
   const palResult = palSettled.status === 'fulfilled'
     ? palSettled.value
-    : { findings: [], anomalyCount: 0, success: false, error: palSettled.reason?.message };
+    : { findings: [], anomalyCount: 0, totalScored: 0, success: false, error: palSettled.reason?.message };
   const [rpt1Result, llmResult] = [rpt1Settled.value, llmSettled.value];
 
   // Step 5 — derive combined signal and risk level
@@ -277,10 +281,10 @@ async function patternAgent(state) {
   const combinedAnomalies = [...palAnomalyTexts, ...llmResult.anomalies];
 
   const riskScore  = rpt1Result.score;
-  const riskLevel  = riskScore >= 75 ? 'CRITICAL' :
-                     riskScore >= 50 ? 'HIGH'     :
-                     riskScore >= 25 ? 'MEDIUM'   : 'LOW';
-  const confidence = rpt1Result.success ? 0.85 : 0.60;
+  const riskLevel  = riskScore >= 76 ? 'CRITICAL' :
+                     riskScore >= 51 ? 'HIGH'     :
+                     riskScore >= 26 ? 'MEDIUM'   : 'LOW';
+  const confidence = rpt1Result.confidence ?? (rpt1Result.success ? 0.85 : 0.60);
   const signal     = combinedAnomalies.length > 2 ? 'concerning' :
                      combinedAnomalies.length > 0 ? 'unclear'    : 'stable';
 

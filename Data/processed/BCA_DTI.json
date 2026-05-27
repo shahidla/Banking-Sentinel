@@ -8,9 +8,9 @@
       "TOTAL_DEBT": 2100000,
       "CURRENCY": "AUD",
       "APRA_LIMIT": 6,
-      "BREACH_FLAG": true,
-      "BREACH_DATE": "2026-02-01",
-      "NOTE": "Loan approved 2025-08-10 before APRA DTI limit activated Feb 2026. Now in breach."
+      "BREACH_FLAG": false,
+      "INCOME_EXPIRY": "2026-09-15",
+      "NOTE": "Loan approved 2025-08-10. Income contract expires 2026-09-15. DTI threshold read from RegulatoryThresholds at runtime."
     },
     {
       "PARTNER": "30100001",

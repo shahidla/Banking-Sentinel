@@ -2,11 +2,10 @@
 const cds = require('@sap/cds');
 
 const HANA_ENTITIES = [
-  'BusinessPartners', 'BPRoles', 'Loans', 'LoanConditions', 'LoanSchedule',
-  'BCA_GUARANTOR', 'BUT050', 'BKKN', 'BCA_DTI', 'DFKKOP', 'DFKKZP',
+  'BusinessPartners', 'BUT050', 'Loans', 'LoanSchedule',
+  'BCA_GUARANTOR', 'BCA_COLLATERAL', 'BCA_DTI', 'DFKKOP',
   'BCA_SECTOR', 'SectorExposureLimits', 'RegulatoryThresholds', 'ExposureLimits',
-  'RegulatoryDocuments', 'RiskAssessments', 'AuditLog',
-  'ContractAccounts', 'BCA_COLLATERAL', 'BCA_RISK_CLASS'
+  'RegulatoryDocuments', 'RiskAssessments', 'AuditLog'
 ];
 
 const DEMO_PARTNER = '30100003';
@@ -102,6 +101,7 @@ const HTML = `<!DOCTYPE html>
   <div class="tab active" onclick="switchTab('hana')">HANA Cloud</div>
   <div class="tab" onclick="switchTab('pg')">PostgreSQL (LangGraph)</div>
   <div class="tab" onclick="switchTab('graph')">GraphDB (KGE)</div>
+  <div class="tab" onclick="switchTab('sessions')">Pipeline Sessions</div>
 </div>
 
 <div class="layout">
@@ -189,6 +189,21 @@ const HTML = `<!DOCTYPE html>
       </div>
     </div>
 
+    <!-- Sessions panel -->
+    <div class="panel" id="panel-sessions">
+      <div class="context-bar">
+        <div class="context-field"><span class="context-label">Source</span><span class="context-value">HANA · RiskAssessments</span></div>
+        <div class="context-field"><span class="context-label">Runs</span><span class="context-value" id="ctx-sessions-count">—</span></div>
+        <div class="context-field"><span class="context-label">Last loaded</span><span class="context-value" id="ctx-sessions-time">—</span></div>
+        <button class="refresh-btn" onclick="loadSessions()" style="margin-left:auto">↺ Refresh</button>
+      </div>
+      <div class="data-area">
+        <div id="sessions-loading" class="loading">Loading pipeline runs...</div>
+        <div id="sessions-error" class="error" style="display:none"><span class="error-msg"></span><button class="error-retry" onclick="loadSessions()">Retry</button></div>
+        <div id="sessions-content"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -196,14 +211,78 @@ const HTML = `<!DOCTYPE html>
 let currentEntity = null;
 
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (tab==='hana'&&i===0)||(tab==='pg'&&i===1)||(tab==='graph'&&i===2)));
+  const tabs = ['hana','pg','graph','sessions'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
   document.getElementById('hana-sidebar').style.display = tab === 'hana' ? 'flex' : 'none';
   document.getElementById('pg-sidebar').style.display   = tab === 'pg'   ? 'flex' : 'none';
   document.getElementById('panel-hana').classList.toggle('active', tab === 'hana');
   document.getElementById('panel-pg').classList.toggle('active', tab === 'pg');
   document.getElementById('panel-graph').classList.toggle('active', tab === 'graph');
+  document.getElementById('panel-sessions').classList.toggle('active', tab === 'sessions');
   if (tab === 'pg') loadPgSidebar();
   if (tab === 'graph') loadGraph();
+  if (tab === 'sessions') loadSessions();
+}
+
+async function loadSessions() {
+  document.getElementById('sessions-loading').style.display = 'block';
+  document.getElementById('sessions-error').style.display   = 'none';
+  document.getElementById('sessions-content').innerHTML     = '';
+  try {
+    const res  = await fetch('/admin/api/sessions');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.status);
+
+    document.getElementById('ctx-sessions-count').textContent = data.length + ' runs';
+    document.getElementById('ctx-sessions-time').textContent  = new Date().toLocaleTimeString();
+    document.getElementById('sessions-loading').style.display = 'none';
+
+    if (!data.length) {
+      document.getElementById('sessions-content').innerHTML = '<div class="empty">No pipeline runs recorded yet. Run a risk analysis from the main UI.</div>';
+      return;
+    }
+
+    const levelColor = { CRITICAL:'#fca5a5', HIGH:'#fca5a5', MEDIUM:'#fcd34d', LOW:'#4ade80' };
+
+    // Group by partner for easy before/after comparison
+    const byPartner = {};
+    data.forEach(r => {
+      if (!byPartner[r.PARTNER]) byPartner[r.PARTNER] = [];
+      byPartner[r.PARTNER].push(r);
+    });
+
+    let html = '';
+    for (const [partner, runs] of Object.entries(byPartner)) {
+      html += \`<div style="margin-bottom:24px">
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-transform:uppercase;padding:8px 0 6px;border-bottom:1px solid #2b3145;margin-bottom:8px">
+          Customer · \${partner} &nbsp;·&nbsp; \${runs.length} run\${runs.length !== 1 ? 's' : ''}
+        </div>
+        <table><thead><tr>
+          <th>Risk Level</th><th>Score</th><th>Confidence</th><th>Approved By</th><th>Run At</th><th>Session ID</th><th></th>
+        </tr></thead><tbody>\`;
+      runs.forEach(r => {
+        const col   = levelColor[r.RISK_LEVEL] || '#94a3b8';
+        const conf  = r.CONFIDENCE != null ? Math.round(r.CONFIDENCE * 100) + '%' : '—';
+        const ts    = r.CREATED_AT ? new Date(r.CREATED_AT).toLocaleString() : '—';
+        const sid   = r.SESSION_ID || '';
+        html += \`<tr>
+          <td><span style="color:\${col};font-weight:700">\${r.RISK_LEVEL || '—'}</span></td>
+          <td class="num">\${r.RISK_SCORE ?? '—'}</td>
+          <td class="num">\${conf}</td>
+          <td>\${r.APPROVED_BY || '—'}</td>
+          <td>\${ts}</td>
+          <td style="font-family:monospace;font-size:10px;color:#94a3b8;word-break:break-all">\${sid}</td>
+          <td><button onclick="window.open('/report/\${sid}','_blank','noopener')" style="padding:4px 10px;background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;border-radius:3px;font-size:12px;cursor:pointer">View Report ↗</button></td>
+        </tr>\`;
+      });
+      html += '</tbody></table></div>';
+    }
+    document.getElementById('sessions-content').innerHTML = html;
+  } catch (err) {
+    document.getElementById('sessions-loading').style.display = 'none';
+    document.getElementById('sessions-error').style.display   = 'flex';
+    document.getElementById('sessions-error').querySelector('.error-msg').textContent = err.message;
+  }
 }
 
 async function loadHana(entity) {
@@ -378,7 +457,7 @@ async function loadGraph() {
 
     // SPARQL traversal
     html += '<div class="pg-section"><h3>Live SPARQL Traversal — Partner 30100003 (depth 6)</h3>';
-    html += '<div class="purpose">SPARQL property path query on GraphDB. Finds all connected parties reachable from demo partner up to 6 hops. In production this query runs identically on HANA KGE. Twinkle 1: TrustCo Holdings discovered at hop 4.</div>';
+    html += '<div class="purpose">SPARQL property path query on GraphDB. Finds all connected parties reachable from demo partner up to 6 hops. In production this query runs identically on HANA KGE. Demo: TrustCo Holdings discovered at hop 4.</div>';
     if (d.traversalError) {
       html += '<div class="error">' + d.traversalError + '</div>';
     } else if (d.traversal.length === 0) {
@@ -413,12 +492,18 @@ async function loadCounts() {
   }
 }
 loadCounts();
+
+// Auto-switch tab from URL param, e.g. /admin?tab=sessions
+const urlTab = new URLSearchParams(window.location.search).get('tab');
+if (urlTab) switchTab(urlTab);
 </script>
 </body>
 </html>`;
 
 // Restrict all /admin routes to localhost + optionally an ADMIN_TOKEN in env
+// ADMIN_IP_WHITELIST=disabled bypasses the check for demo/CF deployments
 function adminGuard(req, res, next) {
+  if ((process.env.ADMIN_IP_WHITELIST || '').toLowerCase() === 'disabled') return next();
   const ip = req.ip || req.connection.remoteAddress || '';
   const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
   const token = process.env.ADMIN_TOKEN;
@@ -578,6 +663,18 @@ function mountAdminUI(app) {
     if (!pgPool) return res.status(500).json({ error: 'POSTGRES_URL not configured' });
     try { await pgPool.query(`TRUNCATE checkpoints, checkpoint_blobs, checkpoint_writes`); res.json({ ok: true }); }
     catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Sessions — all pipeline runs from RiskAssessments, newest first
+  app.get('/admin/api/sessions', async (req, res) => {
+    try {
+      const rows = await cds.run(
+        SELECT.from('bankingsentinel.RiskAssessments').orderBy('CREATED_AT desc')
+      );
+      res.json(rows);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   console.log('  [Admin] Data browser: GET /admin');

@@ -188,14 +188,18 @@ async function hana_graph_traverse({ startNode, depth = 6 }) {
   });
 
   // ── Enriched node details — used by UI for rich graph rendering ──────────────
+  // NB-2 fix: relType from SPARQL 1 is null for multi-hop nodes (property path loses edge type).
+  // Fall back to the incoming edge type from chainEdges (SPARQL 2) when SPARQL 1 returns null.
   const nodeDetails = [
     { id: startNode, name: nameMap[startNode] || startNode, hop: 0, relType: null },
-    ...traversalRows.map(r => ({
-      id:      r.PARTNER,
-      name:    nameMap[r.PARTNER] || r.PARTNER,
-      hop:     r.HOP,
-      relType: r.REL_TYPE
-    }))
+    ...traversalRows.map(r => {
+      let relType = r.REL_TYPE;
+      if (!relType) {
+        const incomingEdge = chainEdges.find(e => e.to === r.PARTNER);
+        relType = incomingEdge?.type || null;
+      }
+      return { id: r.PARTNER, name: nameMap[r.PARTNER] || r.PARTNER, hop: r.HOP, relType };
+    })
   ];
 
   // ── Guarantor enrichment (startNode loans only) — exposure calculation only ──
@@ -252,7 +256,10 @@ async function apra_threshold_check({ metricType, value, entityId }) {
     breach = utilisation > 100;
     threshold = limits[0]?.NOTIFICATION_PCT || 90;
   } else if (metricType === 'dti') {
-    limit = 6.0; // APRA February 2026 activation
+    const dtiThresholdRows = await cds.run(
+      SELECT.from('bankingsentinel.RegulatoryThresholds').where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' }).limit(1)
+    );
+    limit = parseFloat(dtiThresholdRows[0]?.LIMIT_PCT) || 8.0;
     utilisation = (value / limit) * 100;
     breach = value > limit;
     threshold = 100;
@@ -279,8 +286,9 @@ async function apra_threshold_check({ metricType, value, entityId }) {
 
 // ─── TOOL 5: exposure_calculator ────────────────────────────────────────────
 // AI: Deterministic aggregation — not LLM, pure arithmetic over HANA records
-// Banking: Total guaranteed exposure across a connected party group for APS 221
-// SAP: SUM(COVER_AMOUNT) from BCA_GUARANTOR grouped by guarantor network
+// Banking: Total credit exposure across a connected party group for APS 221
+//          Uses SUM(Loans.AMOUNT) — direct loan value, not guarantee coverage amount
+// SAP: Loans.AMOUNT is the funded credit exposure; COVER_AMOUNT is collateral, not exposure
 
 async function exposure_calculator({ entityIds, includeGuarantors = true }) {
   if (!entityIds || entityIds.length === 0) return { total: 0, breakdown: [] };
@@ -291,14 +299,20 @@ async function exposure_calculator({ entityIds, includeGuarantors = true }) {
 
   const loans = await cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: { in: entityIds } }));
 
-  const total = guarantors.reduce((sum, g) => sum + parseFloat(g.COVER_AMOUNT || 0), 0);
-  const breakdown = entityIds.map(id => ({
-    entityId: id,
-    guaranteedLoans: guarantors.filter(g => g.GUARANTOR_PARTNER === id).length,
-    guaranteedAmount: guarantors.filter(g => g.GUARANTOR_PARTNER === id)
-      .reduce((s, g) => s + parseFloat(g.COVER_AMOUNT || 0), 0),
-    directLoans: loans.filter(l => l.PARTNER === id).length
-  }));
+  // APS 221 group exposure = sum of all direct loans to all connected entities
+  const total = loans.reduce((sum, l) => sum + parseFloat(l.AMOUNT || 0), 0);
+
+  const breakdown = entityIds.map(id => {
+    const entityLoans     = loans.filter(l => l.PARTNER === id);
+    const entityGuarantors = guarantors.filter(g => g.GUARANTOR_PARTNER === id);
+    return {
+      entityId:        id,
+      directLoans:     entityLoans.length,
+      loanAmount:      entityLoans.reduce((s, l) => s + parseFloat(l.AMOUNT || 0), 0),
+      guaranteedLoans: entityGuarantors.length,
+      coverAmount:     entityGuarantors.reduce((s, g) => s + parseFloat(g.COVER_AMOUNT || 0), 0)
+    };
+  });
 
   return { total, breakdown, currency: 'AUD' };
 }

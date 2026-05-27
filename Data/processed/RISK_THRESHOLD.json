@@ -31,11 +31,11 @@
       "DESCRIPTION": "APRA Debt-to-Income Ratio Limit",
       "LIMIT_VALUE": null,
       "CURRENCY": null,
-      "LIMIT_PCT": 6,
+      "LIMIT_PCT": 8,
       "REGULATOR": "APRA",
       "STANDARD": "APRA DTI Guidance",
       "EFFECTIVE_FROM": "2026-02-01",
-      "NOTE": "Activated February 2026. New loans with DTI > 6.0 require enhanced assessment. Existing loans in breach require remediation plan."
+      "NOTE": "Demo 1 threshold = 8.0 (DTI 7.2 compliant). Twinkle 2 updates to 6.0 via apra-embedder.js when real DTI notice is synced — triggers breach on re-run."
     },
     {
       "THRESHOLD_ID": "SECTOR-RETAIL-PROP",

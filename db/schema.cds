@@ -20,14 +20,6 @@ entity BusinessPartners {
   INCOME_EXPIRY     : Date;         // contract end date — trajectory signal
 }
 
-// AI: Node attribute — BP role classification
-// Banking: Distinguishes borrower from guarantor from corporate entity
-// SAP: BUT100 — Business Partner Roles
-entity BPRoles {
-  key PARTNER       : String(10);
-  key RLTYP         : String(6);    // FLCU01=borrower, KRED=guarantor
-}
-
 // AI: Graph edge table 1 — connected party relationships
 // Banking: Family trust, guarantor network, subsidiary structures — APS 221 exposure chains
 // SAP: BUT050 (NOT BP2000 — confirmed by bank architects, BP2000 does not exist in TRBK)
@@ -37,26 +29,6 @@ entity BUT050 {
   key RELTYP        : String(30);   // FAMILY_TRUST_MEMBER, CONTACT_PERSON, SUBSIDIARY
   VALID_FROM        : Date;
   VALID_TO          : Date;
-}
-
-// ─── CONTRACT ACCOUNTS ───────────────────────────────────────────────────────
-
-// AI: Contract node — links borrower to their loan obligations
-// Banking: Account contract master — the formal lending agreement
-// SAP: BKKF — Contract account master
-entity ContractAccounts {
-  key VKONT             : String(20);
-  BUKRS             : String(4);    // company code
-  VTREF             : String(20);   // contract reference
-}
-
-// AI: Edge connecting borrower node to contract node
-// Banking: Which customer owns which contract account
-// SAP: BKKN — Contract account to Business Partner link
-entity BKKN {
-  key VKONT             : String(20);
-  key GPART         : String(10);   // business partner
-  ABWKN             : String(12);   // alternative payer
 }
 
 // ─── LOANS ───────────────────────────────────────────────────────────────────
@@ -75,16 +47,6 @@ entity Loans {
   LOAN_TYPE         : String(10);   // HOME, INVEST, PERSONAL, BUSINESS, TERM_DEP
   APPROVED_DATE     : Date;
   MATURITY_DATE     : Date;
-}
-
-// AI: Loan condition node — interest rate and terms
-// Banking: The contractual rate applied to each loan
-// SAP: BCA_LOAN_COND — Loan conditions
-entity LoanConditions {
-  key LOAN_ID       : String(15);
-  key COND_TYPE     : String(4);    // ZINS=interest rate
-  RATE              : Decimal(6,4);
-  VALID_FROM        : Date;
 }
 
 // AI: Repayment schedule node — expected cash flow pattern
@@ -141,18 +103,6 @@ entity DFKKOP {
   CURRENCY          : String(3);
 }
 
-// AI: Payment confirmation node — presence validates payment, absence confirms miss
-// Banking: Actual payments posted — cross-reference against DFKKOP to confirm missed repayments
-// SAP: DFKKZP — Payment items
-entity DFKKZP {
-  key PAYMENT_ID    : String(12);
-  LOAN_ID           : String(15);
-  PARTNER           : String(10);
-  BETRW             : Decimal(15,2);
-  BUDAT             : Date;          // posting date
-  AUGBL             : String(12);    // clearing document — links to DFKKOP.OPBEL
-}
-
 // AI: Sector classification node — concentration risk grouping
 // Banking: Industry sector of borrower — used to calculate portfolio concentration against internal limits
 // SAP: BCA_SECTOR — Industry sector classification
@@ -176,16 +126,6 @@ entity BCA_DTI {
   BREACH_DATE       : Date;          // date limit was activated / breach detected
   INCOME_SOURCE     : String(100);   // contract employer — trajectory signal
   INCOME_EXPIRY     : Date;          // contract end — future DTI signal for Trajectory Agent
-}
-
-// AI: Risk classification node — current rating assigned to loan
-// Banking: Internal credit rating — feeds into IRB capital calculation under APS 112
-// SAP: BCA_RISK_CLASS — Risk classification
-entity BCA_RISK_CLASS {
-  key LOAN_ID       : String(15);
-  RISK_CATEGORY     : String(20);   // PERFORMING, WATCHLIST, NON_PERFORMING
-  RATING            : String(3);    // AAA, BBB etc
-  RATED_AT          : DateTime;
 }
 
 // ─── REGULATORY REFERENCE DATA ───────────────────────────────────────────────
