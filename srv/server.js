@@ -672,53 +672,6 @@ cds.on('bootstrap', async (app) => {
     });
   });
 
-  // ── Explainability Report — CPS 230 audit trail ────────────────────────────
-  // AI: Aggregates all agent outputs for a session into a structured audit report
-  // Banking: Risk officer or auditor can retrieve the full reasoning chain and regulatory citations
-  // SAP: Reads RiskAssessments + AuditLog from HANA by sessionId
-  app.get('/api/report/:sessionId', async (req, res) => {
-    const { sessionId } = req.params;
-    try {
-      const [assessment, auditRows] = await Promise.all([
-        cds.run(SELECT.from('bankingsentinel.RiskAssessments').where({ SESSION_ID: sessionId }).limit(1)),
-        cds.run(SELECT.from('bankingsentinel.AuditLog').where({ SESSION_ID: sessionId }).orderBy('CREATED_AT'))
-      ]);
-
-      const ra = assessment[0] || null;
-      const report = {
-        sessionId,
-        generatedAt:    new Date().toISOString(),
-        standard:       'APRA CPS 230 — AI Governance & Explainability',
-        partner:        ra?.PARTNER,
-        riskScore:      ra?.RISK_SCORE,
-        riskLevel:      ra?.RISK_LEVEL,
-        confidence:     ra?.CONFIDENCE,
-        apraReady:      !!ra?.APPROVED_BY && !ra.APPROVED_BY.startsWith('REJECTED'),
-        approvedBy:     ra?.APPROVED_BY,
-        approvedAt:     ra?.APPROVED_AT,
-        findings:       ra?.FINDINGS ? JSON.parse(ra.FINDINGS) : [],
-        auditTrail:     auditRows.map(r => ({
-          action:      r.ACTION,
-          model:       r.MODEL,
-          tokensIn:    r.TOKENS_IN,
-          tokensOut:   r.TOKENS_OUT,
-          costAUD:     r.COST_AUD,
-          latencyMs:   r.LATENCY_MS,
-          createdAt:   r.CREATED_AT
-        }))
-      };
-
-      if (!ra) {
-        return res.status(404).json({ error: `No report found for session: ${sessionId}` });
-      }
-
-      res.json(report);
-    } catch (err) {
-      console.error(`[Report] GET /api/report/${sessionId} error: ${err.message}`);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
   console.log('  [Server] A2A endpoint ready: POST /a2a/agent');
   console.log('  [Server] Health check: GET /a2a/health\n');
 });

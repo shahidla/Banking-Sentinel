@@ -12,7 +12,7 @@ applications:
     services:
       - banking-sentinel-db
     env:
-      NODE_ENV: development
+      NODE_ENV: production
       # Anthropic
       ANTHROPIC_API_KEY: ((ANTHROPIC_API_KEY))
       ANTHROPIC_MODEL: claude-haiku-4-5-20251001
