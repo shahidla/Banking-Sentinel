@@ -59,23 +59,29 @@ async function extractTextFromPdf(source) {
 const WORD_NUMBERS = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 };
 
 function parseDtiLimit(text) {
-  // Pattern 1: "DTI ≥ 6" or "DTI >= 6" (appears in APRA calculation steps)
-  const m1 = text.match(/DTI\s*[≥>=]+\s*(\d+(?:\.\d+)?)/);
+  // Pattern 1: "DTI ≥ 6" / "DTI ratio ≥ 6" — allow up to 30 chars between DTI and operator
+  const m1 = text.match(/DTI[^<>\n]{0,30}[≥>=]+\s*(\d+(?:\.\d+)?)/);
   if (m1) {
     const val = parseFloat(m1[1]);
     if (val > 1 && val < 20) return val;
   }
-  // Pattern 2: "DTI greater or equal to six times" (narrative form)
-  const m2 = text.match(/DTI\s+greater\s+or\s+equal\s+to\s+([\w]+)\s+times?/i);
+  // Pattern 2: "DTI greater [than] or equal to six times" (narrative form)
+  const m2 = text.match(/DTI\s+(?:ratio\s+)?greater(?:\s+than)?\s+or\s+equal\s+to\s+([\w]+)\s+times?/i);
   if (m2) {
     const word = m2[1].toLowerCase();
     const val  = WORD_NUMBERS[word] ?? parseFloat(word);
     if (val > 1 && val < 20) return val;
   }
-  // Pattern 3: generic "X times" near debt-to-income
+  // Pattern 3: "debt-to-income ... X times"
   const m3 = text.match(/debt[- ]to[- ]income[^.]{0,80}(\d+(?:\.\d+)?)\s*times/i);
   if (m3) {
     const val = parseFloat(m3[1]);
+    if (val > 1 && val < 20) return val;
+  }
+  // Pattern 4: "DTI limit of X" / "DTI ratio of X" / "DTI cap of X"
+  const m4 = text.match(/DTI\s+(?:limit|ratio|cap|threshold)\s+of\s+(\d+(?:\.\d+)?)/i);
+  if (m4) {
+    const val = parseFloat(m4[1]);
     if (val > 1 && val < 20) return val;
   }
   return null;

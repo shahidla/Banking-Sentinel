@@ -27,18 +27,8 @@ async function hana_relational_query({ tables, filters = {}, fields = [] }) {
 // ─── TOOL 2: hana_vector_search ─────────────────────────────────────────────
 // AI: Semantic similarity search — finds APRA regulatory chunks closest to the query
 // Banking: "Is this a large exposure?" → retrieves APS 221 clauses on large exposure limits
-// SAP: HANA Vector Engine via LargeString EMBEDDING field + cosine similarity in Node.js
-//      Production upgrade: COSINE_SIMILARITY(TO_REAL_VECTOR(EMBEDDING), TO_REAL_VECTOR(?))
-
-function cosineSimilarity(a, b) {
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
-}
+// SAP: HANA native COSINE_SIMILARITY(TO_REAL_VECTOR(EMBEDDING), TO_REAL_VECTOR(?)) — single SQL
+//      push-down, no full table scan in Node.js. EMBEDDING stored as JSON array string.
 
 async function getEmbedding(text) {
   const response = await fetch('https://api.openai.com/v1/embeddings', {
@@ -60,7 +50,6 @@ async function hana_vector_search({ query, topK = 5, useHyDE = false, standard =
   // HyDE: generate a hypothetical APRA document excerpt first, then embed that
   // AI: Improves retrieval for sparse regulatory queries (question vs declaration vocabulary gap)
   // Banking: "Does this breach APS 221?" → HyDE generates "A connected group exposure exceeding..."
-  // SAP: Pre-processing step before HANA Vector query (will become a LangGraph node in Phase 5)
   if (useHyDE) {
     const { ChatAnthropic } = require('@langchain/anthropic');
     const llm = new ChatAnthropic({ model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001', maxTokens: 200 });
@@ -72,22 +61,29 @@ async function hana_vector_search({ query, topK = 5, useHyDE = false, standard =
   }
 
   const queryEmbedding = await getEmbedding(searchText);
+  const vectorStr = JSON.stringify(queryEmbedding);
 
-  let docsQuery = SELECT.from('bankingsentinel.RegulatoryDocuments');
-  if (standard) docsQuery = docsQuery.where({ STANDARD: standard });
-  const allDocs = await cds.run(docsQuery);
+  const db = await cds.connect.to('db');
+  const params = [vectorStr];
+  const whereClause = standard ? 'WHERE STANDARD = ?' : '';
+  if (standard) params.push(standard);
 
-  if (allDocs.length === 0) return [];
+  const rows = await db.run(
+    `SELECT TOP ${topK} DOC_ID, TITLE, STANDARD, CONTENT,
+       COSINE_SIMILARITY(TO_REAL_VECTOR(EMBEDDING), TO_REAL_VECTOR(?)) AS SIMILARITY
+     FROM "bankingsentinel_RegulatoryDocuments"
+     ${whereClause}
+     ORDER BY SIMILARITY DESC`,
+    params
+  );
 
-  const scored = allDocs.map(doc => ({
-    DOC_ID: doc.DOC_ID,
-    TITLE: doc.TITLE,
-    STANDARD: doc.STANDARD,
-    CONTENT: doc.CONTENT,
-    similarity: cosineSimilarity(queryEmbedding, JSON.parse(doc.EMBEDDING))
+  return rows.map(r => ({
+    DOC_ID:    r.DOC_ID,
+    TITLE:     r.TITLE,
+    STANDARD:  r.STANDARD,
+    CONTENT:   r.CONTENT,
+    similarity: parseFloat(r.SIMILARITY)
   }));
-
-  return scored.sort((a, b) => b.similarity - a.similarity).slice(0, topK);
 }
 
 // ─── TOOL 3: hana_graph_traverse ────────────────────────────────────────────
@@ -378,6 +374,5 @@ module.exports = {
   hana_graph_traverse,
   apra_threshold_check,
   exposure_calculator,
-  cosineSimilarity,
   getEmbedding
 };

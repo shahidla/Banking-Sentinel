@@ -62,8 +62,8 @@ async function extractText(buffer) {
 // Demo 2: clicking "Apply APRA Notice" re-downloads the real PDF, parses 6.0, sets breach state.
 function modifyDtiTextForDemo1(text) {
   return text
-    .replace(/DTI\s*[≥>=]+\s*6(\.0)?/g, 'DTI ≥ 8$1')
-    .replace(/DTI\s+greater\s+or\s+equal\s+to\s+six\s+times/gi, 'DTI greater or equal to eight times')
+    .replace(/DTI[^<>\n]{0,30}[≥>=]+\s*6(\.0)?/g, 'DTI ≥ 8$1')
+    .replace(/DTI\s+(?:ratio\s+)?greater(?:\s+than)?\s+or\s+equal\s+to\s+six\s+times/gi, 'DTI greater or equal to eight times')
     .replace(/\bsix\s+times\b/gi, 'eight times');
 }
 
