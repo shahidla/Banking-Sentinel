@@ -71,7 +71,7 @@ async function hana_vector_search({ query, topK = 5, useHyDE = false, standard =
   const rows = await db.run(
     `SELECT TOP ${topK} DOC_ID, TITLE, STANDARD, CONTENT,
        COSINE_SIMILARITY(TO_REAL_VECTOR(EMBEDDING), TO_REAL_VECTOR(?)) AS SIMILARITY
-     FROM "bankingsentinel_RegulatoryDocuments"
+     FROM "BANKINGSENTINEL_REGULATORYDOCUMENTS"
      ${whereClause}
      ORDER BY SIMILARITY DESC`,
     params
@@ -260,8 +260,10 @@ async function apra_threshold_check({ metricType, value, entityId }) {
     breach = value > limit;
     threshold = 100;
   } else if (metricType === 'sector_concentration') {
-    const limits = await cds.run(SELECT.from('bankingsentinel.SectorExposureLimits'));
-    const sectorLimit = limits[0]?.LIMIT_AUD; // simplified — lookup by sector in Phase 5
+    const limits = await cds.run(
+      SELECT.from('bankingsentinel.SectorExposureLimits').where({ SECTOR_CODE: entityId })
+    );
+    const sectorLimit = limits[0]?.LIMIT_AUD;
     utilisation = sectorLimit ? (value / sectorLimit) * 100 : null;
     breach = utilisation > 100;
     threshold = 75;
