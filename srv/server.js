@@ -601,12 +601,18 @@ cds.on('bootstrap', async (app) => {
           edges:         s.relationshipMap.edges,
           groupExposure: s.relationshipMap.groupExposure,
           aps221Pct:     s.relationshipMap.aps221Pct,
-          confidence:    s.relationshipMap.confidence
+          confidence:    s.relationshipMap.confidence,
+          finding:       s.relationshipMap.finding || null,
+          hops:          s.relationshipMap.hops || null
         } : null,
         // Self-RAG
         selfRagEvaluation: s.selfRagEvaluation || null,
+        selfRagHistory:    s.selfRagHistory    || [],
         requeryCount:  s.requeryCount || 0,
         reQueryHint:   s.reQueryHint || null,
+        // Human Approval
+        hitlEnabled:  s.hitlEnabled ?? true,
+        approvedBy:   auditTrail.find(r => r.ACTION === 'human_approval')?.DETAILS || null,
         // Synthesis
         riskScore:    synth.riskScore,
         riskLevel:    synth.riskLevel,
@@ -616,11 +622,14 @@ cds.on('bootstrap', async (app) => {
         regulatoryRefs:  synth.regulatoryRefs || [],
         uncertainties:   synth.uncertainties || [],
         apraReady:    synth.apraReady,
-        // Tokens
+        // Tokens + cost totals derived from audit trail
         totalInputTokens:  s.totalInputTokens || 0,
         totalOutputTokens: s.totalOutputTokens || 0,
+        totalCostAUD:  auditTrail.reduce((sum, r) => sum + (parseFloat(r.COST_AUD) || 0), 0),
+        totalLatencyMs: auditTrail.reduce((sum, r) => sum + (parseInt(r.LATENCY_MS) || 0), 0),
+        // SAP tables accessed during this pipeline run
+        trbkTables: ['BUT050', 'BCA_GUARANTOR', 'DFKKOP', 'BCA_DTI', 'BCA_LOAN_HDR', 'Loans', 'BCA_SECTOR'],
         // Audit
-        approvedBy:   auditTrail.find(r => r.ACTION === 'human_approval')?.DETAILS || null,
         auditTrail:   auditTrail.map(r => ({
           action:    r.ACTION,
           model:     r.MODEL,
