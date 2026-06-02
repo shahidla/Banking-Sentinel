@@ -64,7 +64,7 @@ async function synthesisAgent(state) {
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 700,
+    maxTokens: 1500,
     callbacks: lfHandler ? [lfHandler] : []
   });
 

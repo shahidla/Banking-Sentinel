@@ -181,7 +181,7 @@
   .ao .g { color: var(--green); }
   .ao .w { color: var(--amber); }
 
-  .graph-wrap { margin-top: 10px; border: 1px solid var(--border); background: var(--bg); height: 240px; display: none; position: relative; cursor: pointer; }
+  .graph-wrap { margin-top: 10px; border: 1px solid var(--border); background: var(--bg); height: 320px; display: none; position: relative; cursor: pointer; }
   .graph-wrap:hover::after { content: '⤢ expand'; position: absolute; top: 6px; right: 8px; font-size: 9px; font-family: var(--sans); color: var(--mid); background: rgba(255,255,255,0.85); padding: 2px 6px; border-radius: 2px; border: 1px solid var(--border); pointer-events: none; }
   #graphCanvas { width: 100%; height: 100%; display: block; }
 
@@ -619,7 +619,9 @@ function renderPatternProgress() {
       })()
     : `RPT-1: ${pending}`;
   const palHtml = p.pal
-    ? `<b>${_anomalyLabel}: <span class="h">${p.pal.anomalyCount ?? 0} anomal${p.pal.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`
+    ? (p.pal.success === false
+        ? `<b>${_anomalyLabel}: <span style="color:var(--mid)">unavailable</span></b>`
+        : `<b>${_anomalyLabel}: <span class="h">${p.pal.anomalyCount ?? 0} anomal${p.pal.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`)
     : `${_anomalyLabel}: ${pending}`;
   const llmHtml = p.llm
     ? `<b>LLM: <span class="h">${p.llm.anomalyCount ?? 0} anomal${p.llm.anomalyCount === 1 ? 'y' : 'ies'}</span></b>`
@@ -1276,7 +1278,10 @@ function buildFoundContent(agentKey, d) {
       let html = `<div class="adm-how-lbl">RPT-1 (Tabular Foundation Model)</div>
         <div class="adm-kv">${admRow('Category', rpt1.category || d.riskLevel || '—')}${admRow('Confidence', rpt1.confidence != null ? (rpt1.confidence * 100).toFixed(0) + '%' : '—')}${rpt1.success === false ? admRow('Note', 'Estimated (RPT-1 API fallback)') : ''}</div>`;
       html += `<div class="adm-how-lbl" style="margin-top:10px">${_anomalyLabel} (Isolation Forest)</div>
-        <div class="adm-kv">${admRow('Flagged rows', (pal.anomalyCount ?? 0) + ' / ' + (pal.totalScored || d.palTotalScored || '?') + ' payment rows')}</div>`;
+        <div class="adm-kv">${pal.success === false
+          ? admRow('Status', 'Unavailable — scikit service not running (start ml/anomaly-service.py)')
+          : admRow('Flagged rows', (pal.anomalyCount ?? 0) + ' / ' + (pal.totalScored != null ? pal.totalScored : (d.palTotalScored ?? '?')) + ' payment rows')
+        }</div>`;
       if ((pal.findings || []).length > 0) {
         html += pal.findings.slice(0, 5).map(f => `<div style="font-size:10px;color:var(--mid);padding:2px 0;border-bottom:1px solid var(--border)">· ${typeof f === 'object' ? JSON.stringify(f) : f}</div>`).join('');
       }
@@ -1560,13 +1565,13 @@ function drawGraph(rawNodes, rawEdges, targetCanvas) {
 
     ctx.textAlign = 'center';
     if (name) {
-      ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 8px Figtree, sans-serif';
+      ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 10px Figtree, sans-serif';
       ctx.fillText(name, pos[i].x, pos[i].y + 1);
-      ctx.fillStyle = '#555555'; ctx.font = '6.5px monospace';
-      ctx.fillText(id, pos[i].x, pos[i].y + 10);
+      ctx.fillStyle = '#555555'; ctx.font = '9px monospace';
+      ctx.fillText(id, pos[i].x, pos[i].y + 12);
     } else {
       // Fallback: just the ID centered
-      ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 7.5px Figtree, sans-serif';
+      ctx.fillStyle = '#1A1A1A'; ctx.font = 'bold 9px Figtree, sans-serif';
       ctx.fillText(id.length > 10 ? id.slice(0, 9) + '…' : id, pos[i].x, pos[i].y + 3);
     }
   });

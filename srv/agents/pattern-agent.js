@@ -185,7 +185,8 @@ async function runLlmAnomalyDetection(data, customerId) {
       role:    'system',
       content: `You are a banking risk analyst. Identify specific anomalies in the customer data.
 Return JSON only: { "anomalies": ["anomaly 1", "anomaly 2"] }
-Each anomaly max 20 words. Empty array if nothing unusual.`
+Each anomaly max 20 words. Empty array if nothing unusual.
+IMPORTANT: DTI is a ratio — always express as Xx (e.g. 5.80x), never as a percentage.`
     },
     { role: 'user', content: `Customer ${customerId}:\n${summary}` }
   ]);
