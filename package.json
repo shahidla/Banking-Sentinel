@@ -9,6 +9,7 @@
   "scripts": {
     "start": "cds-serve",
     "dev": "cds watch",
+    "start:local": "concurrently --names \"CAP,SCIKIT\" --prefix-colors \"yellow,cyan\" \"npx cds serve --profile hybrid\" \"python ml/anomaly-service.py\"",
     "build": "cds build",
     "deploy:hana": "cds deploy --to hana",
     "deploy:cf": "cf push"
@@ -36,6 +37,7 @@
     "@types/node": "^22",
     "@types/pg": "^8",
     "@types/uuid": "^10",
+    "concurrently": "^10.0.1",
     "ts-node": "^10",
     "tsx": "^4.22.3",
     "typescript": "^5"
