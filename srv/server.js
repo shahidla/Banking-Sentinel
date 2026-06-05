@@ -326,6 +326,9 @@ cds.on('bootstrap', async (app) => {
       const latencyMs = Date.now() - startTime;
       const cost = calculateCostAUD(finalState.totalInputTokens, finalState.totalOutputTokens);
 
+      // Store latency in state so /api/report can read it without AuditLog
+      await graph.updateState(config, { totalLatencyMs: latencyMs });
+
       console.log(`[A2A] Done | type: ${responseType} | tokens: ${finalState.totalInputTokens}in/${finalState.totalOutputTokens}out | AUD ${cost.toFixed(4)} | ${latencyMs}ms`);
 
       // Persist to AuditLog
@@ -578,7 +581,7 @@ cds.on('bootstrap', async (app) => {
       let auditTrail = [];
       try {
         auditTrail = await cds.run(
-          SELECT.from('bankingsentinel.AuditLog').where({ SESSION_ID: sessionId }).orderBy('TIMESTAMP asc')
+          SELECT.from('bankingsentinel.AuditLog').where({ SESSION_ID: sessionId }).orderBy('CREATED_AT asc')
         );
       } catch (_) {}
 
@@ -622,11 +625,13 @@ cds.on('bootstrap', async (app) => {
         regulatoryRefs:  synth.regulatoryRefs || [],
         uncertainties:   synth.uncertainties || [],
         apraReady:    synth.apraReady,
-        // Tokens + cost totals derived from audit trail
+        // Tokens + cost totals — from audit trail if available, else calculated from state tokens
         totalInputTokens:  s.totalInputTokens || 0,
         totalOutputTokens: s.totalOutputTokens || 0,
-        totalCostAUD:  auditTrail.reduce((sum, r) => sum + (parseFloat(r.COST_AUD) || 0), 0),
-        totalLatencyMs: auditTrail.reduce((sum, r) => sum + (parseInt(r.LATENCY_MS) || 0), 0),
+        totalCostAUD:  auditTrail.length
+          ? auditTrail.reduce((sum, r) => sum + (parseFloat(r.COST_AUD) || 0), 0)
+          : calculateCostAUD(s.totalInputTokens || 0, s.totalOutputTokens || 0),
+        totalLatencyMs: auditTrail.reduce((sum, r) => sum + (parseInt(r.LATENCY_MS) || 0), 0) || (s.totalLatencyMs || 0),
         // SAP tables accessed during this pipeline run
         trbkTables: ['BUT050', 'BCA_GUARANTOR', 'DFKKOP', 'BCA_DTI', 'BCA_LOAN_HDR', 'Loans', 'BCA_SECTOR'],
         // Audit

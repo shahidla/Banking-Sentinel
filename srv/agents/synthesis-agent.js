@@ -193,10 +193,10 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`
     !regulatoryContextUnavailable
   );
 
-  // Merge retrieved regulatory refs into whatever the LLM produced
-  if (regulatoryRefs.length > 0) {
-    brief.regulatoryRefs = [...new Set([...(brief.regulatoryRefs || []), ...regulatoryRefs])];
-  }
+  // Merge retrieved regulatory refs, filter to known standards only (prevent LLM hallucination)
+  const KNOWN_STANDARDS = new Set(['APS221', 'CPS230', 'DTI_NOTICE']);
+  const llmRefs = (brief.regulatoryRefs || []).filter(r => KNOWN_STANDARDS.has(r));
+  brief.regulatoryRefs = [...new Set([...llmRefs, ...regulatoryRefs])];
 
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;
   const tokensOut = response.usage_metadata?.output_tokens || 0;
