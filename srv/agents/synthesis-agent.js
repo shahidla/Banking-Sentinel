@@ -64,7 +64,7 @@ async function synthesisAgent(state) {
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 1500,
+    maxTokens: 2500,
     callbacks: lfHandler ? [lfHandler] : []
   });
 
@@ -117,15 +117,15 @@ Pattern confidence (rpt1Conf) is the real RPT-1 confidence from the tabular mode
 palFlagged shows anomaly count as "X/N payment rows" — use this exact format in findings.
 Self-RAG reasoning explains the evidence quality decision — cite it if relevant.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON. Keep each finding under 20 words. Max 5 findings, 3 recommendations, 3 uncertainties.
 {
   "riskScore": <0-100 integer>,
   "riskLevel": "<LOW|MEDIUM|HIGH|CRITICAL>",
   "confidence": <0.00-1.00>,
-  "findings": [{"finding": "<finding>", "standard": "<APS221|CPS230|DTI_NOTICE>", "severity": "<HIGH|MEDIUM|LOW>", "evidenceSource": "<agent name>", "confidence": <0.00-1.00>}],
-  "recommendations": ["<action>"],
+  "findings": [{"finding": "<max 20 words>", "standard": "<APS221|CPS230|DTI_NOTICE>", "severity": "<HIGH|MEDIUM|LOW>", "evidenceSource": "<agent name>", "confidence": <0.00-1.00>}],
+  "recommendations": ["<action, max 15 words>"],
   "regulatoryRefs": ["<APS221|CPS230|DTI_NOTICE>"],
-  "uncertainties": ["<data gap>"],
+  "uncertainties": ["<data gap, max 15 words>"],
   "apraReady": <true|false>
 }
 Return ONLY the JSON object. No markdown, no explanation, no code fences.`
