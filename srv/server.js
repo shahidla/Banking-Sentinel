@@ -161,6 +161,7 @@ cds.on('bootstrap', async (app) => {
         customerId: params.customerId || null,
         sessionId,
         traceId,
+        hitlEnabled,
         requeryCount:      0,
         totalInputTokens:  0,
         totalOutputTokens: 0,

@@ -138,12 +138,24 @@ const BankingSentinelState = Annotation.Root({
   // SAP: Written by selfRagCheckNode; read by relationshipAgent on re-query runs
   reQueryHint: Annotation({ reducer: last }),
 
+  // AI: Full iteration log — one entry per Self-RAG evaluation, preserved across re-queries
+  // Banking: Audit trail showing how confidence evolved — iteration 1: 0.65 → re-query → iteration 2: 0.82
+  // SAP: Appended by selfRagCheckNode; read by Synthesis agentContext and report page
+  selfRagHistory: Annotation({ reducer: append, default: () => [] }),
+
+  // ── Pipeline config ────────────────────────────────────────────────────────
+  // AI: HITL toggle — persisted so /api/report can read the mode for a given session
+  // Banking: CPS 230 co-pilot — report must show whether human approved or auto-approved
+  // SAP: Set in initialState from params.hitl; read by /api/report endpoint
+  hitlEnabled: Annotation({ reducer: last, default: () => true }),
+
   // ── Observability ──────────────────────────────────────────────────────────
   // AI: LLMOps — token usage accumulates across all agent nodes
   // Banking: Cost per analysis — stored in AuditLog, visible in Langfuse
   // SAP: calculateCost(inputTokens, outputTokens) → AUD stored in AuditLog entity
-  totalInputTokens:  Annotation({ reducer: sum, default: () => 0 }),
-  totalOutputTokens: Annotation({ reducer: sum, default: () => 0 }),
+  totalInputTokens:  Annotation({ reducer: sum,  default: () => 0 }),
+  totalOutputTokens: Annotation({ reducer: sum,  default: () => 0 }),
+  totalLatencyMs:    Annotation({ reducer: last, default: () => 0 }),
 
   // AI: Retrieved APRA regulatory chunks — set by Synthesis Agent, read by RAGAS evaluator
   // Banking: Faithfulness check: does the risk brief cite regulations that were actually retrieved?
