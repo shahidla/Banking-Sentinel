@@ -24,7 +24,7 @@ async function selfRagCheckNode(state) {
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 400,
+    maxTokens: 800,
     callbacks: lfHandler ? [lfHandler] : []
   });
 
@@ -126,13 +126,10 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
   console.log(`  [SelfRAG] reQueryHint: ${evaluation.reQueryHint || '(none)'}`);
   (evaluation.gaps || []).forEach((g, i) => console.log(`  [SelfRAG] Gap ${i+1}: ${g}`));
 
-  // Append to selfRagHistory — each iteration preserved, not overwritten
-  const prevHistory = Array.isArray(state.selfRagHistory) ? state.selfRagHistory : [];
-  const selfRagHistory = [...prevHistory, { iteration: reqCount + 1, ...evaluation }];
-
   return {
-    selfRagEvaluation: evaluation,           // still available for routing function
-    selfRagHistory,                          // full iteration log → Synthesis agentContext
+    selfRagEvaluation: evaluation,
+    // Return only the NEW entry — state.js append reducer accumulates across iterations
+    selfRagHistory: [{ iteration: reqCount + 1, ...evaluation }],
     reQueryHint:       evaluation.reQueryHint,
     requeryCount:      reqCount + 1,
     totalInputTokens:  tokensIn,

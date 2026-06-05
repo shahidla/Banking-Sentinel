@@ -331,7 +331,7 @@ cds.on('bootstrap', async (app) => {
       const cost = calculateCostAUD(finalState.totalInputTokens, finalState.totalOutputTokens);
 
       // Store latency in state so /api/report can read it without AuditLog
-      await graph.updateState(config, { totalLatencyMs: latencyMs });
+      try { await graph.updateState(config, { totalLatencyMs: latencyMs }); } catch (_) {}
 
       console.log(`[A2A] Done | type: ${responseType} | tokens: ${finalState.totalInputTokens}in/${finalState.totalOutputTokens}out | AUD ${cost.toFixed(4)} | ${latencyMs}ms`);
 
