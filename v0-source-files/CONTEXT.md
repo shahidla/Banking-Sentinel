@@ -13,6 +13,30 @@
 ## Phase 7 complete (2026-05-25): SSE + Solace dual-publish per node via graph.stream(). UI fully wired — anomaly strings, relationship finding, forward position, synthesis findings all live. Admin data browser: PostgreSQL sidebar with real COUNT(*) and Clear All. Security hardening: admin IP guard, APS 221 GROUP limit fix, orphaned-approve 404, real audit latency. Relationship Agent 45s timeout + SPARQL 8s AbortSignal. Logo added.
 ## Phase 8 — HDI Deploy + PAL Investigation (2026-05-25): BP_RELATIONSHIP_GRAPH.hdbgraphworkspace + 3 CDS views deployed to HANA Cloud HDI via hdi-deploy v5.6.1. PAL Isolation Forest CONFIRMED NOT AVAILABLE on HANA Cloud Free Tier — ScriptServer requires 3 vCPU minimum; Free Tier has 1 vCPU. PAL code preserved in pattern-agent.js (calls PAL_RUN_ISOLATION_FOREST procedure) — non-fatal on Free Tier (warns, continues). Deploy to paid 3vCPU HANA Cloud + grant AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user to enable PAL (see SAP KB 3655407). Key deploy fix: VCAP_SERVICES needs "tags": ["hana"] + "plan": "hdi-shared" for xsenv.filterServices to pick up the service. db/src/.hdiconfig added for hdbgraphworkspace + hdbprocedure plugins.
 ## HDI Deploy command (2026-05-25): npx cds build --for hana → Copy-Item default-env.json gen\db\default-env.json → cd gen\db; node node_modules\@sap\cds-dk\node_modules\@sap\hdi-deploy\deploy.js --exit
+## Last updated: 2026-06-05 (Session 3)
+## Session 3 (2026-06-05) — Bug fixes, blog post, pattern agent threshold fix:
+## - Git pull / reset to origin/main (unrelated histories from prior force push)
+## - Security fix: manifest.yml with 8 live credentials was committed in previous session (Claude mistake). User rotated all keys. manifest.yml added to .gitignore. manifest.yml.template created with no credentials — all external API keys go via cf set-env only.
+## - Implemented all code-review.md fixes: HANA native cosine SQL (ALL CAPS table name: BANKINGSENTINEL_REGULATORYDOCUMENTS), parseDtiLimit regex improved, sector concentration filter scoped, model set to cheapest (Haiku).
+## - HANA data updates: BCA_DTI for 30100001 — INCOME_EXPIRY='2027-04-01', INCOME_SOURCE='CONTRACT'. BUT050 30100001→30910005 and 30100001→30910006 RELTYP='FAMILY_TRUST_MEMBER'. GraphDB re-seeded (4021 triples).
+## - Fixed LangGraph state: added selfRagHistory (append reducer), hitlEnabled (last reducer), totalLatencyMs (last reducer) — LangGraph silently drops undeclared state fields.
+## - Fixed Self-RAG: maxTokens 400→800 (was truncating JSON), return only [newItem] not full rebuilt array (append reducer was doubling history).
+## - Fixed AuditLog: column is CREATED_AT not TIMESTAMP. Wrapped graph.updateState() in try-catch so AuditLog INSERT always runs.
+## - Fixed admin sessions: joined AuditLog for COST_AUD/LATENCY_MS/TOKENS. Added delete button with confirm dialog.
+## - Fixed report page: pal.totalScored, scikit findings format, relConfidence, currentDti/futureDti in SSE events, hitlEnabled in initialState.
+## - Fixed trajectory: INCOME_EXPIRY_WARN_DAYS=365 (was 180). Removed STATUS filter from LoanSchedule (column doesn't exist).
+## - Fixed pattern agent: LLM now receives APRA DTI threshold from RegulatoryThresholds table — was citing 6.00x from training data when DB threshold was 8.0x.
+## - UI fixes: graph height 240→320px, node font size, scikit unavailable state, graph wrap height.
+## - Created comprehensive blog post: Docs/banking-sentinel-blog.md (710 lines, verified twice).
+## - Primary demo customer changed: 30100001 (not 30100003) — DTI 5.80x, income expires 2027-04-01, connected to 30910005/30910006 via FAMILY_TRUST_MEMBER.
+## - Commits: multiple commits this session. Latest: 2f8dc88 (blog), 66d6b00 (pattern threshold fix), 6778e82 (selfRag/auditLog fixes).
+## CONFIRMED WORKING (2026-06-05 test, session ui-1780635064618):
+##   selfRagHistory: 1 clean iteration (no duplicates) ✓
+##   totalCostAUD: 0.0022 ✓, totalLatencyMs: 40655ms ✓, auditTrail: populated ✓
+##   hitlEnabled: correctly stored/reflected ✓, currentDti/futureDti in View Details ✓
+##   forwardPosition: MONITORING (correct for Demo 1 — threshold 8.0x, futureDti 7.05 < 8.0) ✓
+## DEMO 2 FLOW (not yet run): click APRA Notice → threshold → 6.0x → re-run → DETERIORATING, timeToBreach=299
+## PENDING: CF deployment (cf push + 9x cf set-env for rotated credentials + cf restage)
 ## Last updated: 2026-05-27 (Session 2)
 ## Session 2 (2026-05-27) — Cleanup sprint + APRA Notice hardening:
 ## - Deleted 6 unused HANA tables (BPRoles, ContractAccounts, BKKN, LoanConditions, DFKKZP, BCA_RISK_CLASS) from schema.cds + admin.js + seed.js + 6 CSVs + 3 processed JSONs
