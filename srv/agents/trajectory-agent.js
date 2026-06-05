@@ -90,7 +90,7 @@ async function trajectoryAgent(state) {
       const upcomingPayments = await cds.run(
         incomeExpiryIso
           ? SELECT.from('bankingsentinel.LoanSchedule')
-              .where({ LOAN_ID: { in: loanIds }, STATUS: { '!=': 'PAID' } })
+              .where({ LOAN_ID: { in: loanIds } })
               .where('DUE_DATE <=', incomeExpiryIso)
               .limit(20)
           : SELECT.from('bankingsentinel.LoanSchedule').where({ LOAN_ID: { in: loanIds } }).limit(20)
