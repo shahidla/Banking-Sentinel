@@ -145,16 +145,23 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`
   } else {
     rawText = String(response.content);
   }
-  // Strip markdown code fences if LLM wrapped JSON in ```json ... ```
-  const text  = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  const match = text.match(/\{[\s\S]*\}/);
+  // Strip markdown code fences, then try direct parse → regex fallback
+  const text = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
   let brief;
   try {
-    brief = match ? JSON.parse(match[0]) : null;
-  } catch (e) {
-    console.warn('  [Synthesis] JSON parse failed. Raw LLM output:', rawText.substring(0, 500));
-    brief = null;
+    brief = JSON.parse(text);
+  } catch (_) {
+    try {
+      const match = text.match(/\{[\s\S]*\}/);
+      brief = match ? JSON.parse(match[0]) : null;
+    } catch (e) {
+      console.warn('  [Synthesis] JSON parse failed. Raw LLM output:', rawText.substring(0, 800));
+      brief = null;
+    }
   }
+
+  // Coerce riskScore to number if LLM returned it as string
+  if (brief && typeof brief.riskScore === 'string') brief.riskScore = parseInt(brief.riskScore, 10);
 
   // Fallback if LLM response is malformed
   if (!brief || typeof brief.riskScore !== 'number') {

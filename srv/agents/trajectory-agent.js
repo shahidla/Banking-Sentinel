@@ -7,7 +7,7 @@
 const cds = require('@sap/cds');
 const { startSpan, endSpan } = require('../observability/langfuse-client');
 
-const INCOME_EXPIRY_WARN_DAYS = 180; // flag if income expires within 6 months
+const INCOME_EXPIRY_WARN_DAYS = 365; // flag if income expires within 12 months
 
 async function trajectoryAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
