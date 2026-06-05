@@ -299,8 +299,8 @@ function render(d) {
       kv('RPT-1 Category', rpt1.category || '—') +
       kv('RPT-1 Score', num(rpt1.score, 1)) +
       kv('RPT-1 Confidence', pct(rpt1.confidence)) +
-      kv('Scikit-IF Flagged', pal.anomalyCount != null ? pal.anomalyCount + ' / ' + (pal.totalRows || '?') + ' payment rows' : '—') +
-      kv('Scikit-IF Reason', (pal.findings || []).map(f => f.reason || f).join(', ') || '—') +
+      kv('Scikit-IF Flagged', pal.success === false ? 'Unavailable — scikit service not running' : (pal.anomalyCount != null ? pal.anomalyCount + ' / ' + (pal.totalScored ?? '?') + ' payment rows' : '—')) +
+      kv('Scikit-IF Outliers', (pal.findings || []).filter(f => f.label === -1).map(f => 'row ' + f.id + (f.reasonCode ? ' (' + f.reasonCode + ')' : '') + ' score:' + (f.score != null ? Number(f.score).toFixed(3) : '?')).join(', ') || 'None') +
       kv('LLM Anomalies', (llm.anomalies || []).length + ' detected') +
     '</div>' +
     ((llm.anomalies || []).length ?
