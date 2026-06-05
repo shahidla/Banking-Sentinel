@@ -15,11 +15,12 @@ progressEmitter.setMaxListeners(50);
 
 // ── Step 1: Fetch customer data from HANA ────────────────────────────────────
 async function fetchCustomerData(customerId) {
-  const [loans, dtiRows, payments, portfolio] = await Promise.all([
+  const [loans, dtiRows, payments, portfolio, thresholdRows] = await Promise.all([
     cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId }).limit(1)),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId }).limit(100)),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').columns('DAYS_OVERDUE', 'BETRW').limit(500)),
+    cds.run(SELECT.from('bankingsentinel.RegulatoryThresholds').where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' }).limit(1)),
   ]);
 
   let collateral = [];
@@ -28,7 +29,8 @@ async function fetchCustomerData(customerId) {
     collateral = await cds.run(SELECT.from('bankingsentinel.BCA_COLLATERAL').where({ LOAN_ID: { in: loanIds } }));
   }
 
-  return { loans, dti: dtiRows[0] || null, payments, collateral, portfolio };
+  const apraDtiLimit = parseFloat(thresholdRows[0]?.LIMIT_PCT) || 8.0;
+  return { loans, dti: dtiRows[0] || null, payments, collateral, portfolio, apraDtiLimit };
 }
 
 // ── Step 2: RPT-1 — SAP tabular foundation model (consumer API at rpt.cloud.sap) ──
@@ -186,6 +188,7 @@ async function runLlmAnomalyDetection(data, customerId) {
       content: `You are a banking risk analyst. Identify specific anomalies in the customer data.
 Return JSON only: { "anomalies": ["anomaly 1", "anomaly 2"] }
 Each anomaly max 20 words. Empty array if nothing unusual.
+IMPORTANT: The current APRA DTI threshold is ${data.apraDtiLimit.toFixed(2)}x. Use this exact value — do not use any other threshold.
 IMPORTANT: DTI is a ratio — always express as Xx (e.g. 5.80x), never as a percentage.`
     },
     { role: 'user', content: `Customer ${customerId}:\n${summary}` }
