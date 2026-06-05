@@ -22,8 +22,8 @@ def anomaly():
     portfolio = body.get('portfolio', [])   # training rows — all customers (TOP 500 from DFKKOP)
     payments  = body.get('payments', [])    # scoring rows — this customer only
 
-    if len(portfolio) < 10:
-        return jsonify({'error': f'Not enough portfolio rows for training (got {len(portfolio)}, need >= 10)'}), 400
+    if len(portfolio) < 5:
+        return jsonify({'error': f'Not enough portfolio rows for training (got {len(portfolio)}, need >= 5)'}), 400
     if not payments:
         return jsonify({'error': 'No customer payment rows to score'}), 400
 
