@@ -211,6 +211,7 @@ cds.on('bootstrap', async (app) => {
             graphEdges:     finalState.relationshipMap?.edges,
             groupExposure:  finalState.relationshipMap?.groupExposure,
             aps221Pct:      finalState.relationshipMap?.aps221Pct,
+            relConfidence:  finalState.relationshipMap?.confidence,
             relationshipFinding: finalState.relationshipMap?.finding,
             forwardPosition:finalState.trajectoryAnalysis?.forwardPosition,
             daysToExpiry:   finalState.trajectoryAnalysis?.daysToExpiry,

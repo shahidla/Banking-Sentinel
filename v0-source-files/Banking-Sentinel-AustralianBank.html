@@ -476,7 +476,7 @@
         <div class="an">03</div>
         <div>
           <div class="anr">Relationship Agent <span class="ab ab-waiting">Waiting</span></div>
-          <div class="ao">ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check</div>
+          <div class="ao">ReAct loop · SPARQL on GraphDB · BUT050 + BCA_GUARANTOR · APS 221 group exposure check</div>
           <div class="graph-wrap" id="gw" onclick="openGraphModal()" title="Click to expand graph"><canvas id="graphCanvas"></canvas></div>
           <button class="vd-link" onclick="openAgentDetail('relationship')">View Details</button>
         </div>
@@ -694,7 +694,7 @@ function resetUI() {
   const AGENT_DEFAULTS = {
     a1:  'Parses NL query · Identifies customer · Classifies intent · Routes: risk analysis / simple query / rejection',
     a2:  'RPT-1 tabular foundation model · Isolation Forest · LLM narrative anomalies · All three run in parallel via Promise.allSettled',
-    a3:  'ReAct loop · SPARQL on GraphDB (HANA KGE) · BUT050 + BCA_GUARANTOR · APS 221 group exposure check',
+    a3:  'ReAct loop · SPARQL on GraphDB · BUT050 + BCA_GUARANTOR · APS 221 group exposure check',
     a4:  'Forward DTI after income expiry · Income contract expiry window · Conflicting signals detection',
     a4b: 'Evidence quality evaluation · Re-queries Relationship Agent if confidence &lt; 0.70 · Max 2 re-queries',
     a5:  'HANA Vector RAG · APRA regulatory retrieval · Evidence trail · APRA-ready risk brief with confidence per finding'
@@ -1301,7 +1301,7 @@ function buildFoundContent(agentKey, d) {
         ${admRow('Group Exposure', d.groupExposure ? 'AUD ' + (d.groupExposure/1e6).toFixed(2) + 'M' : '—')}
         ${admRow('APS 221 % of Limit', d.aps221Pct != null ? d.aps221Pct.toFixed(1) + '%' : '—')}
         ${admRow('Finding', d.relationshipFinding || '—')}
-        ${admRow('Confidence', d.confidence != null ? (d.confidence * 100).toFixed(0) + '%' : '—')}
+        ${admRow('Confidence', d.relConfidence != null ? (d.relConfidence * 100).toFixed(0) + '%' : '—')}
       </div>`;
       return html;
     }
