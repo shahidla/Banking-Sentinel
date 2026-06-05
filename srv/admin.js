@@ -258,17 +258,23 @@ async function loadSessions() {
           Customer · \${partner} &nbsp;·&nbsp; \${runs.length} run\${runs.length !== 1 ? 's' : ''}
         </div>
         <table><thead><tr>
-          <th>Risk Level</th><th>Score</th><th>Confidence</th><th>Approved By</th><th>Run At</th><th>Session ID</th><th></th>
+          <th>Risk Level</th><th>Score</th><th>Confidence</th><th>Cost (AUD)</th><th>Latency</th><th>Tokens</th><th>Approved By</th><th>Run At</th><th>Session ID</th><th></th>
         </tr></thead><tbody>\`;
       runs.forEach(r => {
         const col   = levelColor[r.RISK_LEVEL] || '#94a3b8';
         const conf  = r.CONFIDENCE != null ? Math.round(r.CONFIDENCE * 100) + '%' : '—';
         const ts    = r.CREATED_AT ? new Date(r.CREATED_AT).toLocaleString() : '—';
         const sid   = r.SESSION_ID || '';
+        const cost  = r.COST_AUD   ? 'AUD ' + Number(r.COST_AUD).toFixed(4) : '—';
+        const lat   = r.LATENCY_MS ? Math.round(r.LATENCY_MS / 1000) + 's'  : '—';
+        const tok   = (r.TOKENS_IN || r.TOKENS_OUT) ? (r.TOKENS_IN || 0) + '+' + (r.TOKENS_OUT || 0) : '—';
         html += \`<tr>
           <td><span style="color:\${col};font-weight:700">\${r.RISK_LEVEL || '—'}</span></td>
           <td class="num">\${r.RISK_SCORE ?? '—'}</td>
           <td class="num">\${conf}</td>
+          <td class="num" style="color:#4ade80">\${cost}</td>
+          <td class="num">\${lat}</td>
+          <td class="num" style="font-size:11px">\${tok}</td>
           <td>\${r.APPROVED_BY || '—'}</td>
           <td>\${ts}</td>
           <td style="font-family:monospace;font-size:10px;color:#94a3b8;word-break:break-all">\${sid}</td>
@@ -665,13 +671,29 @@ function mountAdminUI(app) {
     catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // Sessions — all pipeline runs from RiskAssessments, newest first
+  // Sessions — all pipeline runs from RiskAssessments + cost/latency from AuditLog
   app.get('/admin/api/sessions', async (req, res) => {
     try {
       const rows = await cds.run(
         SELECT.from('bankingsentinel.RiskAssessments').orderBy('CREATED_AT desc')
       );
-      res.json(rows);
+      // Enrich with cost + latency from AuditLog (one row per session)
+      let auditMap = {};
+      try {
+        const audit = await cds.run(
+          SELECT.from('bankingsentinel.AuditLog')
+            .columns('SESSION_ID', 'COST_AUD', 'LATENCY_MS', 'TOKENS_IN', 'TOKENS_OUT')
+        );
+        audit.forEach(a => {
+          if (!auditMap[a.SESSION_ID]) auditMap[a.SESSION_ID] = { COST_AUD: 0, LATENCY_MS: 0, TOKENS_IN: 0, TOKENS_OUT: 0 };
+          auditMap[a.SESSION_ID].COST_AUD    += parseFloat(a.COST_AUD  || 0);
+          auditMap[a.SESSION_ID].LATENCY_MS  += parseInt(a.LATENCY_MS  || 0);
+          auditMap[a.SESSION_ID].TOKENS_IN   += parseInt(a.TOKENS_IN   || 0);
+          auditMap[a.SESSION_ID].TOKENS_OUT  += parseInt(a.TOKENS_OUT  || 0);
+        });
+      } catch (_) {}
+      const enriched = rows.map(r => ({ ...r, ...(auditMap[r.SESSION_ID] || {}) }));
+      res.json(enriched);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
