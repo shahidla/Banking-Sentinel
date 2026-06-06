@@ -102,6 +102,16 @@ function renderExplainPage(sessionId) {
   .anomaly-list{margin:6px 0 0 16px;font-size:12px;line-height:1.8;color:var(--amber)}
   /* Rec list */
   .rec-list{margin:6px 0 0 18px;font-size:13px;line-height:1.8;color:var(--mid)}
+  /* Context note — "How this check works" block */
+  .context-note{background:linear-gradient(135deg,#0f1f2e 0%,#0d1a26 100%);border:1px solid #1e3a52;border-left:3px solid var(--yellow);border-radius:3px;padding:12px 16px;margin-bottom:14px}
+  .context-note-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--yellow);margin-bottom:8px;opacity:0.9}
+  .context-note ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+  .context-note li{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6;padding-left:16px;position:relative}
+  .context-note li::before{content:"→";position:absolute;left:0;color:var(--yellow);opacity:0.7;font-size:10px;top:1px}
+  .context-note code{font-family:var(--mono);font-size:10px;background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:2px;color:#93c5fd}
+  .context-note strong{color:rgba(255,255,255,0.9);font-weight:600}
+  /* Agent note */
+  .agent-note{font-size:12px;color:var(--mid);background:#f8f9fb;border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-top:6px;line-height:1.7}
   /* Error */
   #error-msg{display:none;background:#2d1515;border:1px solid #7f1d1d;border-radius:4px;padding:16px 20px;color:#fca5a5;margin-bottom:20px}
   /* Footer */
