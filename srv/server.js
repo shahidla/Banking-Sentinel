@@ -661,6 +661,40 @@ cds.on('bootstrap', async (app) => {
     res.send(require('./report-page').renderReportPage(req.params.sessionId));
   });
 
+  // ── Evidence Explanation — HTML page ─────────────────────────────────────
+  // Opens streaming evidence trail: pulls raw HANA data + LLM narrative per section
+  app.get('/explain/:sessionId', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(require('./explain-page').renderExplainPage(req.params.sessionId));
+  });
+
+  // ── Evidence Explanation — SSE stream ────────────────────────────────────
+  // Browser connects here; server streams 7 evidence sections via SSE
+  app.get('/api/explain-stream/:sessionId', async (req, res) => {
+    const { sessionId } = req.params;
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.flushHeaders();
+
+    const push = (data) => {
+      if (!res.writableEnded) res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    req.on('close', () => res.end());
+
+    try {
+      const { generateExplanation } = require('./explain-agent');
+      await generateExplanation(sessionId, graph, push);
+    } catch (err) {
+      console.error('[Explain]', err.message);
+      push({ type: 'explain_error', error: err.message });
+    }
+
+    if (!res.writableEnded) res.end();
+  });
+
   // ── Session Reset ─────────────────────────────────────────────────────────
   // AI: Demo reset — clears UI state for next scenario via Solace event
   // Banking: Clean slate before each demo run — no stale findings from previous analysis
