@@ -479,17 +479,17 @@ function buildVerdictHtml(synth, riskRow, agentState) {
 
 const SYSTEM_PROMPT = `You are a banking risk analyst writing one section of an evidence paper. Your reader has already seen a "How this check works" panel above your text that names the exact tables, formulas, model mechanics and decision thresholds involved — and a data table or calculation box showing this customer's actual numbers run through that mechanism. Your job is to be the bridge between the two: walk the reader from the raw input, THROUGH the specific calculation or model step that was applied, TO the output it produced — using this customer's real numbers at each step, not generic description.
 
-Structure your response in exactly FOUR short paragraphs with no headers, no bullets, no markdown:
+Structure your response as exactly FOUR bullet points — short and scannable, NOT paragraphs. Each bullet starts on its own new line with "• " followed by its label and a colon. No headers, no markdown, no nested sub-bullets — just four lines of plain text:
 
-Paragraph 1 — INPUT: What raw data fed this check — specific record IDs, field values, table names. What did the system start with?
+• Input: What raw data fed this check — specific record IDs, field values, table names. One or two sentences, max 40 words.
 
-Paragraph 2 — INTERPRETATION: This is the most important paragraph. Show HOW that input became the output. Name the specific formula, threshold comparison, decision-tree branch, or model mechanism (it is described in the panel above — use it) and plug in this customer's actual numbers so the reader can follow the transformation step by step. Do not just state the output — show the working.
+• Interpretation: This is the most important bullet. Show HOW that input became the output. Name the specific formula, threshold comparison, decision-tree branch, or model mechanism (it is described in the panel above — use it) and plug in this customer's actual numbers so the reader can follow the transformation step by step. Do not just state the output — show the working. Up to 60 words — this bullet may run a little longer than the others.
 
-Paragraph 3 — OUTPUT: State the resulting score, label, flag, or position precisely, and confirm it against the calculation in paragraph 2 — the two must agree.
+• Output: State the resulting score, label, flag, or position precisely, and confirm it agrees with the calculation in the Interpretation bullet. One sentence, max 30 words.
 
-Paragraph 4 — SIGNIFICANCE: Why this output matters to the risk team, the regulator (cite APS 221 / CPS 230 / the APRA DTI notice where relevant) and a general reader, and what the bank must now do.
+• Significance: Why this output matters to the risk team, the regulator (cite APS 221 / CPS 230 / the APRA DTI notice where relevant) and a general reader, and what the bank must now do. One or two sentences, max 40 words.
 
-Maximum 220 words total. Plain prose only. Be specific — wrong arithmetic or invented thresholds are worse than no detail at all, so only state numbers given to you.`;
+Maximum 180 words total across all four bullets. Plain text only — no bold, no asterisks beyond the leading "• Label:", no emoji. Be specific — wrong arithmetic or invented thresholds are worse than no detail at all, so only state numbers given to you.`;
 
 function buildPaymentPrompt(raw, customerId) {
   const overdue = raw.payments.filter(p=>parseInt(p.DAYS_OVERDUE)>0);
@@ -509,7 +509,7 @@ The "interpretation" mechanism for this section is a CROSS-REFERENCE MATCH, not 
 joins each LoanSchedule row to a DFKKOP row by (LOAN_ID, DUE_DATE = FAEDN). A match with STATUS=OPEN and
 empty BUDAT means scheduled-but-unpaid; no match at all means the obligation never reached the ledger.
 
-Key facts to walk through in your INTERPRETATION paragraph:
+Key facts to walk through in your Interpretation bullet:
 - Matching rule applied: ${raw.schedule.length} scheduled payments → ${matched} matched a DFKKOP record, ${missing.length} did not
 - ${overdue.length} of ${raw.payments.length} matched records carry STATUS=OPEN (unpaid) with DAYS_OVERDUE > 0
 - Maximum days overdue after the match: ${maxDays} days (record ${overdue.find(p=>parseInt(p.DAYS_OVERDUE)===maxDays)?.OPBEL||'—'})
@@ -517,7 +517,7 @@ Key facts to walk through in your INTERPRETATION paragraph:
 - Unmatched scheduled payments (ledger gap, not just lateness): ${missing.map(s=>s.LOAN_ID+' due '+s.DUE_DATE).join(', ')||'none'}
 - Portfolio context: most customers' matches resolve to CLEARED; this customer's matches all resolve to OPEN
 
-Write the four-paragraph evidence analysis (INPUT → INTERPRETATION → OUTPUT → SIGNIFICANCE).`;
+Write the four-bullet evidence analysis (Input → Interpretation → Output → Significance).`;
 }
 
 function buildDtiPrompt(raw, dtiLimit, agentState, customerId) {
@@ -556,7 +556,7 @@ Other facts:
 - Resulting forward position: ${traj.forwardPosition||'not available'}${traj.timeToBreach!=null?` ; timeToBreach = ${traj.timeToBreach} (${traj.timeToBreach<0?'days since breach':'days until projected breach'})`:''}
 - Stress test: if income fell 10%, DTI would become ${((debt/(income*0.9))||0).toFixed(2)}x${income>0&&(debt/(income*0.9))>dtiLimit?' — that WOULD breach the live limit':' — still within the live limit'}
 
-Write the four-paragraph evidence analysis (INPUT → INTERPRETATION [walk through Step A then Step B with the numbers above] → OUTPUT → SIGNIFICANCE).`;
+Write the four-bullet evidence analysis (Input → Interpretation [walk through Step A then Step B with the numbers above] → Output → Significance).`;
 }
 
 function buildRelationshipsPrompt(raw, relMap, groupLimit, singleLimit, customerId) {
@@ -579,7 +579,7 @@ three tools (hana_graph_traverse, exposure_calculator, apra_threshold_check) and
 by step, which to call and when to stop (max 6 steps). This is the trace of what it actually produced:
 ${relMap ? JSON.stringify({nodesFound:nodeCount, edgesFound:edgeCount, groupExposure:relMap.groupExposure, aps221Pct:relMap.aps221Pct, agentConfidence:relMap.confidence, agentFinding:relMap.finding},null,2) : 'No trace recorded — the agent may have been skipped (low_risk routing) or the session predates this agent.'}
 
-Key facts to walk through in your INTERPRETATION paragraph:
+Key facts to walk through in your Interpretation bullet:
 - Step 1 (hana_graph_traverse): walked outward from ${customerId} through BUT050 edges and found ${nodeCount} connected node(s) / ${edgeCount} edge(s)
 - Step 2 (exposure_calculator): summed loan + guaranteed balances across all ${nodeCount} entities (including the guarantors above, who carry obligations to OTHER borrowers too — that is what inflates the group total beyond this customer's own debt) → AUD ${exposure.toLocaleString()}
 - Step 3 (apra_threshold_check): AUD ${exposure.toLocaleString()} ÷ AUD ${groupLimit.toLocaleString()} (APS 221 connected-group limit) = ${pct}%
@@ -587,7 +587,7 @@ Key facts to walk through in your INTERPRETATION paragraph:
 - ${breach ? `RESULT: BREACH — exceeds the group limit by AUD ${(exposure-groupLimit).toLocaleString()}` : 'RESULT: within the group limit'}
 - Agent's own confidence in this traversal being complete: ${relMap?.confidence!=null ? Math.round(relMap.confidence*100)+'%' : 'not recorded'}
 
-Write the four-paragraph evidence analysis (INPUT → INTERPRETATION [narrate the three tool-calling steps in order, with these numbers] → OUTPUT → SIGNIFICANCE).`;
+Write the four-bullet evidence analysis (Input → Interpretation [narrate the three tool-calling steps in order, with these numbers] → Output → Significance).`;
 }
 
 function buildAnomalyPrompt(raw, patternAss, customerId) {
@@ -626,7 +626,7 @@ Combination rule (computed in code, not by any one model):
 - riskLevel = score≥76 CRITICAL, ≥51 HIGH, ≥26 MEDIUM, else LOW → this customer's score ${patternAss?.riskScore ?? '—'} maps to ${patternAss?.riskLevel || '—'}
 - signal = >2 combined anomalies → "concerning", >0 → "unclear", 0 → "stable" → this customer: "${patternAss?.signal || '—'}"
 
-Write the four-paragraph evidence analysis. In INTERPRETATION, walk through what each of the three models computed (the formula for RPT-1, the isolation mechanism for PAL, the read for the LLM) and then how the combination rule turned three separate outputs into one riskLevel and one signal.`;
+Write the four-bullet evidence analysis. In the Interpretation bullet, walk through what each of the three models computed (the formula for RPT-1, the isolation mechanism for PAL, the read for the LLM) and then how the combination rule turned three separate outputs into one riskLevel and one signal.`;
 }
 
 function buildVerdictPrompt(synth, riskRow, customerId, dtiLimit, groupLimit, agentState) {
@@ -674,7 +674,7 @@ Mandatory APRA obligations now triggered (state which apply and the deadline):
 - CPS 230 income gap → Block new credit, re-verify income documentation immediately
 - CPS 230 AI governance → every finding above is traced to a named evidence source — that traceability is what makes this brief auditable
 
-Write the four-paragraph evidence analysis. In INTERPRETATION, narrate Stage 1 (which regulatory citations were retrieved and why) and Stage 2 (how the four-condition gate produced "${s.apraReady?'ready':'not ready'}" specifically — name which conditions passed and which, if any, failed). In OUTPUT, state the final score/level/apraReady plainly. Maximum 220 words.`;
+Write the four-bullet evidence analysis. In the Interpretation bullet, narrate Stage 1 (which regulatory citations were retrieved and why) and Stage 2 (how the four-condition gate produced "${s.apraReady?'ready':'not ready'}" specifically — name which conditions passed and which, if any, failed). In the Output bullet, state the final score/level/apraReady plainly. Maximum 180 words.`;
 }
 
 // ── Stream LLM narrative ──────────────────────────────────────────────────────

@@ -61,7 +61,8 @@ function renderExplainPage(sessionId) {
   /* Data area */
   .data-area{padding:14px 16px;border-bottom:1px solid var(--border)}
   /* Narrative area */
-  .narrative-area{padding:14px 16px;font-size:13px;color:var(--mid);line-height:1.75;min-height:0;transition:min-height 0.3s}
+  .narrative-area{padding:14px 16px;font-size:13px;color:var(--mid);line-height:1.95;min-height:0;transition:min-height 0.3s;white-space:pre-wrap}
+  .narrative-area b{color:var(--ink);font-weight:600}
   .narrative-area:not(:empty){min-height:40px}
   .cursor{display:inline-block;width:2px;height:14px;background:var(--amber);animation:blink 0.7s infinite;vertical-align:middle;margin-left:1px}
   @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
@@ -222,10 +223,20 @@ function appendText(sectionId, delta) {
   narr.appendChild(cursor);
 }
 
+// Bullets stream as plain text ("• Input: ..."); once a section finishes,
+// bold the leading "• Label:" so the four stages stay scannable at a glance.
+function formatNarrative(text) {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped.replace(/^(•\\s*)([A-Za-z][A-Za-z ]*?:)/gm, '$1<b>$2</b>');
+}
+
 function finaliseSection(sectionId) {
   const narr    = document.getElementById('snarr-' + sectionId);
   const loading = document.getElementById('sloading-' + sectionId);
-  if (narr) { const c = narr.querySelector('.cursor'); if (c) c.remove(); }
+  if (narr) {
+    const c = narr.querySelector('.cursor'); if (c) c.remove();
+    narr.innerHTML = formatNarrative(narr.textContent);
+  }
   if (loading) loading.classList.add('done');
   sectionCount++;
   setProgress(Math.round((sectionCount / TOTAL_SECTIONS) * 100));
