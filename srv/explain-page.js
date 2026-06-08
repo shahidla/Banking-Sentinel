@@ -239,8 +239,10 @@ function handleEvent(ev) {
       document.getElementById('kpi-session').textContent  = SESSION_ID.slice(0,14) + '…';
       document.getElementById('kpi-ts').textContent       = new Date().toLocaleTimeString();
       document.getElementById('kpi-row').style.display    = 'grid';
-      document.getElementById('hdr-sub').textContent      = 'Session ' + SESSION_ID.slice(0,12) + '… · Customer ' + (ev.partnerId || '—');
-      statusText.textContent = 'Fetching data for customer ' + (ev.partnerId || '—') + '…';
+      document.getElementById('hdr-sub').textContent      = 'Session ' + SESSION_ID.slice(0,12) + '… · Customer ' + (ev.partnerId || '—') + (ev.cached ? ' · replaying saved trail' : '');
+      statusText.textContent = ev.cached
+        ? 'Replaying saved evidence trail for customer ' + (ev.partnerId || '—') + ' — identical to the original run…'
+        : 'Fetching data for customer ' + (ev.partnerId || '—') + '…';
       setProgress(5);
       break;
 
@@ -260,11 +262,13 @@ function handleEvent(ev) {
     case 'explain_complete':
       spinner.style.display   = 'none';
       statusDone.style.display = 'block';
+      statusDone.textContent  = ev.cached
+        ? 'Evidence trail complete — replayed from the saved record (identical to the original run).'
+        : 'Evidence trail complete — saved for future visits.';
       statusText.textContent  = '';
       document.getElementById('footer').style.display = 'block';
       setProgress(100);
       setTimeout(() => { progress.style.opacity = 0; }, 1000);
-      // Populate KPI from first finding card if badge not already set
       break;
 
     case 'explain_error':
