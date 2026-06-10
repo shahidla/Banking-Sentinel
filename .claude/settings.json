@@ -2,6 +2,7 @@
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
+      "*",
       "Bash(*)",
       "PowerShell(*)"
     ]

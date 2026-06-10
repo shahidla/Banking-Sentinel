@@ -8,6 +8,7 @@
 'use strict';
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { submitScore, getLangchainHandler } = require('./langfuse-client');
+const { extractJson } = require('../utils/llm-json');
 
 // ── Faithfulness score ────────────────────────────────────────────────────────
 // AI: For each finding in the brief, check if it is supported by the retrieved regulatory chunks.
@@ -62,9 +63,8 @@ Respond with JSON only:
       ? response.content
       : response.content.map(b => b.text || '').join('');
 
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    const result = JSON.parse(match[0]);
+    const result = extractJson(raw);
+    if (!result) return null;
 
     await submitScore(traceId, 'faithfulness', result.faithfulness, result.comment);
     console.log(`  [RAGAS] faithfulness: ${result.faithfulness.toFixed(2)} (${result.supported}/${result.total} findings supported)`);
@@ -123,9 +123,8 @@ Respond with JSON only:
       ? response.content
       : response.content.map(b => b.text || '').join('');
 
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    const result = JSON.parse(match[0]);
+    const result = extractJson(raw);
+    if (!result) return null;
 
     await submitScore(traceId, 'answer_relevance', result.relevance, result.comment);
     console.log(`  [RAGAS] answer_relevance: ${result.relevance.toFixed(2)}`);

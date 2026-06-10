@@ -9,6 +9,7 @@ const { ChatAnthropic } = require('@langchain/anthropic');
 const { hana_vector_search } = require('../tools/mcp-tools');
 const { getLangchainHandler } = require('../observability/langfuse-client');
 const { validateAgentOutput, crossCheckClaimsAgainstSources } = require('../guardrails/validate');
+const { extractJson } = require('../utils/llm-json');
 
 async function synthesisAgent(state) {
   const customerId = state.intent?.customerId || state.customerId;
@@ -145,20 +146,10 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`
   } else {
     rawText = String(response.content);
   }
-  // Strip markdown code fences, then try direct parse → regex fallback
+  // Strip markdown code fences, then extract the first balanced JSON object
   const text = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  let brief;
-  try {
-    brief = JSON.parse(text);
-  } catch (_) {
-    try {
-      const match = text.match(/\{[\s\S]*\}/);
-      brief = match ? JSON.parse(match[0]) : null;
-    } catch (e) {
-      console.warn('  [Synthesis] JSON parse failed. Raw LLM output:', rawText.substring(0, 800));
-      brief = null;
-    }
-  }
+  const brief = extractJson(text);
+  if (!brief) console.warn('  [Synthesis] JSON parse failed. Raw LLM output:', rawText.substring(0, 800));
 
   // Coerce riskScore to number if LLM returned it as string
   if (brief && typeof brief.riskScore === 'string') brief.riskScore = parseInt(brief.riskScore, 10);

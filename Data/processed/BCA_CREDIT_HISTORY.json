@@ -1,0 +1,1604 @@
+{
+  "records": [
+    {
+      "CASE_ID": "HIST-0001",
+      "DTI_RATIO": 2.28,
+      "TOTAL_DEBT": 2375698.89,
+      "ANNUAL_INCOME": 1041973.2,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0002",
+      "DTI_RATIO": 6.72,
+      "TOTAL_DEBT": 250918.48,
+      "ANNUAL_INCOME": 37339.06,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0003",
+      "DTI_RATIO": 1.93,
+      "TOTAL_DEBT": 26462.47,
+      "ANNUAL_INCOME": 13711.12,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0004",
+      "DTI_RATIO": 3.09,
+      "TOTAL_DEBT": 234758.41,
+      "ANNUAL_INCOME": 75973.6,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0005",
+      "DTI_RATIO": 4.46,
+      "TOTAL_DEBT": 487331.92,
+      "ANNUAL_INCOME": 109267.25,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0006",
+      "DTI_RATIO": 8.09,
+      "TOTAL_DEBT": 119550.45,
+      "ANNUAL_INCOME": 14777.56,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0007",
+      "DTI_RATIO": 2.65,
+      "TOTAL_DEBT": 231155.54,
+      "ANNUAL_INCOME": 87228.51,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0008",
+      "DTI_RATIO": 7.11,
+      "TOTAL_DEBT": 27594.47,
+      "ANNUAL_INCOME": 3881.08,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0009",
+      "DTI_RATIO": 2.77,
+      "TOTAL_DEBT": 1031125.98,
+      "ANNUAL_INCOME": 372247.65,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0010",
+      "DTI_RATIO": 6.2,
+      "TOTAL_DEBT": 172199.23,
+      "ANNUAL_INCOME": 27774.07,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0011",
+      "DTI_RATIO": 6.27,
+      "TOTAL_DEBT": 564816.98,
+      "ANNUAL_INCOME": 90082.45,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0012",
+      "DTI_RATIO": 7.68,
+      "TOTAL_DEBT": 38823.23,
+      "ANNUAL_INCOME": 5055.11,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0013",
+      "DTI_RATIO": 1.7,
+      "TOTAL_DEBT": 295588.16,
+      "ANNUAL_INCOME": 173875.39,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0014",
+      "DTI_RATIO": 6.3,
+      "TOTAL_DEBT": 117209.85,
+      "ANNUAL_INCOME": 18604.74,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0015",
+      "DTI_RATIO": 6.49,
+      "TOTAL_DEBT": 59455.04,
+      "ANNUAL_INCOME": 9161.02,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0016",
+      "DTI_RATIO": 2.53,
+      "TOTAL_DEBT": 68138.54,
+      "ANNUAL_INCOME": 26932.23,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0017",
+      "DTI_RATIO": 4.68,
+      "TOTAL_DEBT": 193299.23,
+      "ANNUAL_INCOME": 41303.25,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0018",
+      "DTI_RATIO": 5.77,
+      "TOTAL_DEBT": 26789.7,
+      "ANNUAL_INCOME": 4642.93,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0019",
+      "DTI_RATIO": 8.3,
+      "TOTAL_DEBT": 183966.11,
+      "ANNUAL_INCOME": 22164.59,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0020",
+      "DTI_RATIO": 5.74,
+      "TOTAL_DEBT": 270726.26,
+      "ANNUAL_INCOME": 47164.85,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0021",
+      "DTI_RATIO": 0.69,
+      "TOTAL_DEBT": 233327.66,
+      "ANNUAL_INCOME": 338156.03,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0022",
+      "DTI_RATIO": 2.28,
+      "TOTAL_DEBT": 2292331.01,
+      "ANNUAL_INCOME": 1005408.34,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0023",
+      "DTI_RATIO": 6.27,
+      "TOTAL_DEBT": 1512182.34,
+      "ANNUAL_INCOME": 241177.41,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0024",
+      "DTI_RATIO": 3.08,
+      "TOTAL_DEBT": 371682.95,
+      "ANNUAL_INCOME": 120676.28,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0025",
+      "DTI_RATIO": 4.57,
+      "TOTAL_DEBT": 240900.29,
+      "ANNUAL_INCOME": 52713.41,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0026",
+      "DTI_RATIO": 8.2,
+      "TOTAL_DEBT": 35856.08,
+      "ANNUAL_INCOME": 4372.69,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0027",
+      "DTI_RATIO": 7.91,
+      "TOTAL_DEBT": 96053.73,
+      "ANNUAL_INCOME": 12143.33,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0028",
+      "DTI_RATIO": 7.69,
+      "TOTAL_DEBT": 44159.68,
+      "ANNUAL_INCOME": 5742.48,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0029",
+      "DTI_RATIO": 7.49,
+      "TOTAL_DEBT": 358467.79,
+      "ANNUAL_INCOME": 47859.52,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0030",
+      "DTI_RATIO": 3.15,
+      "TOTAL_DEBT": 716557.92,
+      "ANNUAL_INCOME": 227478.7,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0031",
+      "DTI_RATIO": 8.18,
+      "TOTAL_DEBT": 467982.36,
+      "ANNUAL_INCOME": 57210.56,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0032",
+      "DTI_RATIO": 5.66,
+      "TOTAL_DEBT": 1680482.39,
+      "ANNUAL_INCOME": 296905.02,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0033",
+      "DTI_RATIO": 3.85,
+      "TOTAL_DEBT": 2208896.95,
+      "ANNUAL_INCOME": 573739.47,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0034",
+      "DTI_RATIO": 7.83,
+      "TOTAL_DEBT": 1560607.71,
+      "ANNUAL_INCOME": 199311.33,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0035",
+      "DTI_RATIO": 1.32,
+      "TOTAL_DEBT": 679326.31,
+      "ANNUAL_INCOME": 514641.14,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0036",
+      "DTI_RATIO": 4.29,
+      "TOTAL_DEBT": 196621.75,
+      "ANNUAL_INCOME": 45832.58,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0037",
+      "DTI_RATIO": 5.77,
+      "TOTAL_DEBT": 146853.12,
+      "ANNUAL_INCOME": 25451.15,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0038",
+      "DTI_RATIO": 1.5,
+      "TOTAL_DEBT": 2807892.3,
+      "ANNUAL_INCOME": 1871928.2,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0039",
+      "DTI_RATIO": 5.5,
+      "TOTAL_DEBT": 52118.59,
+      "ANNUAL_INCOME": 9476.11,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0040",
+      "DTI_RATIO": 1.76,
+      "TOTAL_DEBT": 298708.73,
+      "ANNUAL_INCOME": 169720.87,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0041",
+      "DTI_RATIO": 5.8,
+      "TOTAL_DEBT": 37352.07,
+      "ANNUAL_INCOME": 6440.01,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0042",
+      "DTI_RATIO": 4.52,
+      "TOTAL_DEBT": 48844.17,
+      "ANNUAL_INCOME": 10806.23,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0043",
+      "DTI_RATIO": 8.97,
+      "TOTAL_DEBT": 34505.09,
+      "ANNUAL_INCOME": 3846.72,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0044",
+      "DTI_RATIO": 3.67,
+      "TOTAL_DEBT": 141266.55,
+      "ANNUAL_INCOME": 38492.25,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0045",
+      "DTI_RATIO": 5.9,
+      "TOTAL_DEBT": 25939.45,
+      "ANNUAL_INCOME": 4396.52,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0046",
+      "DTI_RATIO": 5.17,
+      "TOTAL_DEBT": 610438.35,
+      "ANNUAL_INCOME": 118073.18,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0047",
+      "DTI_RATIO": 2.04,
+      "TOTAL_DEBT": 444048.16,
+      "ANNUAL_INCOME": 217670.67,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0048",
+      "DTI_RATIO": 4.15,
+      "TOTAL_DEBT": 2907528.66,
+      "ANNUAL_INCOME": 700609.32,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0049",
+      "DTI_RATIO": 6.9,
+      "TOTAL_DEBT": 236242.25,
+      "ANNUAL_INCOME": 34238.01,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0050",
+      "DTI_RATIO": 5.37,
+      "TOTAL_DEBT": 909569.05,
+      "ANNUAL_INCOME": 169379.71,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0051",
+      "DTI_RATIO": 3.85,
+      "TOTAL_DEBT": 1907088.71,
+      "ANNUAL_INCOME": 495347.72,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0052",
+      "DTI_RATIO": 8.05,
+      "TOTAL_DEBT": 1178502.35,
+      "ANNUAL_INCOME": 146397.81,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0053",
+      "DTI_RATIO": 1.79,
+      "TOTAL_DEBT": 2810010.26,
+      "ANNUAL_INCOME": 1569838.13,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0054",
+      "DTI_RATIO": 5.26,
+      "TOTAL_DEBT": 32096.45,
+      "ANNUAL_INCOME": 6101.99,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0055",
+      "DTI_RATIO": 1.42,
+      "TOTAL_DEBT": 161130.93,
+      "ANNUAL_INCOME": 113472.49,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0056",
+      "DTI_RATIO": 1.99,
+      "TOTAL_DEBT": 1638796.09,
+      "ANNUAL_INCOME": 823515.62,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0057",
+      "DTI_RATIO": 2.18,
+      "TOTAL_DEBT": 449469.17,
+      "ANNUAL_INCOME": 206178.52,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0058",
+      "DTI_RATIO": 5.8,
+      "TOTAL_DEBT": 40403.67,
+      "ANNUAL_INCOME": 6966.15,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0059",
+      "DTI_RATIO": 3.5,
+      "TOTAL_DEBT": 69537.39,
+      "ANNUAL_INCOME": 19867.83,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0060",
+      "DTI_RATIO": 7.82,
+      "TOTAL_DEBT": 1324132.5,
+      "ANNUAL_INCOME": 169326.41,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0061",
+      "DTI_RATIO": 4.39,
+      "TOTAL_DEBT": 714602.98,
+      "ANNUAL_INCOME": 162779.72,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0062",
+      "DTI_RATIO": 2.17,
+      "TOTAL_DEBT": 739242.35,
+      "ANNUAL_INCOME": 340664.68,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0063",
+      "DTI_RATIO": 7.28,
+      "TOTAL_DEBT": 1652057.17,
+      "ANNUAL_INCOME": 226930.93,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0064",
+      "DTI_RATIO": 7.93,
+      "TOTAL_DEBT": 135048.93,
+      "ANNUAL_INCOME": 17030.13,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0065",
+      "DTI_RATIO": 7.1,
+      "TOTAL_DEBT": 1936707,
+      "ANNUAL_INCOME": 272775.63,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0066",
+      "DTI_RATIO": 3.92,
+      "TOTAL_DEBT": 691847.46,
+      "ANNUAL_INCOME": 176491.7,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0067",
+      "DTI_RATIO": 4.43,
+      "TOTAL_DEBT": 129602.76,
+      "ANNUAL_INCOME": 29255.7,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0068",
+      "DTI_RATIO": 8.64,
+      "TOTAL_DEBT": 262210.62,
+      "ANNUAL_INCOME": 30348.45,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0069",
+      "DTI_RATIO": 6.29,
+      "TOTAL_DEBT": 301285.22,
+      "ANNUAL_INCOME": 47899.08,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0070",
+      "DTI_RATIO": 8.06,
+      "TOTAL_DEBT": 290906.53,
+      "ANNUAL_INCOME": 36092.62,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0071",
+      "DTI_RATIO": 5.52,
+      "TOTAL_DEBT": 1154029.78,
+      "ANNUAL_INCOME": 209063.37,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0072",
+      "DTI_RATIO": 7.89,
+      "TOTAL_DEBT": 68959.82,
+      "ANNUAL_INCOME": 8740.15,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0073",
+      "DTI_RATIO": 1.29,
+      "TOTAL_DEBT": 3175167.25,
+      "ANNUAL_INCOME": 2461369.96,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0074",
+      "DTI_RATIO": 3.03,
+      "TOTAL_DEBT": 2241523.05,
+      "ANNUAL_INCOME": 739776.58,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0075",
+      "DTI_RATIO": 3.33,
+      "TOTAL_DEBT": 1392813.35,
+      "ANNUAL_INCOME": 418262.27,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0076",
+      "DTI_RATIO": 6.88,
+      "TOTAL_DEBT": 27693.06,
+      "ANNUAL_INCOME": 4025.15,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0077",
+      "DTI_RATIO": 1.68,
+      "TOTAL_DEBT": 75191.07,
+      "ANNUAL_INCOME": 44756.59,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0078",
+      "DTI_RATIO": 1.94,
+      "TOTAL_DEBT": 163431.28,
+      "ANNUAL_INCOME": 84242.93,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0079",
+      "DTI_RATIO": 8.67,
+      "TOTAL_DEBT": 38551.92,
+      "ANNUAL_INCOME": 4446.59,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0080",
+      "DTI_RATIO": 1.8,
+      "TOTAL_DEBT": 653073.17,
+      "ANNUAL_INCOME": 362818.43,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0081",
+      "DTI_RATIO": 6.69,
+      "TOTAL_DEBT": 370662.7,
+      "ANNUAL_INCOME": 55405.49,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0082",
+      "DTI_RATIO": 6.72,
+      "TOTAL_DEBT": 51896.28,
+      "ANNUAL_INCOME": 7722.66,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0083",
+      "DTI_RATIO": 8.34,
+      "TOTAL_DEBT": 2663221.35,
+      "ANNUAL_INCOME": 319331.1,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0084",
+      "DTI_RATIO": 2.67,
+      "TOTAL_DEBT": 2240589.23,
+      "ANNUAL_INCOME": 839172,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0085",
+      "DTI_RATIO": 1.19,
+      "TOTAL_DEBT": 339016.58,
+      "ANNUAL_INCOME": 284887.88,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0086",
+      "DTI_RATIO": 3.87,
+      "TOTAL_DEBT": 926324.5,
+      "ANNUAL_INCOME": 239360.34,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0087",
+      "DTI_RATIO": 6.22,
+      "TOTAL_DEBT": 77100.6,
+      "ANNUAL_INCOME": 12395.59,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0088",
+      "DTI_RATIO": 5.93,
+      "TOTAL_DEBT": 147053.57,
+      "ANNUAL_INCOME": 24798.24,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0089",
+      "DTI_RATIO": 5.75,
+      "TOTAL_DEBT": 89840.14,
+      "ANNUAL_INCOME": 15624.37,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0090",
+      "DTI_RATIO": 4.3,
+      "TOTAL_DEBT": 1194037.57,
+      "ANNUAL_INCOME": 277683.16,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0091",
+      "DTI_RATIO": 3.17,
+      "TOTAL_DEBT": 32153.42,
+      "ANNUAL_INCOME": 10143.03,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0092",
+      "DTI_RATIO": 3.31,
+      "TOTAL_DEBT": 1642703.63,
+      "ANNUAL_INCOME": 496285.08,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0093",
+      "DTI_RATIO": 7.66,
+      "TOTAL_DEBT": 62406.68,
+      "ANNUAL_INCOME": 8147.09,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0094",
+      "DTI_RATIO": 8.47,
+      "TOTAL_DEBT": 33205.88,
+      "ANNUAL_INCOME": 3920.41,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0095",
+      "DTI_RATIO": 2.3,
+      "TOTAL_DEBT": 604746.95,
+      "ANNUAL_INCOME": 262933.46,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0096",
+      "DTI_RATIO": 5.35,
+      "TOTAL_DEBT": 59338.07,
+      "ANNUAL_INCOME": 11091.23,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0097",
+      "DTI_RATIO": 6.14,
+      "TOTAL_DEBT": 148196.25,
+      "ANNUAL_INCOME": 24136.2,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0098",
+      "DTI_RATIO": 2.69,
+      "TOTAL_DEBT": 977199.58,
+      "ANNUAL_INCOME": 363271.22,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0099",
+      "DTI_RATIO": 5.45,
+      "TOTAL_DEBT": 216206.22,
+      "ANNUAL_INCOME": 39670.87,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0100",
+      "DTI_RATIO": 1.01,
+      "TOTAL_DEBT": 31257,
+      "ANNUAL_INCOME": 30947.52,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0101",
+      "DTI_RATIO": 1.05,
+      "TOTAL_DEBT": 1945274.61,
+      "ANNUAL_INCOME": 1852642.49,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0102",
+      "DTI_RATIO": 8.31,
+      "TOTAL_DEBT": 390433.86,
+      "ANNUAL_INCOME": 46983.62,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0103",
+      "DTI_RATIO": 8.63,
+      "TOTAL_DEBT": 31730.18,
+      "ANNUAL_INCOME": 3676.73,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0104",
+      "DTI_RATIO": 7.88,
+      "TOTAL_DEBT": 170674.71,
+      "ANNUAL_INCOME": 21659.23,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0105",
+      "DTI_RATIO": 0.57,
+      "TOTAL_DEBT": 100526.6,
+      "ANNUAL_INCOME": 176362.46,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0106",
+      "DTI_RATIO": 7.06,
+      "TOTAL_DEBT": 46874.19,
+      "ANNUAL_INCOME": 6639.4,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0107",
+      "DTI_RATIO": 0.94,
+      "TOTAL_DEBT": 820274.26,
+      "ANNUAL_INCOME": 872632.19,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0108",
+      "DTI_RATIO": 5.06,
+      "TOTAL_DEBT": 1347317.99,
+      "ANNUAL_INCOME": 266268.38,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0109",
+      "DTI_RATIO": 3.88,
+      "TOTAL_DEBT": 51244.38,
+      "ANNUAL_INCOME": 13207.31,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0110",
+      "DTI_RATIO": 2.54,
+      "TOTAL_DEBT": 233573.33,
+      "ANNUAL_INCOME": 91958,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0111",
+      "DTI_RATIO": 6.49,
+      "TOTAL_DEBT": 30989.68,
+      "ANNUAL_INCOME": 4774.99,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0112",
+      "DTI_RATIO": 2.58,
+      "TOTAL_DEBT": 29946.67,
+      "ANNUAL_INCOME": 11607.24,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0113",
+      "DTI_RATIO": 6.43,
+      "TOTAL_DEBT": 129717.45,
+      "ANNUAL_INCOME": 20173.79,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0114",
+      "DTI_RATIO": 4.87,
+      "TOTAL_DEBT": 819965.92,
+      "ANNUAL_INCOME": 168370.83,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0115",
+      "DTI_RATIO": 4.41,
+      "TOTAL_DEBT": 947819.47,
+      "ANNUAL_INCOME": 214925.05,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0116",
+      "DTI_RATIO": 2.54,
+      "TOTAL_DEBT": 110881.04,
+      "ANNUAL_INCOME": 43653.95,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0117",
+      "DTI_RATIO": 7.17,
+      "TOTAL_DEBT": 154315.86,
+      "ANNUAL_INCOME": 21522.44,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0118",
+      "DTI_RATIO": 8.3,
+      "TOTAL_DEBT": 62472.75,
+      "ANNUAL_INCOME": 7526.84,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0119",
+      "DTI_RATIO": 7.76,
+      "TOTAL_DEBT": 108760.35,
+      "ANNUAL_INCOME": 14015.51,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0120",
+      "DTI_RATIO": 3.61,
+      "TOTAL_DEBT": 2233738.38,
+      "ANNUAL_INCOME": 618764.09,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0121",
+      "DTI_RATIO": 8.82,
+      "TOTAL_DEBT": 860374.59,
+      "ANNUAL_INCOME": 97548.14,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0122",
+      "DTI_RATIO": 7.99,
+      "TOTAL_DEBT": 84803.11,
+      "ANNUAL_INCOME": 10613.66,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0123",
+      "DTI_RATIO": 3.94,
+      "TOTAL_DEBT": 35350.53,
+      "ANNUAL_INCOME": 8972.22,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0124",
+      "DTI_RATIO": 8.09,
+      "TOTAL_DEBT": 330855.39,
+      "ANNUAL_INCOME": 40896.83,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0125",
+      "DTI_RATIO": 2.21,
+      "TOTAL_DEBT": 1104707.31,
+      "ANNUAL_INCOME": 499867.56,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0126",
+      "DTI_RATIO": 2.17,
+      "TOTAL_DEBT": 1454291.5,
+      "ANNUAL_INCOME": 670180.41,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0127",
+      "DTI_RATIO": 0.98,
+      "TOTAL_DEBT": 36219.88,
+      "ANNUAL_INCOME": 36959.06,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0128",
+      "DTI_RATIO": 6.83,
+      "TOTAL_DEBT": 824521.99,
+      "ANNUAL_INCOME": 120720.64,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0129",
+      "DTI_RATIO": 7.21,
+      "TOTAL_DEBT": 132030.74,
+      "ANNUAL_INCOME": 18312.17,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0130",
+      "DTI_RATIO": 7.12,
+      "TOTAL_DEBT": 355528.36,
+      "ANNUAL_INCOME": 49933.76,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0131",
+      "DTI_RATIO": 7.85,
+      "TOTAL_DEBT": 468150.77,
+      "ANNUAL_INCOME": 59637.04,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0132",
+      "DTI_RATIO": 1.9,
+      "TOTAL_DEBT": 45949.43,
+      "ANNUAL_INCOME": 24183.91,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0133",
+      "DTI_RATIO": 6.11,
+      "TOTAL_DEBT": 2197416.39,
+      "ANNUAL_INCOME": 359642.62,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0134",
+      "DTI_RATIO": 5.34,
+      "TOTAL_DEBT": 94682.86,
+      "ANNUAL_INCOME": 17730.87,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0135",
+      "DTI_RATIO": 7.47,
+      "TOTAL_DEBT": 222938.48,
+      "ANNUAL_INCOME": 29844.51,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0136",
+      "DTI_RATIO": 2.36,
+      "TOTAL_DEBT": 111897.98,
+      "ANNUAL_INCOME": 47414.4,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0137",
+      "DTI_RATIO": 3.22,
+      "TOTAL_DEBT": 46881.59,
+      "ANNUAL_INCOME": 14559.5,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0138",
+      "DTI_RATIO": 5.21,
+      "TOTAL_DEBT": 27186.79,
+      "ANNUAL_INCOME": 5218.19,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0139",
+      "DTI_RATIO": 8.38,
+      "TOTAL_DEBT": 38353.86,
+      "ANNUAL_INCOME": 4576.83,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0140",
+      "DTI_RATIO": 1.07,
+      "TOTAL_DEBT": 72573.01,
+      "ANNUAL_INCOME": 67825.24,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0141",
+      "DTI_RATIO": 3.2,
+      "TOTAL_DEBT": 1180345.97,
+      "ANNUAL_INCOME": 368858.12,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0142",
+      "DTI_RATIO": 4.92,
+      "TOTAL_DEBT": 836185.37,
+      "ANNUAL_INCOME": 169956.38,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0143",
+      "DTI_RATIO": 5.7,
+      "TOTAL_DEBT": 1555545.82,
+      "ANNUAL_INCOME": 272902.78,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0144",
+      "DTI_RATIO": 5.21,
+      "TOTAL_DEBT": 2624839.43,
+      "ANNUAL_INCOME": 503807.95,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0145",
+      "DTI_RATIO": 3.02,
+      "TOTAL_DEBT": 475342.72,
+      "ANNUAL_INCOME": 157398.25,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0146",
+      "DTI_RATIO": 4.96,
+      "TOTAL_DEBT": 1790143.18,
+      "ANNUAL_INCOME": 360915.96,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0147",
+      "DTI_RATIO": 3.55,
+      "TOTAL_DEBT": 118622.14,
+      "ANNUAL_INCOME": 33414.69,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0148",
+      "DTI_RATIO": 5.28,
+      "TOTAL_DEBT": 751907.89,
+      "ANNUAL_INCOME": 142406.8,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0149",
+      "DTI_RATIO": 7.05,
+      "TOTAL_DEBT": 3003200.45,
+      "ANNUAL_INCOME": 425985.88,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0150",
+      "DTI_RATIO": 5.6,
+      "TOTAL_DEBT": 90466.01,
+      "ANNUAL_INCOME": 16154.64,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0151",
+      "DTI_RATIO": 1.27,
+      "TOTAL_DEBT": 32112.84,
+      "ANNUAL_INCOME": 25285.7,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0152",
+      "DTI_RATIO": 8.24,
+      "TOTAL_DEBT": 124788.67,
+      "ANNUAL_INCOME": 15144.26,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0153",
+      "DTI_RATIO": 0.53,
+      "TOTAL_DEBT": 58262.98,
+      "ANNUAL_INCOME": 109930.15,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0154",
+      "DTI_RATIO": 1.45,
+      "TOTAL_DEBT": 185115.4,
+      "ANNUAL_INCOME": 127665.79,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0155",
+      "DTI_RATIO": 5.8,
+      "TOTAL_DEBT": 875160.86,
+      "ANNUAL_INCOME": 150889.8,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0156",
+      "DTI_RATIO": 5.06,
+      "TOTAL_DEBT": 161718.21,
+      "ANNUAL_INCOME": 31960.12,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0157",
+      "DTI_RATIO": 1.26,
+      "TOTAL_DEBT": 340282.67,
+      "ANNUAL_INCOME": 270065.61,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0158",
+      "DTI_RATIO": 5.03,
+      "TOTAL_DEBT": 53083.93,
+      "ANNUAL_INCOME": 10553.47,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0159",
+      "DTI_RATIO": 5.01,
+      "TOTAL_DEBT": 170150.93,
+      "ANNUAL_INCOME": 33962.26,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0160",
+      "DTI_RATIO": 1.09,
+      "TOTAL_DEBT": 1312848.2,
+      "ANNUAL_INCOME": 1204447.89,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0161",
+      "DTI_RATIO": 0.53,
+      "TOTAL_DEBT": 87457.81,
+      "ANNUAL_INCOME": 165014.74,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0162",
+      "DTI_RATIO": 7.06,
+      "TOTAL_DEBT": 272110.57,
+      "ANNUAL_INCOME": 38542.57,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0163",
+      "DTI_RATIO": 5.32,
+      "TOTAL_DEBT": 169991.89,
+      "ANNUAL_INCOME": 31953.36,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0164",
+      "DTI_RATIO": 4.47,
+      "TOTAL_DEBT": 310750.11,
+      "ANNUAL_INCOME": 69519.04,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0165",
+      "DTI_RATIO": 3.63,
+      "TOTAL_DEBT": 624653,
+      "ANNUAL_INCOME": 172080.72,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0166",
+      "DTI_RATIO": 8.72,
+      "TOTAL_DEBT": 57720.4,
+      "ANNUAL_INCOME": 6619.31,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0167",
+      "DTI_RATIO": 1.42,
+      "TOTAL_DEBT": 452888.76,
+      "ANNUAL_INCOME": 318935.75,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0168",
+      "DTI_RATIO": 2.61,
+      "TOTAL_DEBT": 39038.89,
+      "ANNUAL_INCOME": 14957.43,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0169",
+      "DTI_RATIO": 0.58,
+      "TOTAL_DEBT": 224911.49,
+      "ANNUAL_INCOME": 387778.43,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0170",
+      "DTI_RATIO": 2.05,
+      "TOTAL_DEBT": 494662.71,
+      "ANNUAL_INCOME": 241298.88,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0171",
+      "DTI_RATIO": 1.84,
+      "TOTAL_DEBT": 56832.41,
+      "ANNUAL_INCOME": 30887.18,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0172",
+      "DTI_RATIO": 3.1,
+      "TOTAL_DEBT": 25781.74,
+      "ANNUAL_INCOME": 8316.69,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0173",
+      "DTI_RATIO": 3.91,
+      "TOTAL_DEBT": 223005.8,
+      "ANNUAL_INCOME": 57034.73,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0174",
+      "DTI_RATIO": 8.76,
+      "TOTAL_DEBT": 752604.42,
+      "ANNUAL_INCOME": 85913.75,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0175",
+      "DTI_RATIO": 5.8,
+      "TOTAL_DEBT": 27149.47,
+      "ANNUAL_INCOME": 4680.94,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0176",
+      "DTI_RATIO": 1.73,
+      "TOTAL_DEBT": 124594.43,
+      "ANNUAL_INCOME": 72019.9,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0177",
+      "DTI_RATIO": 0.6,
+      "TOTAL_DEBT": 893191.89,
+      "ANNUAL_INCOME": 1488653.15,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0178",
+      "DTI_RATIO": 3.77,
+      "TOTAL_DEBT": 187078.04,
+      "ANNUAL_INCOME": 49622.82,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0179",
+      "DTI_RATIO": 4.45,
+      "TOTAL_DEBT": 204949.76,
+      "ANNUAL_INCOME": 46056.13,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0180",
+      "DTI_RATIO": 2.01,
+      "TOTAL_DEBT": 129080.61,
+      "ANNUAL_INCOME": 64219.21,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0181",
+      "DTI_RATIO": 2.94,
+      "TOTAL_DEBT": 2657463.58,
+      "ANNUAL_INCOME": 903899.18,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0182",
+      "DTI_RATIO": 7.8,
+      "TOTAL_DEBT": 3068295,
+      "ANNUAL_INCOME": 393371.15,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0183",
+      "DTI_RATIO": 2.01,
+      "TOTAL_DEBT": 159022.58,
+      "ANNUAL_INCOME": 79115.71,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0184",
+      "DTI_RATIO": 4.72,
+      "TOTAL_DEBT": 903083.42,
+      "ANNUAL_INCOME": 191331.23,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0185",
+      "DTI_RATIO": 2.07,
+      "TOTAL_DEBT": 79358.42,
+      "ANNUAL_INCOME": 38337.4,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0186",
+      "DTI_RATIO": 8.31,
+      "TOTAL_DEBT": 72527.77,
+      "ANNUAL_INCOME": 8727.77,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "CRITICAL"
+    },
+    {
+      "CASE_ID": "HIST-0187",
+      "DTI_RATIO": 0.85,
+      "TOTAL_DEBT": 2373012.45,
+      "ANNUAL_INCOME": 2791779.35,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0188",
+      "DTI_RATIO": 3.62,
+      "TOTAL_DEBT": 67466.47,
+      "ANNUAL_INCOME": 18637.15,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0189",
+      "DTI_RATIO": 4.87,
+      "TOTAL_DEBT": 54172.94,
+      "ANNUAL_INCOME": 11123.81,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0190",
+      "DTI_RATIO": 5.27,
+      "TOTAL_DEBT": 1403354.88,
+      "ANNUAL_INCOME": 266291.25,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0191",
+      "DTI_RATIO": 7.61,
+      "TOTAL_DEBT": 2589001.31,
+      "ANNUAL_INCOME": 340210.42,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0192",
+      "DTI_RATIO": 2.84,
+      "TOTAL_DEBT": 61460.34,
+      "ANNUAL_INCOME": 21640.96,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0193",
+      "DTI_RATIO": 4.78,
+      "TOTAL_DEBT": 695852.58,
+      "ANNUAL_INCOME": 145575.85,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0194",
+      "DTI_RATIO": 0.53,
+      "TOTAL_DEBT": 1652117.55,
+      "ANNUAL_INCOME": 3117202.92,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0195",
+      "DTI_RATIO": 2.68,
+      "TOTAL_DEBT": 278537.63,
+      "ANNUAL_INCOME": 103931.95,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0196",
+      "DTI_RATIO": 3.43,
+      "TOTAL_DEBT": 570792.98,
+      "ANNUAL_INCOME": 166411.95,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0197",
+      "DTI_RATIO": 6.78,
+      "TOTAL_DEBT": 64499.07,
+      "ANNUAL_INCOME": 9513.14,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    },
+    {
+      "CASE_ID": "HIST-0198",
+      "DTI_RATIO": 6.63,
+      "TOTAL_DEBT": 204196.58,
+      "ANNUAL_INCOME": 30798.88,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "MEDIUM"
+    },
+    {
+      "CASE_ID": "HIST-0199",
+      "DTI_RATIO": 3.11,
+      "TOTAL_DEBT": 838142.1,
+      "ANNUAL_INCOME": 269499.07,
+      "BREACH_FLAG": false,
+      "ARREARS_OUTCOME": "LOW"
+    },
+    {
+      "CASE_ID": "HIST-0200",
+      "DTI_RATIO": 8.36,
+      "TOTAL_DEBT": 194056.85,
+      "ANNUAL_INCOME": 23212.54,
+      "BREACH_FLAG": true,
+      "ARREARS_OUTCOME": "HIGH"
+    }
+  ]
+}

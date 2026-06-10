@@ -108,6 +108,54 @@
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
       "CURRENCY": "AUD"
+    },
+    {
+      "OPBEL": "OP-L007-001",
+      "VKONT": "CA-30100006-01",
+      "GPART": "30100006",
+      "LOAN_ID": "L-007",
+      "BETRW": 940,
+      "FAEDN": "2026-04-01",
+      "BUDAT": "2026-03-31",
+      "STATUS": "CLEARED",
+      "DAYS_OVERDUE": 0,
+      "CURRENCY": "AUD"
+    },
+    {
+      "OPBEL": "OP-L010-001",
+      "VKONT": "CA-30100010-01",
+      "GPART": "30100010",
+      "LOAN_ID": "L-010",
+      "BETRW": 5300,
+      "FAEDN": "2026-04-12",
+      "BUDAT": "2026-04-11",
+      "STATUS": "CLEARED",
+      "DAYS_OVERDUE": 0,
+      "CURRENCY": "AUD"
+    },
+    {
+      "OPBEL": "OP-L011-001",
+      "VKONT": "CA-30100012-01",
+      "GPART": "30100012",
+      "LOAN_ID": "L-011",
+      "BETRW": 905,
+      "FAEDN": "2026-04-15",
+      "BUDAT": "2026-04-14",
+      "STATUS": "CLEARED",
+      "DAYS_OVERDUE": 0,
+      "CURRENCY": "AUD"
+    },
+    {
+      "OPBEL": "OP-L004-001",
+      "VKONT": "CA-30100003-01",
+      "GPART": "30100003",
+      "LOAN_ID": "L-004",
+      "BETRW": 41800,
+      "FAEDN": "2026-04-10",
+      "BUDAT": "2026-04-09",
+      "STATUS": "CLEARED",
+      "DAYS_OVERDUE": 0,
+      "CURRENCY": "AUD"
     }
   ]
 }

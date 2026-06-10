@@ -9,17 +9,20 @@ const cds = require('@sap/cds');
 const { EventEmitter } = require('events');
 const { startSpan, endSpan } = require('../observability/langfuse-client');
 const { ChatAnthropic } = require('@langchain/anthropic');
+const { extractJson } = require('../utils/llm-json');
 
 const progressEmitter = new EventEmitter();
 progressEmitter.setMaxListeners(50);
 
 // ── Step 1: Fetch customer data from HANA ────────────────────────────────────
 async function fetchCustomerData(customerId) {
-  const [loans, dtiRows, payments, portfolio, thresholdRows] = await Promise.all([
+  const [loans, dtiRows, payments, history, portfolioOpen, portfolioCleared, thresholdRows] = await Promise.all([
     cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId }).limit(1)),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId }).limit(100)),
+    cds.run(SELECT.from('bankingsentinel.DFKKOPK').where({ GPART: customerId }).limit(100)),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').columns('DAYS_OVERDUE', 'BETRW').limit(500)),
+    cds.run(SELECT.from('bankingsentinel.DFKKOPK').columns('BETRW').limit(500)),
     cds.run(SELECT.from('bankingsentinel.RegulatoryThresholds').where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' }).limit(1)),
   ]);
 
@@ -29,43 +32,64 @@ async function fetchCustomerData(customerId) {
     collateral = await cds.run(SELECT.from('bankingsentinel.BCA_COLLATERAL').where({ LOAN_ID: { in: loanIds } }));
   }
 
+  // Portfolio baseline for anomaly detection: open items (DAYS_OVERDUE may be > 0)
+  // plus cleared payment history (always on-time, DAYS_OVERDUE = 0)
+  const portfolio = [
+    ...portfolioOpen,
+    ...portfolioCleared.map(r => ({ DAYS_OVERDUE: 0, BETRW: r.BETRW })),
+  ];
+
   const apraDtiLimit = parseFloat(thresholdRows[0]?.LIMIT_PCT) || 8.0;
-  return { loans, dti: dtiRows[0] || null, payments, collateral, portfolio, apraDtiLimit };
+  return { loans, dti: dtiRows[0] || null, payments, history, collateral, portfolio, apraDtiLimit };
 }
 
 // ── Step 2: RPT-1 — SAP tabular foundation model (consumer API at rpt.cloud.sap) ──
-// AI: In-context learning — send example rows with known labels, predict the query row
-// Banking: Classify borrower risk category from DTI, breach flag, debt, income features
-// SAP: POST to rpt.cloud.sap/api/predict — personal API token, no AI Core required
+// AI: In-context learning — context rows are historical loan cases with a KNOWN,
+//     independently-observed outcome (arrears_outcome from BCA_CREDIT_HISTORY).
+//     The query row is this customer's CURRENT profile (from BCA_DTI) with
+//     arrears_outcome marked [PREDICT] — RPT-1 infers the likely outcome from
+//     the pattern across the 200 historical cases, not from a hardcoded formula.
+// Banking: Predicts the customer's likely repayment-arrears risk category from
+//          their DTI/debt/income profile, benchmarked against a historical loan book.
+// SAP: POST to rpt.cloud.sap/api/predict — personal API token, no AI Core required.
+//      Payload follows the SAP Cloud SDK for AI (JS) RPT-1 contract:
+//      prediction_config.target_columns[] with prediction_placeholder + task_type.
+const RPT1_TARGET_COLUMN = 'arrears_outcome';
+const RPT1_PLACEHOLDER   = '[PREDICT]';
+
 async function callRpt1(data, customerId) {
   const apiKey = process.env.SAP_RPT_API_KEY;
   if (!apiKey) throw new Error('SAP_RPT_API_KEY not set');
 
-  const allDti = await cds.run(SELECT.from('bankingsentinel.BCA_DTI').limit(20));
-  const contextRows = allDti.map(d => ({
-    partner_id:    String(d.PARTNER),
-    dti_ratio:     parseFloat(d.DTI_RATIO)    || 0,
-    breach_flag:   d.BREACH_FLAG ? 1 : 0,
-    total_debt:    parseFloat(d.TOTAL_DEBT)   || 0,
-    annual_income: parseFloat(d.ANNUAL_INCOME)|| 0,
-    risk_category: d.BREACH_FLAG                  ? 'HIGH'   :
-                   parseFloat(d.DTI_RATIO) >= 5.5  ? 'MEDIUM' : 'LOW'
+  const history = await cds.run(SELECT.from('bankingsentinel.BCA_CREDIT_HISTORY'));
+  if (history.length < 2) throw new Error('Not enough context rows for RPT-1 (need >= 2)');
+
+  const contextRows = history.map(h => ({
+    case_id:        h.CASE_ID,
+    dti_ratio:      parseFloat(h.DTI_RATIO)    || 0,
+    breach_flag:    h.BREACH_FLAG ? 1 : 0,
+    total_debt:     parseFloat(h.TOTAL_DEBT)   || 0,
+    annual_income:  parseFloat(h.ANNUAL_INCOME)|| 0,
+    arrears_outcome: h.ARREARS_OUTCOME
   }));
 
-  if (contextRows.length < 2) throw new Error('Not enough context rows for RPT-1 (need >= 2)');
-
   const queryRow = {
-    partner_id:    `Q-${customerId}`,
-    dti_ratio:     parseFloat(data.dti?.DTI_RATIO)    || 0,
-    breach_flag:   data.dti?.BREACH_FLAG ? 1 : 0,
-    total_debt:    parseFloat(data.dti?.TOTAL_DEBT)   || 0,
-    annual_income: parseFloat(data.dti?.ANNUAL_INCOME)|| 0,
-    risk_category: '[PREDICT]'
+    case_id:        `Q-${customerId}`,
+    dti_ratio:      parseFloat(data.dti?.DTI_RATIO)    || 0,
+    breach_flag:    data.dti?.BREACH_FLAG ? 1 : 0,
+    total_debt:     parseFloat(data.dti?.TOTAL_DEBT)   || 0,
+    annual_income:  parseFloat(data.dti?.ANNUAL_INCOME)|| 0,
+    arrears_outcome: RPT1_PLACEHOLDER
   };
 
   const payload = {
-    rows:         [...contextRows.slice(0, 20), queryRow],
-    index_column: 'partner_id'
+    index_column: 'case_id',
+    rows:         [...contextRows, queryRow],
+    prediction_config: {
+      target_columns: [
+        { name: RPT1_TARGET_COLUMN, prediction_placeholder: RPT1_PLACEHOLDER, task_type: 'classification' }
+      ]
+    }
   };
 
   const response = await fetch('https://rpt.cloud.sap/api/predict', {
@@ -76,20 +100,28 @@ async function callRpt1(data, customerId) {
   });
 
   const rawResponse = await response.text();
-  console.log(`  [Pattern/RPT-1] HTTP ${response.status} — ${rawResponse.length} chars`);
+  console.log(`  [Pattern/RPT-1] HTTP ${response.status} — ${rawResponse.length} chars — context rows:${contextRows.length}`);
 
   if (!response.ok) throw new Error(`RPT-1 HTTP ${response.status}: ${rawResponse}`);
   const result = JSON.parse(rawResponse);
 
-  const predictions  = result.prediction?.predictions || [];
-  const myPrediction = predictions.find(p => String(p.partner_id) === `Q-${customerId}`) || predictions[0];
-  const category     = myPrediction?.risk_category?.[0]?.prediction || null;
-  const confidence   = myPrediction?.risk_category?.[0]?.confidence || null;
-  if (!category) throw new Error('RPT-1 response missing prediction');
+  // Response field naming has varied across RPT-1 API revisions — check the
+  // documented shapes (predictions[] array, top-level predictions, or a
+  // single prediction object) and the per-row prediction value as either
+  // an array of {prediction, confidence} or a single {prediction, confidence}.
+  const predictions  = result.prediction?.predictions || result.predictions || [];
+  const myPrediction = predictions.find(p => String(p.case_id ?? p.index ?? '') === `Q-${customerId}`) || predictions[predictions.length - 1];
+
+  let predictionEntry = myPrediction?.[RPT1_TARGET_COLUMN];
+  if (Array.isArray(predictionEntry)) predictionEntry = predictionEntry[0];
+
+  const category   = predictionEntry?.prediction ?? predictionEntry ?? null;
+  const confidence = predictionEntry?.confidence ?? null;
+  if (!category) throw new Error(`RPT-1 response missing ${RPT1_TARGET_COLUMN} prediction: ${rawResponse.slice(0, 500)}`);
 
   // Score within defined scale: LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100
   // Confidence modulates position within that band (not across bands)
-  const conf = Math.min(1, Math.max(0, confidence || 0.5));
+  const conf = Math.min(1, Math.max(0, confidence ?? 0.5));
   const scoreFloors = { LOW: 0, MEDIUM: 26, HIGH: 51, CRITICAL: 76 };
   const floor = scoreFloors[category.toUpperCase()] ?? 26;
   const score = Math.round(floor + 24 * conf);
@@ -104,7 +136,7 @@ async function callRpt1(data, customerId) {
 //      scikit → ml/anomaly-service.py Flask service (default, works on Free Tier)
 
 async function runPalAnomalyDetection(data, customerId) {
-  if (!data.payments.length) throw new Error('No payment rows for this customer to score');
+  if (!data.payments.length && !data.history.length) throw new Error('No payment rows for this customer to score');
 
   const rows = await cds.run(`CALL "PAL_RUN_ISOLATION_FOREST"(?)`, [customerId]);
   if (!rows || rows.length === 0) throw new Error('PAL returned no results — check DFKKOP rows for this customer');
@@ -118,7 +150,7 @@ async function runPalAnomalyDetection(data, customerId) {
 }
 
 async function runScikitAnomalyDetection(data, customerId) {
-  if (!data.payments.length) throw new Error('No payment rows for this customer to score');
+  if (!data.payments.length && !data.history.length) throw new Error('No payment rows for this customer to score');
 
   const url = process.env.SCIKIT_SERVICE_URL || 'http://localhost:5001';
 
@@ -127,11 +159,21 @@ async function runScikitAnomalyDetection(data, customerId) {
     amount:       Math.abs(Number(r.BETRW) || 0)
   }));
 
-  const payments = data.payments.map((r, i) => ({
-    id:           `P${i + 1}`,
-    days_overdue: Number(r.DAYS_OVERDUE) || 0,
-    amount:       Math.abs(Number(r.BETRW) || 0)
-  }));
+  // Score this customer's open items (current standing) plus their cleared
+  // history (always on-time) — gives the Isolation Forest a real per-customer
+  // baseline so current overdue items stand out against their own track record.
+  const payments = [
+    ...data.payments.map((r, i) => ({
+      id:           `P${i + 1}`,
+      days_overdue: Number(r.DAYS_OVERDUE) || 0,
+      amount:       Math.abs(Number(r.BETRW) || 0)
+    })),
+    ...data.history.map((r, i) => ({
+      id:           `H${i + 1}`,
+      days_overdue: 0,
+      amount:       Math.abs(Number(r.BETRW) || 0)
+    })),
+  ];
 
   const response = await fetch(`${url}/anomaly`, {
     method:  'POST',
@@ -189,14 +231,15 @@ async function runLlmAnomalyDetection(data, customerId) {
 Return JSON only: { "anomalies": ["anomaly 1", "anomaly 2"] }
 Each anomaly max 20 words. Empty array if nothing unusual.
 IMPORTANT: The current APRA DTI threshold is ${data.apraDtiLimit.toFixed(2)}x. Use this exact value — do not use any other threshold.
-IMPORTANT: DTI is a ratio — always express as Xx (e.g. 5.80x), never as a percentage.`
+IMPORTANT: DTI is a ratio — always express as Xx (e.g. 5.80x), never as a percentage.
+IMPORTANT: Only flag DTI as an anomaly if the customer's DTI is AT or ABOVE the threshold. Do not mention DTI if the customer is within limits.`
     },
     { role: 'user', content: `Customer ${customerId}:\n${summary}` }
   ]);
 
   const text   = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
-  const match  = text.match(/\{[\s\S]*\}/);
-  const parsed = match ? JSON.parse(match[0]) : { anomalies: [] };
+  const parsed = extractJson(text) || { anomalies: [] };
+  if (!Array.isArray(parsed.anomalies)) console.warn('  [Pattern/LLM] could not parse anomalies JSON — using empty list. Raw:', text.substring(0, 300));
 
   return {
     anomalies:  Array.isArray(parsed.anomalies) ? parsed.anomalies : [],

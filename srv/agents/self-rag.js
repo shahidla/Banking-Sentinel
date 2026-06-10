@@ -10,6 +10,7 @@
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { getLangchainHandler } = require('../observability/langfuse-client');
 const { validateAgentOutput } = require('../guardrails/validate');
+const { extractJson } = require('../utils/llm-json');
 
 async function selfRagCheckNode(state) {
   const customerId = state.intent?.customerId || state.customerId;
@@ -97,13 +98,7 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
     rawText = String(response.content);
   }
   const clean = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  const match = clean.match(/\{[\s\S]*\}/);
-  let evaluation;
-  try {
-    evaluation = match ? JSON.parse(match[0]) : null;
-  } catch (e) {
-    evaluation = null;
-  }
+  const evaluation = extractJson(clean);
 
   if (!evaluation || typeof evaluation.overallConfidence !== 'number') {
     // Default below re-query threshold (0.70) so a parse failure triggers re-query, not proceed.

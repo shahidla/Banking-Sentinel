@@ -4,11 +4,12 @@
     {
       "PARTNER": "30100003",
       "DTI_RATIO": 7.2,
-      "ANNUAL_INCOME": 145000,
+      "ANNUAL_INCOME": 291666.67,
       "TOTAL_DEBT": 2100000,
       "CURRENCY": "AUD",
       "APRA_LIMIT": 6,
-      "BREACH_FLAG": false,
+      "BREACH_FLAG": true,
+      "BREACH_DATE": "2025-08-10",
       "INCOME_EXPIRY": "2026-09-15",
       "NOTE": "Loan approved 2025-08-10. Income contract expires 2026-09-15. DTI threshold read from RegulatoryThresholds at runtime."
     },
@@ -94,7 +95,7 @@
     },
     {
       "PARTNER": "30100012",
-      "DTI_RATIO": 1.9,
+      "DTI_RATIO": 0.19,
       "ANNUAL_INCOME": 147000,
       "TOTAL_DEBT": 28000,
       "CURRENCY": "AUD",

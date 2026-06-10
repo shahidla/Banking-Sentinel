@@ -637,7 +637,7 @@ cds.on('bootstrap', async (app) => {
           : calculateCostAUD(s.totalInputTokens || 0, s.totalOutputTokens || 0),
         totalLatencyMs: auditTrail.reduce((sum, r) => sum + (parseInt(r.LATENCY_MS) || 0), 0) || (s.totalLatencyMs || 0),
         // SAP tables accessed during this pipeline run
-        trbkTables: ['BUT050', 'BCA_GUARANTOR', 'DFKKOP', 'BCA_DTI', 'BCA_LOAN_HDR', 'Loans', 'BCA_SECTOR'],
+        trbkTables: ['BUT050', 'BCA_GUARANTOR', 'DFKKOP', 'DFKKOPK', 'BCA_DTI', 'BCA_LOAN_HDR', 'Loans', 'BCA_SECTOR'],
         // Audit
         auditTrail:   auditTrail.map(r => ({
           action:    r.ACTION,

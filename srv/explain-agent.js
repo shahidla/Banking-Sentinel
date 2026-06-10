@@ -11,6 +11,11 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
 function mkClient() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// Reference "today" for the demo dataset — consistent with the DAYS_OVERDUE
+// values seeded into DFKKOP. Used to distinguish a genuinely missing past-due
+// payment from a future LoanSchedule row that simply isn't due yet.
+const SCHEDULE_TODAY = '2026-05-21';
+
 // ── Explanation cache (Supabase Postgres — same instance as the LangGraph checkpointer) ──
 // Generating the trail calls Claude 5 times per session. Without a cache, re-opening the
 // same session regenerates fresh prose each time — different wording, different cost.
@@ -82,11 +87,12 @@ async function replayExplanation(cached, partnerId, pushFn) {
 
 // ── Raw data pull ─────────────────────────────────────────────────────────────
 async function pullRawData(customerId) {
-  const [dtiRows, bpRows, loans, payments, thresholds, limits] = await Promise.all([
+  const [dtiRows, bpRows, loans, payments, history, thresholds, limits] = await Promise.all([
     cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.BusinessPartners').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId })),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId })),
+    cds.run(SELECT.from('bankingsentinel.DFKKOPK').where({ GPART: customerId }).orderBy('FAEDN')),
     cds.run(SELECT.from('bankingsentinel.RegulatoryThresholds')),
     cds.run(SELECT.from('bankingsentinel.ExposureLimits')),
   ]);
@@ -112,7 +118,7 @@ async function pullRawData(customerId) {
     SELECT.from('bankingsentinel.DFKKOP').columns('GPART', 'DAYS_OVERDUE', 'BETRW', 'STATUS').limit(200)
   );
 
-  return { dti: dtiRows[0]||null, bp: bpRows[0]||null, loans, payments,
+  return { dti: dtiRows[0]||null, bp: bpRows[0]||null, loans, payments, history,
            schedule, collateral, guarantors, but050, portfolio, thresholds, limits };
 }
 
@@ -182,23 +188,38 @@ function buildPaymentsHtml(raw) {
   const overdueFlag = (c,v) => (c==='DAYS_OVERDUE'&&parseInt(v)>0) || (c==='STATUS'&&v==='OPEN');
   const crossRef = raw.schedule.map(s => {
     const match = raw.payments.find(p => p.LOAN_ID===s.LOAN_ID && p.FAEDN===s.DUE_DATE);
+    if (match) {
+      return {
+        LOAN_ID:         s.LOAN_ID,
+        DUE_DATE:        s.DUE_DATE,
+        AMOUNT_DUE:      s.AMOUNT_DUE,
+        DFKKOP_RECORD:   match.OPBEL,
+        STATUS:          match.STATUS,
+        DAYS_OVERDUE:    match.DAYS_OVERDUE,
+        BOOKING_DATE:    match.BUDAT || 'empty',
+      };
+    }
+    const notYetDue = s.DUE_DATE > SCHEDULE_TODAY;
     return {
       LOAN_ID:         s.LOAN_ID,
       DUE_DATE:        s.DUE_DATE,
       AMOUNT_DUE:      s.AMOUNT_DUE,
-      DFKKOP_RECORD:   match ? match.OPBEL : '⚠ MISSING',
-      STATUS:          match ? match.STATUS : '⚠ NOT IN LEDGER',
-      DAYS_OVERDUE:    match ? match.DAYS_OVERDUE : '—',
-      BOOKING_DATE:    match ? (match.BUDAT||'empty') : '—',
+      DFKKOP_RECORD:   notYetDue ? '— not yet due —' : '⚠ MISSING',
+      STATUS:          notYetDue ? 'NOT YET DUE' : '⚠ NOT IN LEDGER',
+      DAYS_OVERDUE:    '—',
+      BOOKING_DATE:    '—',
     };
   });
   const crossFlag = (c,v) => String(v).startsWith('⚠') || (c==='DAYS_OVERDUE'&&parseInt(v)>0);
 
   return contextNote([
-    '<strong>DFKKOP</strong> is SAP\'s FI-CA (Financial Contract Accounting) document item table — the payment ledger. Every scheduled repayment appears here with a STATUS of <code>OPEN</code> (unpaid) or <code>CLEARED</code> (paid). <code>BUDAT</code> is the posting date — empty means no payment has been received or acknowledged by the bank.',
-    'The Pattern Agent cross-references <strong>LoanSchedule</strong> (the contractual repayment timetable agreed at origination) against DFKKOP. If a scheduled due date has no matching DFKKOP record at all, the payment is missing from the ledger entirely — a data integrity gap.',
+    '<strong>DFKKOP</strong> is SAP\'s FI-CA (Financial Contract Accounting) open-items table — the current payment ledger. Every scheduled repayment appears here with a STATUS of <code>OPEN</code> (unpaid) or <code>CLEARED</code> (paid). <code>BUDAT</code> is the posting date — empty means no payment has been received or acknowledged by the bank.',
+    '<strong>DFKKOPK</strong> is the cleared-items counterpart — the customer\'s settled repayment history (<code>AUGDT</code>/<code>AUGBL</code> = clearing date/document). It shows when the loan started performing and how many payments have been made on time.',
+    `The Pattern Agent cross-references <strong>LoanSchedule</strong> (the contractual repayment timetable) against DFKKOP. A scheduled due date with no DFKKOP record is only flagged <code>⚠ MISSING</code> if the due date has already passed (as of ${SCHEDULE_TODAY}) — a genuine data integrity gap. A future due date with no record yet is labelled <code>NOT YET DUE</code>, not a missing payment.`,
     'Days overdue are highlighted in red. A payment past 90 days triggers mandatory provisioning under prudential standards. The bank is currently at the point where the next payment cycle could push the first item past that threshold.',
   ]) + `
+    <div class="sub-title">DFKKOPK — Payment History (cleared, prior periods — ${raw.history.length} payments)</div>
+    ${tbl(raw.history)}
     <div class="sub-title">DFKKOP — Payment Ledger (all records for this customer)</div>
     ${tbl(raw.payments, overdueFlag)}
     <div class="sub-title">LoanSchedule ↔ DFKKOP Cross-Reference (scheduled vs actual)</div>
@@ -494,27 +515,34 @@ Maximum 180 words total across all four bullets. Plain text only — no bold, no
 function buildPaymentPrompt(raw, customerId) {
   const overdue = raw.payments.filter(p=>parseInt(p.DAYS_OVERDUE)>0);
   const maxDays = overdue.reduce((m,p)=>Math.max(m,parseInt(p.DAYS_OVERDUE)||0),0);
-  const missing = raw.schedule.filter(s=>!raw.payments.some(p=>p.LOAN_ID===s.LOAN_ID&&p.FAEDN===s.DUE_DATE));
-  const matched = raw.schedule.length - missing.length;
+  const unmatched = raw.schedule.filter(s=>!raw.payments.some(p=>p.LOAN_ID===s.LOAN_ID&&p.FAEDN===s.DUE_DATE));
+  const missing = unmatched.filter(s=>s.DUE_DATE <= SCHEDULE_TODAY);
+  const notYetDue = unmatched.filter(s=>s.DUE_DATE > SCHEDULE_TODAY);
+  const matched = raw.schedule.length - unmatched.length;
 
   return `Analyse the payment records for customer ${customerId}.
 
-DFKKOP payment ledger:
+DFKKOPK payment history (cleared, prior periods — ${raw.history.length} payments):
+${JSON.stringify(raw.history, null, 2)}
+
+DFKKOP payment ledger (current open items):
 ${JSON.stringify(raw.payments, null, 2)}
 
 LoanSchedule (contractual timetable):
 ${JSON.stringify(raw.schedule, null, 2)}
 
 The "interpretation" mechanism for this section is a CROSS-REFERENCE MATCH, not a model: the Pattern Agent
-joins each LoanSchedule row to a DFKKOP row by (LOAN_ID, DUE_DATE = FAEDN). A match with STATUS=OPEN and
-empty BUDAT means scheduled-but-unpaid; no match at all means the obligation never reached the ledger.
+joins each LoanSchedule row to a DFKKOP row by (LOAN_ID, DUE_DATE = FAEDN), as of reference date ${SCHEDULE_TODAY}.
+A match with STATUS=OPEN and empty BUDAT means scheduled-but-unpaid; no match for a due date in the past means
+the obligation never reached the ledger (a genuine gap); no match for a future due date just means it isn't billed yet.
 
 Key facts to walk through in your Interpretation bullet:
-- Matching rule applied: ${raw.schedule.length} scheduled payments → ${matched} matched a DFKKOP record, ${missing.length} did not
+- DFKKOPK shows ${raw.history.length} months of prior cleared payments — this customer's payment history before the current schedule window
+- Matching rule applied: ${raw.schedule.length} scheduled payments → ${matched} matched a DFKKOP record, ${missing.length} are past-due with no record (genuinely missing), ${notYetDue.length} are not yet due
 - ${overdue.length} of ${raw.payments.length} matched records carry STATUS=OPEN (unpaid) with DAYS_OVERDUE > 0
 - Maximum days overdue after the match: ${maxDays} days (record ${overdue.find(p=>parseInt(p.DAYS_OVERDUE)===maxDays)?.OPBEL||'—'})
 - Every OPEN record has empty BUDAT (booking date) — the match shows zero evidence a payment was ever received
-- Unmatched scheduled payments (ledger gap, not just lateness): ${missing.map(s=>s.LOAN_ID+' due '+s.DUE_DATE).join(', ')||'none'}
+- Genuinely missing scheduled payments (past due, no ledger record at all): ${missing.map(s=>s.LOAN_ID+' due '+s.DUE_DATE).join(', ')||'none'}
 - Portfolio context: most customers' matches resolve to CLEARED; this customer's matches all resolve to OPEN
 
 Write the four-bullet evidence analysis (Input → Interpretation → Output → Significance).`;

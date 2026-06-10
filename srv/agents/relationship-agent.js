@@ -11,6 +11,7 @@
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { hana_graph_traverse, exposure_calculator, apra_threshold_check } = require('../tools/mcp-tools');
 const { getLangchainHandler } = require('../observability/langfuse-client');
+const { extractJson } = require('../utils/llm-json');
 
 const MAX_REACT_STEPS = 6;
 
@@ -187,13 +188,9 @@ Return your final summary as JSON:
   let parsed = null;
   if (lastTextMsg) {
     const rawText = extractText(lastTextMsg.content);
-    const clean   = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    const match   = clean.match(/\{[\s\S]*\}/);
-    try {
-      if (match) parsed = JSON.parse(match[0]);
-    } catch (e) {
-      console.warn(`  [Relationship] JSON parse failed: ${e.message} — using fallback`);
-    }
+    const clean = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    parsed = extractJson(clean);
+    if (!parsed) console.warn('  [Relationship] JSON parse failed — using fallback');
   }
 
   if (!parsed || !Array.isArray(parsed.nodes)) {
@@ -202,6 +199,17 @@ Return your final summary as JSON:
   }
 
   const relationshipMap = { ...parsed };
+
+  // If graph returned only the source node with zero edges, the traversal succeeded but found
+  // no connected parties — this is a data fact (solo borrower), not an infrastructure failure.
+  // Override any LLM-generated "infrastructure unavailability" interpretation.
+  const edgeCount = (toolGraphData?.edges?.length ?? 0) || (relationshipMap.edges?.length ?? 0);
+  if ((relationshipMap.nodes?.length ?? 0) <= 1 && edgeCount === 0 && relationshipMap.groupExposure > 0) {
+    const aud   = (relationshipMap.groupExposure / 1e6).toFixed(1);
+    const pct21 = relationshipMap.aps221Pct ?? 0;
+    relationshipMap.finding    = `No connected parties found via graph traversal — customer is a solo borrower with no BUT050 or guarantor relationships on record. Solo exposure AUD ${aud}M (${pct21}% APS 221 utilisation).`;
+    relationshipMap.confidence = Math.max(relationshipMap.confidence ?? 0, 0.80);
+  }
 
   // Use tool's enriched node list if available — LLM summary only has flat IDs
   const finalNodes = toolGraphData?.nodeDetails?.length > 0

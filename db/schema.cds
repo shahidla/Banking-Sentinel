@@ -103,6 +103,22 @@ entity DFKKOP {
   CURRENCY          : String(3);
 }
 
+// AI: Payment-history node — settled repayment track record per loan
+// Banking: Cleared items = payments actually made. Combined with DFKKOP open
+//          items, gives the full ledger: history + current standing
+// SAP: DFKKOPK — Items in contract account document (cleared items)
+entity DFKKOPK {
+  key OPBEL         : String(20);   // document number (history): OP-Lxxx-Hnn
+  VKONT             : String(20);   // contract account
+  GPART             : String(10);   // business partner (SAP FI-CA field name)
+  LOAN_ID           : String(15);
+  BETRW             : Decimal(15,2); // amount cleared
+  FAEDN             : Date;          // original due date
+  AUGDT             : Date;          // clearing date (date payment was applied)
+  AUGBL             : String(20);    // clearing document number
+  CURRENCY          : String(3);
+}
+
 // AI: Sector classification node — concentration risk grouping
 // Banking: Industry sector of borrower — used to calculate portfolio concentration against internal limits
 // SAP: BCA_SECTOR — Industry sector classification
@@ -126,6 +142,20 @@ entity BCA_DTI {
   BREACH_DATE       : Date;          // date limit was activated / breach detected
   INCOME_SOURCE     : String(100);   // contract employer — trajectory signal
   INCOME_EXPIRY     : Date;          // contract end — future DTI signal for Trajectory Agent
+}
+
+// AI: RPT-1 in-context learning corpus — historical loan profiles with
+//     known repayment outcomes, used as labeled examples for the query row
+// Banking: Closed historical loan book sample — DTI/debt/income profile at
+//          origination + the arrears outcome that was actually observed
+// SAP: BCA_CREDIT_HISTORY — bank-built analytics table (BCA_* convention)
+entity BCA_CREDIT_HISTORY {
+  key CASE_ID        : String(10);   // HIST-0001 .. HIST-0200
+  DTI_RATIO          : Decimal(5,2);
+  TOTAL_DEBT         : Decimal(15,2);
+  ANNUAL_INCOME      : Decimal(15,2);
+  BREACH_FLAG        : Boolean;
+  ARREARS_OUTCOME    : String(10);   // LOW/MEDIUM/HIGH/CRITICAL — observed outcome (RPT-1 target)
 }
 
 // ─── REGULATORY REFERENCE DATA ───────────────────────────────────────────────

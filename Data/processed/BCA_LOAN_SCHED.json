@@ -240,6 +240,126 @@
       "CURRENCY": "AUD",
       "STATUS": "PENDING",
       "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-007",
+      "SCHED_ID": "SC-L007-01",
+      "DUE_DATE": "2026-03-01",
+      "AMOUNT_DUE": 940,
+      "AMOUNT_PAID": 940,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-007",
+      "SCHED_ID": "SC-L007-02",
+      "DUE_DATE": "2026-04-01",
+      "AMOUNT_DUE": 940,
+      "AMOUNT_PAID": 940,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-007",
+      "SCHED_ID": "SC-L007-03",
+      "DUE_DATE": "2026-06-01",
+      "AMOUNT_DUE": 940,
+      "AMOUNT_PAID": 0,
+      "CURRENCY": "AUD",
+      "STATUS": "PENDING",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-009",
+      "SCHED_ID": "SC-L009-01",
+      "DUE_DATE": "2026-03-01",
+      "AMOUNT_DUE": 62400,
+      "AMOUNT_PAID": 62400,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-009",
+      "SCHED_ID": "SC-L009-02",
+      "DUE_DATE": "2026-04-01",
+      "AMOUNT_DUE": 62400,
+      "AMOUNT_PAID": 62400,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-009",
+      "SCHED_ID": "SC-L009-03",
+      "DUE_DATE": "2026-06-01",
+      "AMOUNT_DUE": 62400,
+      "AMOUNT_PAID": 0,
+      "CURRENCY": "AUD",
+      "STATUS": "PENDING",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-010",
+      "SCHED_ID": "SC-L010-01",
+      "DUE_DATE": "2026-03-12",
+      "AMOUNT_DUE": 5300,
+      "AMOUNT_PAID": 5300,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-010",
+      "SCHED_ID": "SC-L010-02",
+      "DUE_DATE": "2026-04-12",
+      "AMOUNT_DUE": 5300,
+      "AMOUNT_PAID": 5300,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-010",
+      "SCHED_ID": "SC-L010-03",
+      "DUE_DATE": "2026-05-12",
+      "AMOUNT_DUE": 5300,
+      "AMOUNT_PAID": 0,
+      "CURRENCY": "AUD",
+      "STATUS": "PENDING",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-011",
+      "SCHED_ID": "SC-L011-01",
+      "DUE_DATE": "2026-03-15",
+      "AMOUNT_DUE": 905,
+      "AMOUNT_PAID": 905,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-011",
+      "SCHED_ID": "SC-L011-02",
+      "DUE_DATE": "2026-04-15",
+      "AMOUNT_DUE": 905,
+      "AMOUNT_PAID": 905,
+      "CURRENCY": "AUD",
+      "STATUS": "PAID",
+      "DAYS_OVERDUE": 0
+    },
+    {
+      "LOAN_ID": "L-011",
+      "SCHED_ID": "SC-L011-03",
+      "DUE_DATE": "2026-05-15",
+      "AMOUNT_DUE": 905,
+      "AMOUNT_PAID": 0,
+      "CURRENCY": "AUD",
+      "STATUS": "PENDING",
+      "DAYS_OVERDUE": 0
     }
   ]
 }

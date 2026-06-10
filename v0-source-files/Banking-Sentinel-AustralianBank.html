@@ -947,6 +947,29 @@ function getCompletionHtml(e) {
   }
 }
 
+// ── Direct answer display (simple_query / rejection — no risk score, just text) ──
+function showDirectAnswer(text, type) {
+  document.getElementById('rb').style.opacity = '1';
+  document.querySelector('.risk-score-block').style.background = type === 'rejection' ? '#555' : '#1a3a5c';
+  document.getElementById('rsn').textContent = type === 'rejection' ? '✕' : '◎';
+  document.getElementById('rdl').textContent = type === 'rejection' ? 'Request Declined' : 'Portfolio Query';
+  document.getElementById('rdd').textContent = type === 'rejection' ? 'Banking Sentinel is a risk intelligence system — it does not execute transactions.' : 'Direct data retrieval — no full pipeline needed.';
+  // Render the answer in the findings area — plain neutral box, no red breach styling
+  const html = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  document.getElementById('breaches').innerHTML = `<div style="padding:16px 18px;background:var(--bg);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:2px;font-size:13px;line-height:1.8;color:var(--dark)">${html}</div>`;
+  document.getElementById('recs').innerHTML = '<div class="rec" style="opacity:0.3"><div class="rt">No recommendations — not a risk analysis</div></div>';
+  document.getElementById('evs').innerHTML = '<div class="ev-item"><span class="ed">◆</span>No regulatory context — portfolio data query only</div>';
+  // Mark agents 2-6 as skipped — they never ran for this query type
+  ['a2','a3','a4','a5','a6'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.opacity = '0.35';
+    const badge = el.querySelector('.ab');
+    if (badge) { badge.className = 'ab ab-waiting'; badge.textContent = '— Skipped'; }
+  });
+  document.getElementById('agentProgress').textContent = '1 / 6 · fast path';
+}
+
 // ── Run analysis ──────────────────────────────────────────────────────────────
 async function runAnalysis() {
   const query = document.querySelector('.query-input').value.trim();
@@ -983,6 +1006,9 @@ async function runAnalysis() {
     if (r.costAUD != null) document.getElementById('costAud').textContent = 'AUD ' + r.costAUD.toFixed(4);
     if (r.status !== 'awaiting_approval') {
       document.getElementById('ts').textContent = 'complete';
+    }
+    if (r.responseType === 'simple_query' || r.responseType === 'rejection') {
+      showDirectAnswer(r.answer || '—', r.responseType);
     }
   } catch (err) {
     showError(err.message || 'Network error');
@@ -1279,7 +1305,7 @@ function buildFoundContent(agentKey, d) {
         <div class="adm-kv">${admRow('Category', rpt1.category || d.riskLevel || '—')}${admRow('Confidence', rpt1.confidence != null ? (rpt1.confidence * 100).toFixed(0) + '%' : '—')}${rpt1.success === false ? admRow('Note', 'Estimated (RPT-1 API fallback)') : ''}</div>`;
       html += `<div class="adm-how-lbl" style="margin-top:10px">${_anomalyLabel} (Isolation Forest)</div>
         <div class="adm-kv">${pal.success === false
-          ? admRow('Status', 'Unavailable — scikit service not running (start ml/anomaly-service.py)')
+          ? admRow('Status', (pal.error || '').includes('No payment rows') ? 'No payment data — customer has no DFKKOP records' : 'Unavailable — scikit service not running (start ml/anomaly-service.py)')
           : admRow('Flagged rows', (pal.anomalyCount ?? 0) + ' / ' + (pal.totalScored != null ? pal.totalScored : (d.palTotalScored ?? '?')) + ' payment rows')
         }</div>`;
       if ((pal.findings || []).length > 0) {

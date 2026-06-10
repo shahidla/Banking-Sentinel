@@ -106,6 +106,20 @@ function mapDFKKOP(records) {
   }));
 }
 
+function mapDFKKOPK(records) {
+  return records.map(r => ({
+    OPBEL:    r.OPBEL,
+    VKONT:    r.VKONT,
+    GPART:    r.GPART,
+    LOAN_ID:  r.LOAN_ID,
+    BETRW:    r.BETRW,
+    FAEDN:    r.FAEDN,
+    AUGDT:    r.AUGDT,
+    AUGBL:    r.AUGBL,
+    CURRENCY: r.CURRENCY || 'AUD',
+  }));
+}
+
 function mapBCA_SECTOR(records) {
   return records.map(r => ({
     PARTNER:     r.PARTNER,
@@ -126,6 +140,17 @@ function mapBCA_DTI(records) {
     BREACH_DATE:   r.BREACH_DATE || null,
     INCOME_SOURCE: r.INCOME_SOURCE || null,
     INCOME_EXPIRY: r.INCOME_EXPIRY || null,
+  }));
+}
+
+function mapBCA_CREDIT_HISTORY(records) {
+  return records.map(r => ({
+    CASE_ID:         r.CASE_ID,
+    DTI_RATIO:       r.DTI_RATIO,
+    TOTAL_DEBT:      r.TOTAL_DEBT,
+    ANNUAL_INCOME:   r.ANNUAL_INCOME,
+    BREACH_FLAG:     r.BREACH_FLAG,
+    ARREARS_OUTCOME: r.ARREARS_OUTCOME,
   }));
 }
 
@@ -177,8 +202,10 @@ async function seed() {
     BCA_GUARANTOR:       'bankingsentinel.BCA_GUARANTOR',
     BCA_COLLATERAL:      'bankingsentinel.BCA_COLLATERAL',
     DFKKOP:              'bankingsentinel.DFKKOP',
+    DFKKOPK:             'bankingsentinel.DFKKOPK',
     BCA_SECTOR:          'bankingsentinel.BCA_SECTOR',
     BCA_DTI:             'bankingsentinel.BCA_DTI',
+    BCA_CREDIT_HISTORY:  'bankingsentinel.BCA_CREDIT_HISTORY',
     RegulatoryThresholds:'bankingsentinel.RegulatoryThresholds',
     ExposureLimits:      'bankingsentinel.ExposureLimits',
     SectorExposureLimits:'bankingsentinel.SectorExposureLimits',
@@ -221,11 +248,17 @@ async function seed() {
   // Open items — primary risk signal
   await insert(E.DFKKOP, mapDFKKOP(await loadFile('DFKKOP.json')), 'DFKKOP');
 
+  // Cleared items — settled payment history (pairs with DFKKOP open items)
+  await insert(E.DFKKOPK, mapDFKKOPK(await loadFile('DFKKOPK.json')), 'DFKKOPK');
+
   // Sector classifications
   await insert(E.BCA_SECTOR, mapBCA_SECTOR(await loadFile('BCA_SECTOR.json')), 'BCA_SECTOR');
 
   // DTI ratios
   await insert(E.BCA_DTI, mapBCA_DTI(await loadFile('BCA_DTI.json')), 'BCA_DTI');
+
+  // RPT-1 in-context learning corpus — historical loan performance cases
+  await insert(E.BCA_CREDIT_HISTORY, mapBCA_CREDIT_HISTORY(await loadFile('BCA_CREDIT_HISTORY.json')), 'BCA_CREDIT_HISTORY');
 
   // Regulatory thresholds
   await insert(E.RegulatoryThresholds, mapRegulatoryThresholds(await loadFile('RISK_THRESHOLD.json')), 'RegulatoryThresholds');
