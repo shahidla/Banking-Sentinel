@@ -27,28 +27,32 @@ def anomaly():
     if not payments:
         return jsonify({'error': 'No customer payment rows to score'}), 400
 
-    # Training — portfolio-wide (mirrors PAL: train on BANKINGSENTINEL_DFKKOP TOP 500)
+    # Training — portfolio-wide (mirrors PAL: train on BANKINGSENTINEL_DFKKOP/DFKKOPK TOP 500)
+    # 2D feature vector: [payment_delay_days (AUGDT/BUDAT - FAEDN), dunning_level (MAHNS, 0-3)].
+    # Captures JOINT escalation across two differently-typed dimensions — IF can flag a
+    # customer whose delay AND dunning level are both drifting even when neither alone
+    # crosses a fixed threshold a single-field WHERE clause could replicate.
     X_train = np.array([
-        [float(r.get('days_overdue', 0)), float(r.get('amount', 0))]
+        [float(r.get('payment_delay_days', 0)), float(r.get('dunning_level', 0))]
         for r in portfolio
     ])
 
     clf = IsolationForest(
         n_estimators=100,       # PAL NUM_TREES=100
-        contamination=0.1,      # PAL CONTAMINATION=0.1
+        contamination='auto',   # threshold derived from the data distribution
         random_state=42         # PAL SEED=42
     )
     clf.fit(X_train)
 
     # Portfolio stats for reason codes (mirrors PAL EXPLAIN_SCOPE=1)
-    mean_days = float(np.mean(X_train[:, 0]))
-    std_days  = float(np.std(X_train[:, 0])) or 1.0
-    mean_amt  = float(np.mean(X_train[:, 1]))
-    std_amt   = float(np.std(X_train[:, 1])) or 1.0
+    mean_delay   = float(np.mean(X_train[:, 0]))
+    std_delay    = float(np.std(X_train[:, 0])) or 1.0
+    mean_dunning = float(np.mean(X_train[:, 1]))
+    std_dunning  = float(np.std(X_train[:, 1])) or 1.0
 
     # Scoring — this customer's rows
     X_score = np.array([
-        [float(r.get('days_overdue', 0)), float(r.get('amount', 0))]
+        [float(r.get('payment_delay_days', 0)), float(r.get('dunning_level', 0))]
         for r in payments
     ])
 
@@ -65,12 +69,12 @@ def anomaly():
 
         reason = None
         if label == -1:
-            z_days = abs(float(row.get('days_overdue', 0)) - mean_days) / std_days
-            z_amt  = abs(float(row.get('amount', 0))       - mean_amt)  / std_amt
-            if z_days >= z_amt:
-                reason = f"DAYS_OVERDUE {row.get('days_overdue', 0)} (z={z_days:.2f}, portfolio mean={mean_days:.0f})"
+            z_delay   = abs(float(row.get('payment_delay_days', 0)) - mean_delay)   / std_delay
+            z_dunning = abs(float(row.get('dunning_level', 0))      - mean_dunning) / std_dunning
+            if z_delay >= z_dunning:
+                reason = f"PAYMENT_DELAY_DAYS {row.get('payment_delay_days', 0)} (z={z_delay:.2f}, portfolio mean={mean_delay:.1f})"
             else:
-                reason = f"AMOUNT {row.get('amount', 0):.0f} (z={z_amt:.2f}, portfolio mean={mean_amt:.0f})"
+                reason = f"DUNNING_LEVEL {row.get('dunning_level', 0)} (z={z_dunning:.2f}, portfolio mean={mean_dunning:.1f})"
 
         results.append({
             'id':          row.get('id', f'P{i + 1}'),

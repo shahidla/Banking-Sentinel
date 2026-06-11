@@ -14,6 +14,12 @@ const { extractJson } = require('../utils/llm-json');
 const progressEmitter = new EventEmitter();
 progressEmitter.setMaxListeners(50);
 
+// payment_delay_days for a cleared item = clearing date - due date (DFKKOPK AUGDT - FAEDN)
+function daysBetween(faedn, augdt) {
+  if (!faedn || !augdt) return 0;
+  return Math.round((new Date(augdt) - new Date(faedn)) / 86400000);
+}
+
 // ── Step 1: Fetch customer data from HANA ────────────────────────────────────
 async function fetchCustomerData(customerId) {
   const [loans, dtiRows, payments, history, portfolioOpen, portfolioCleared, thresholdRows] = await Promise.all([
@@ -21,8 +27,8 @@ async function fetchCustomerData(customerId) {
     cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId }).limit(1)),
     cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId }).limit(100)),
     cds.run(SELECT.from('bankingsentinel.DFKKOPK').where({ GPART: customerId }).limit(100)),
-    cds.run(SELECT.from('bankingsentinel.DFKKOP').columns('DAYS_OVERDUE', 'BETRW').limit(500)),
-    cds.run(SELECT.from('bankingsentinel.DFKKOPK').columns('BETRW').limit(500)),
+    cds.run(SELECT.from('bankingsentinel.DFKKOP').columns('DAYS_OVERDUE', 'MAHNS').limit(500)),
+    cds.run(SELECT.from('bankingsentinel.DFKKOPK').columns('FAEDN', 'AUGDT', 'MAHNS').limit(500)),
     cds.run(SELECT.from('bankingsentinel.RegulatoryThresholds').where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' }).limit(1)),
   ]);
 
@@ -32,11 +38,19 @@ async function fetchCustomerData(customerId) {
     collateral = await cds.run(SELECT.from('bankingsentinel.BCA_COLLATERAL').where({ LOAN_ID: { in: loanIds } }));
   }
 
-  // Portfolio baseline for anomaly detection: open items (DAYS_OVERDUE may be > 0)
-  // plus cleared payment history (always on-time, DAYS_OVERDUE = 0)
+  // Portfolio baseline for anomaly detection: 2D [payment_delay_days, dunning_level]
+  // from open items (DAYS_OVERDUE/MAHNS) plus cleared payment history
+  // (AUGDT-FAEDN/MAHNS) — gives the Isolation Forest the joint delay+dunning
+  // distribution across the whole portfolio.
   const portfolio = [
-    ...portfolioOpen,
-    ...portfolioCleared.map(r => ({ DAYS_OVERDUE: 0, BETRW: r.BETRW })),
+    ...portfolioOpen.map(r => ({
+      payment_delay_days: Number(r.DAYS_OVERDUE) || 0,
+      dunning_level:      Number(r.MAHNS) || 0,
+    })),
+    ...portfolioCleared.map(r => ({
+      payment_delay_days: daysBetween(r.FAEDN, r.AUGDT),
+      dunning_level:      Number(r.MAHNS) || 0,
+    })),
   ];
 
   const apraDtiLimit = parseFloat(thresholdRows[0]?.LIMIT_PCT) || 8.0;
@@ -155,23 +169,24 @@ async function runScikitAnomalyDetection(data, customerId) {
   const url = process.env.SCIKIT_SERVICE_URL || 'http://localhost:5001';
 
   const portfolio = data.portfolio.map(r => ({
-    days_overdue: Number(r.DAYS_OVERDUE) || 0,
-    amount:       Math.abs(Number(r.BETRW) || 0)
+    payment_delay_days: Number(r.payment_delay_days) || 0,
+    dunning_level:      Number(r.dunning_level) || 0
   }));
 
   // Score this customer's open items (current standing) plus their cleared
-  // history (always on-time) — gives the Isolation Forest a real per-customer
-  // baseline so current overdue items stand out against their own track record.
+  // history (always settled) — gives the Isolation Forest a real per-customer
+  // baseline so current overdue/dunning items stand out against their own
+  // track record.
   const payments = [
     ...data.payments.map((r, i) => ({
-      id:           `P${i + 1}`,
-      days_overdue: Number(r.DAYS_OVERDUE) || 0,
-      amount:       Math.abs(Number(r.BETRW) || 0)
+      id:                 `P${i + 1}`,
+      payment_delay_days: Number(r.DAYS_OVERDUE) || 0,
+      dunning_level:      Number(r.MAHNS) || 0
     })),
     ...data.history.map((r, i) => ({
-      id:           `H${i + 1}`,
-      days_overdue: 0,
-      amount:       Math.abs(Number(r.BETRW) || 0)
+      id:                 `H${i + 1}`,
+      payment_delay_days: daysBetween(r.FAEDN, r.AUGDT),
+      dunning_level:      Number(r.MAHNS) || 0
     })),
   ];
 
@@ -221,7 +236,12 @@ async function runLlmAnomalyDetection(data, customerId) {
     dti:             data.dti,
     loans:           data.loans.slice(0, 5),
     recentPayments:  data.payments.slice(0, 10),
-    collateralCount: data.collateral.length
+    paymentHistory:  data.history.map(h => ({
+      loanId: h.LOAN_ID, faedn: h.FAEDN, augdt: h.AUGDT, dunningLevel: h.MAHNS
+    })),
+    collateral: data.collateral.map(c => ({
+      loanId: c.LOAN_ID, type: c.COLLAT_TYPE, value: c.VALUE
+    }))
   });
 
   const response = await llm.invoke([
@@ -230,9 +250,18 @@ async function runLlmAnomalyDetection(data, customerId) {
       content: `You are a banking risk analyst. Identify specific anomalies in the customer data.
 Return JSON only: { "anomalies": ["anomaly 1", "anomaly 2"] }
 Each anomaly max 20 words. Empty array if nothing unusual.
+
+DTI rules:
 IMPORTANT: The current APRA DTI threshold is ${data.apraDtiLimit.toFixed(2)}x. Use this exact value — do not use any other threshold.
 IMPORTANT: DTI is a ratio — always express as Xx (e.g. 5.80x), never as a percentage.
-IMPORTANT: Only flag DTI as an anomaly if the customer's DTI is AT or ABOVE the threshold. Do not mention DTI if the customer is within limits.`
+IMPORTANT: Only flag DTI as an anomaly if the customer's DTI is AT or ABOVE the threshold. Do not mention DTI if the customer is within limits.
+
+Payment trend rules:
+IMPORTANT: 'paymentHistory' is up to 12 months of cleared payments per loan, in chronological order, with 'augdt' (clearing date), 'faedn' (due date), and 'dunningLevel' (0-3). Look for an ESCALATING TREND (delay and/or dunning level rising over recent months) and describe it narratively, e.g. "Loan L-001 deteriorated from on-time to 81-day delay / dunning level 3 over the last 5 months."
+IMPORTANT: Do NOT flag a single row's overdue days or dunning level as an anomaly on its own — that is covered by a separate statistical model. Only comment on a TREND across paymentHistory.
+
+Collateral rules:
+IMPORTANT: 'collateral' lists each loan's pledged assets (type, value). If a loan's AMOUNT (from 'loans') exceeds the total VALUE of its collateral, flag it as under-collateralized and state both figures.`
     },
     { role: 'user', content: `Customer ${customerId}:\n${summary}` }
   ]);

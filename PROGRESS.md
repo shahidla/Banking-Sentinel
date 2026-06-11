@@ -130,17 +130,110 @@ breach under standard rate-stress test) = compounding risk finding.
    pass `MAHNS` through (default 0). Reseeded (138/13 rows) and verified via
    `audit-demo-customers.js` (clean for all 11 customers) and
    `/admin/api/hana/DFKKOP` (MAHNS values confirmed).
-4. `ml/anomaly-service.py`: 2D feature vector (payment_delay_days,
-   dunning_level) + `contamination='auto'`.
-5. `pattern-agent.js` `fetchCustomerData`: include `dunning_level` in scikit
-   feature mapping.
-6. Full reseed + `audit-demo-customers.js` + risk-analysis runs for
-   30100001, 30100003, 30100004.
+4. **DONE** — `ml/anomaly-service.py`: training (`X_train`) and scoring
+   (`X_score`) feature vectors changed from `[days_overdue, amount]` to
+   `[payment_delay_days, dunning_level]` (reads `r.get('payment_delay_days')`
+   / `r.get('dunning_level')` from the request JSON). `contamination=0.1`
+   replaced with `contamination='auto'`. Reason-code logic reworked to
+   `mean_delay`/`std_delay`/`mean_dunning`/`std_dunning` with new
+   `PAYMENT_DELAY_DAYS ...` / `DUNNING_LEVEL ...` reason strings.
+
+   Verified live: killed and restarted `npm run start:local` (CAP :4004 +
+   scikit :5001) so the new code loads, then POSTed directly to
+   `/anomaly` with the new field names:
+   - Portfolio of mostly-clean rows (delay 0±1, dunning 0) plus a few
+     escalating rows (4/0, 12/1, 35/2) → scoring `{81, dunning=3}` gave
+     `label=-1, score=1.0, reason="PAYMENT_DELAY_DAYS 81 (z=7.48, portfolio
+     mean=4.7)"`; scoring a clean `{0,0}` row gave `label=1, score=0.0,
+     reason=null`.
+   - Probe: portfolio of all-clean (0/0) rows, scoring `{delay=1,
+     dunning=3}` (high dunning, low delay) → `label=-1, reason="DUNNING_LEVEL
+     3 (z=3.00, portfolio mean=0.0)"` — confirms the dunning-dominant branch
+     of the reason-code logic also works.
+
+   **Note**: `pattern-agent.js` still sends the OLD field names
+   (`days_overdue`/`amount`) — until Step 5 rewires it, the live
+   `/anomaly` calls from the app will score on `{0,0}` for every row
+   (both fields default to 0 via `.get(..., 0)`), so no crash but no real
+   signal yet. This is expected/intentional given the locked sequence.
+5. **DONE** — `pattern-agent.js`:
+   - Added `daysBetween(faedn, augdt)` helper (clearing date - due date, days).
+   - `fetchCustomerData`: `portfolioOpen`/`portfolioCleared` queries now select
+     `MAHNS` (and `FAEDN`/`AUGDT` for cleared) instead of `BETRW`. The
+     `portfolio` array is now built directly as
+     `{ payment_delay_days, dunning_level }` — `DAYS_OVERDUE`/`MAHNS` for open
+     items, `daysBetween(FAEDN, AUGDT)`/`MAHNS` for cleared history.
+   - `runScikitAnomalyDetection`: `portfolio`/`payments`/`history` mappings
+     now send `payment_delay_days`/`dunning_level` (matching the Step 4
+     `/anomaly` contract) instead of `days_overdue`/`amount`.
+6. **DONE** — Full reseed (`node --env-file=.env scripts/seed.js`, all 14
+   tables OK, 138/13 rows for DFKKOPK/DFKKOP) + `audit-demo-customers.js`
+   (clean for all 11 customers, no errors/mismatches). Restarted
+   `npm run start:local` to load the Step 5 pattern-agent code, then ran full
+   `/a2a/agent analyseRisk` (hitl:false) end-to-end for all 3 target
+   customers:
+   - **30100001** (L-001/L-002, distressed): riskScore 78 CRITICAL. Pattern
+     finding: *"Persistent payment delinquency: 11/27 payment rows flagged;
+     delays up to 81 days; dunning level 3."* — 27 = 24 DFKKOPK history rows
+     (12×2 loans) + 3 DFKKOP open rows for GPART 30100001.
+   - **30100003** (L-004, clean performer + DTI rate-stress flagship):
+     riskScore 63 HIGH. No payment-delinquency finding from pattern (correct —
+     L-004 is MAHNS=0 throughout); findings dominated by DTI/rate-stress
+     (7.2x→9.2x) and APS221 guarantor consolidation, as expected. Confirms
+     the original "No payment rows for this customer to score" bug (fixed
+     earlier) stays fixed under the new 2D vector.
+   - **30100004** (L-005, distressed): riskScore 37 MEDIUM. Pattern finding:
+     *"4/13 payment rows flagged as anomalies with isolation scores
+     0.881-1.000; DUNNING_LEVEL escalation observed"*; recommendation
+     references monitoring *"DUNNING_LEVEL 1"* — confirms the new
+     `DUNNING_LEVEL ...` reason-code string (Step 4) flows through to the
+     LLM synthesis narrative.
+
+   All 3 runs HTTP 200, ~80-90s each, no errors. The "AGREED DESIGN" IF
+   redesign + Trajectory rate-stress feature is now fully implemented and
+   verified end-to-end.
+
+## Follow-up enhancement — Pattern Agent LLM anomaly detection (DONE)
+With the 2D IF redesign in place, the Pattern Agent's 3rd "AI method"
+(`runLlmAnomalyDetection` in `pattern-agent.js`, Claude Haiku 4.5) was still
+sending its OLD, narrower data slice (`BCA_DTI`, `Loans`, 10 `DFKKOP` rows,
+`collateralCount` only). `data.history` (DFKKOPK) and `data.collateral`
+(BCA_COLLATERAL) were already fetched by `fetchCustomerData` for the scikit
+path but unused by the LLM.
+
+Implemented the agreed OLD→NEW redesign:
+- `summary` now includes `paymentHistory` (full `data.history`, mapped to
+  `{loanId, faedn, augdt, dunningLevel}`) and `collateral` (full
+  `data.collateral`, mapped to `{loanId, type, value}`) instead of just a
+  count.
+- System prompt restructured into 3 rule blocks: existing DTI rules
+  unchanged; new **Payment trend rules** (look for an ESCALATING TREND across
+  `paymentHistory` per loan, describe narratively, explicitly told NOT to
+  flag a single row's delay/dunning — that's the scikit/PAL job); new
+  **Collateral rules** (flag under-collateralized loans where `loans.AMOUNT`
+  > total pledged `collateral.value`).
+- `LoanSchedule` deliberately NOT added — that 3-way cross-reference
+  (PENDING/not-yet-due logic) belongs to `explain-agent.js`'s audit-trail
+  role, not the Pattern Agent's risk-identification role.
+
+Verified live (restart `npm run start:local`, full `/a2a/agent analyseRisk`
+for 30100001, hitl:false): `[Pattern/LLM] anomalies:3 tokens:2029in/124out`
+(was ~700-900in before) —
+  1. *"Loan L-001 deteriorated from on-time to dunning level 3 / 81-day delay
+     over last 5 months."*
+  2. *"Loan L-002 deteriorated from on-time to dunning level 3 / 50-day delay
+     over last 5 months."*
+  3. *"Multiple loans in distress: L-001 and L-002 both at dunning level 3
+     with open overdue payments."*
+Exactly the trend-narrative behavior designed — confirms the LLM is now
+reasoning over the payment-history trajectory rather than a static snapshot.
+Full risk run HTTP 200, riskScore 62 HIGH, no errors.
 
 ## Next
-- Steps 1-3 done. Step 4 (`ml/anomaly-service.py` 2D feature vector
-  payment_delay_days + dunning_level, `contamination='auto'`) — awaiting
-  go-ahead.
+- All 6 AGREED DESIGN steps + the Pattern Agent LLM enhancement above are
+  done, reseeded (where applicable), and verified end-to-end via real
+  `/a2a/agent` risk-analysis runs. Nothing outstanding from this design doc.
+  Recommend: review `git diff`, then commit + push.
 
 ## Gotchas / decisions to not forget
 - This whole IF/Trajectory thread is presented to SAP/bank stakeholders —

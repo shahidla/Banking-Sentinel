@@ -112,3 +112,20 @@ use a subagent and return only a concise summary to the main conversation.
 **Scope discipline**: work on ONE task at a time, don't preload context for future tasks.
 When a task is complete, update `PROGRESS.md`, then stop and confirm before starting the
 next one.
+
+## File reading rules (STRICT)
+- NEVER read a source file in full if it is over 100 lines.
+- ALWAYS use Grep first to locate the relevant function/section, then Read
+  with offset/limit to read ONLY that section (max ~60 lines at a time).
+- Never re-read a file already read this session unless it was modified.
+- For schema/config files (schema.cds, package.json, mta.yaml): grep for
+  the specific entity/key needed, never read the whole file.
+
+## Server cleanup
+- To stop running servers, run scripts/kill-servers.cmd.
+- NEVER use wmic or netstat process discovery to find processes.
+
+## Progress tracking
+- Maintain PROGRESS.md: current step, key decisions, next step only.
+- Move completed phases to HISTORY.md (do not auto-read HISTORY.md).
+- After any compaction, re-read PROGRESS.md and CLAUDE.md before continuing.
