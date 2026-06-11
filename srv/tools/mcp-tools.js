@@ -341,7 +341,7 @@ const MCP_TOOLS = {
     fn: hana_vector_search
   },
   hana_graph_traverse: {
-    description: 'Multi-hop relationship traversal via HANA Knowledge Graph Engine.',
+    description: 'Multi-hop relationship traversal via SPARQL/GraphDB (HANA Knowledge Graph Engine in production — not available on BTP trial).',
     inputSchema: {
       startNode: 'string  // e.g. "30100001"',
       nodeType:  'string  // BusinessPartner | Loan | Guarantor',

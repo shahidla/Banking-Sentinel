@@ -4,8 +4,12 @@
 //     Acting: calls hana_graph_traverse again with new start node
 // Banking: APS 221 connected party exposure — parent-subsidiary = full consolidation,
 //          family trust = reasoning required, guarantor network = multi-hop exposure chain
-// SAP: HANA Knowledge Graph Engine GRAPH_TABLE on BP_RELATIONSHIP_GRAPH workspace
-//      BUT050 (edges) ↔ BANKINGSENTINEL_BUSINESSPARTNERS (vertices), up to 8 hops
+// SAP: target state is HANA Knowledge Graph Engine (GRAPH_TABLE on a
+//      BP_RELATIONSHIP_GRAPH workspace, BUT050 edges ↔ BusinessPartners vertices,
+//      up to 8 hops) — not available on BTP trial, so this demo runs the same
+//      traversal as SPARQL against GraphDB (scripts/seed-graphdb.js). Swap the
+//      query layer in mcp-tools.js when HANA Graph is available, same pattern
+//      as ANOMALY_ENGINE=scikit vs HANA PAL.
 
 'use strict';
 const { ChatAnthropic } = require('@langchain/anthropic');
@@ -19,7 +23,7 @@ const MAX_REACT_STEPS = 6;
 const TOOLS = [
   {
     name:        'hana_graph_traverse',
-    description: 'Traverse the HANA Knowledge Graph from a start business partner. Returns connected nodes, edges, and group exposure. Call this for each new entity found to go deeper.',
+    description: 'Traverse the connected-party relationship graph (GraphDB; HANA Knowledge Graph in production) from a start business partner. Returns connected nodes, edges, and group exposure. Call this for each new entity found to go deeper.',
     input_schema: {
       type: 'object',
       properties: {
