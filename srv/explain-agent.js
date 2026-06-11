@@ -243,10 +243,13 @@ function buildDtiHtml(raw, dtiLimit, agentState) {
   const improvingCut = dtiLimit * 0.70;
   const expiryRisk   = traj.daysToExpiry !== null && traj.daysToExpiry !== undefined && traj.daysToExpiry < 90;
   const futureBreach = traj.futureDti !== null && traj.futureDti !== undefined && traj.futureDti > dtiLimit;
+  const rateStressRow    = (raw.thresholds || []).find(t => t.THRESHOLD_TYPE === 'RATE_STRESS_BUFFER');
+  const rateStressPct    = parseFloat(rateStressRow?.LIMIT_PCT) || 3.0;
+  const rateStressBreach = traj.futureDtiRateStress != null && traj.futureDtiRateStress > dtiLimit && dtiRatio <= dtiLimit;
 
   const decisionRows = [
-    { label: 'DETERIORATING if', cond: 'breach flag is ON, or forward DTI exceeds the limit, or income expires within 90 days',
-      hit: breachFlag || futureBreach || expiryRisk },
+    { label: 'DETERIORATING if', cond: `breach flag is ON, or forward DTI exceeds the limit, or income expires within 90 days, or a +${rateStressPct}% rate-stress test (APG 223) would breach the limit`,
+      hit: breachFlag || futureBreach || expiryRisk || rateStressBreach },
     { label: 'STABLE if', cond: `not breached, current DTI < ${stableCut.toFixed(2)}x (80% of limit), and no income-expiry risk`,
       hit: !breachFlag && dtiRatio < stableCut && !expiryRisk },
     { label: 'IMPROVING if', cond: `not breached, current DTI < ${improvingCut.toFixed(2)}x (70% of limit), and no income-expiry record`,
@@ -258,12 +261,13 @@ function buildDtiHtml(raw, dtiLimit, agentState) {
   return contextNote([
     '<strong>Debt-to-Income ratio</strong> is the primary APRA prudential metric, introduced in their February 2026 notice (<code>DTI_LIMIT_FEB2026</code>). The <strong>Pattern Agent</strong> computes it as <code>Total Debt ÷ Annual Income</code> and reads the live limit from the <code>RegulatoryThresholds</code> table at runtime — never a hardcoded value — so the analysis always reflects the current regulatory position.',
     'The <strong>Trajectory Agent</strong> (Agent 3) then asks "where is this heading?" — not just where it is today. It computes a <strong>forward DTI</strong>: if the borrower\'s income contract expires in <em>N</em> days, only <code>N ÷ 365</code> of this year\'s income remains, so <code>effective income = annual income × (days to expiry ÷ 365)</code> and <code>forward DTI = total debt ÷ effective income</code>. This reveals debt that looks serviceable today but becomes unserviceable the moment the income source ends.',
+    `The Trajectory Agent also runs a second, independent projection: a <strong>rate-stress DTI</strong> under APRA's APG 223 serviceability buffer. A uniform +${rateStressPct}% rate rise increases the annual cost of servicing the borrower's existing total debt by <code>total debt × ${rateStressPct}%</code>; that amount is subtracted from annual income to give a stressed DTI. This answers a different question from the forward DTI above — not "what if income falls?" but "is this customer's current position resilient to a standard, foreseeable rate rise?" — and applies to every borrower, not just those with an income-expiry date.`,
     'The forward position label is decided by a fixed rule cascade evaluated in this exact order — DETERIORATING, then STABLE, then IMPROVING, else MONITORING. The thresholds are fractions of the live APRA limit: 80% for STABLE, 70% for IMPROVING. The branch that actually fired for this customer is highlighted below — that single rule is what produced the label you see in the verdict.',
   ]) + `
     <div class="sub-title">BCA_DTI — Debt-to-Income Record</div>
     ${tbl([d], (c,v) => (c==='DTI_RATIO'&&parseFloat(v)>=dtiLimit*0.9) || ((c==='INCOME_SOURCE'||c==='INCOME_EXPIRY')&&!v) || (c==='BREACH_FLAG'&&v))}
-    <div class="sub-title">RegulatoryThresholds — Live APRA Limit (read at runtime, not hardcoded)</div>
-    ${tbl(raw.thresholds.filter(t=>t.THRESHOLD_TYPE==='DEBT_TO_INCOME'))}
+    <div class="sub-title">RegulatoryThresholds — Live APRA Limits (read at runtime, not hardcoded)</div>
+    ${tbl(raw.thresholds.filter(t=>t.THRESHOLD_TYPE==='DEBT_TO_INCOME'||t.THRESHOLD_TYPE==='RATE_STRESS_BUFFER'))}
     <div class="sub-title">Step 1 — Current DTI Calculation</div>
     <div class="calc-box">
       <div class="calc-row"><span>Formula</span><span>AUD ${totalDebt.toLocaleString()} ÷ AUD ${income.toLocaleString()} = <strong>${dtiRatio.toFixed(2)}x</strong></span></div>
@@ -280,6 +284,13 @@ function buildDtiHtml(raw, dtiLimit, agentState) {
     </div>` : `
     <div class="sub-title">Step 2 — Forward DTI</div>
     <p class="no-data">INCOME_EXPIRY is empty for this customer — no forward projection computed. The agent treats an unknown expiry as "no income-expiry risk" in the decision rules below (this is itself a data gap worth flagging).</p>`}
+    ${traj.futureDtiRateStress!=null ? `
+    <div class="sub-title">Step 2b — Rate-Stress DTI (+${rateStressPct}%, APG 223 serviceability buffer)</div>
+    <div class="calc-box">
+      <div class="calc-row"><span>Additional Annual Cost</span><span>AUD ${totalDebt.toLocaleString()} × ${rateStressPct}% = AUD ${Math.round(totalDebt*(rateStressPct/100)).toLocaleString()}</span></div>
+      <div class="calc-row"><span>Stressed Income</span><span>AUD ${income.toLocaleString()} − AUD ${Math.round(totalDebt*(rateStressPct/100)).toLocaleString()} = AUD ${Math.round(income-totalDebt*(rateStressPct/100)).toLocaleString()}</span></div>
+      <div class="calc-row ${rateStressBreach?'flag':''}"><span>Rate-Stress DTI</span><span>AUD ${totalDebt.toLocaleString()} ÷ AUD ${Math.round(income-totalDebt*(rateStressPct/100)).toLocaleString()} = <strong>${traj.futureDtiRateStress.toFixed(2)}x</strong>${rateStressBreach?' — EXCEEDS LIVE LIMIT UNDER STRESS':''}</span></div>
+    </div>` : ''}
     <div class="sub-title">Step 3 — Forward Position Decision (rule cascade, evaluated top to bottom)</div>
     <div class="calc-box">
       ${decisionRows.map(r => `<div class="calc-row ${r.hit?'flag':''}"><span>${r.hit?'→ ':''}${r.label}</span><span>${r.cond}${r.hit?' <strong>← MATCHED</strong>':''}</span></div>`).join('')}

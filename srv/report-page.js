@@ -134,6 +134,7 @@ const AGENT_HOW = {
     how: [
       { k: 'AI Pattern',           v: 'Pure formula and rule-based logic — no LLM. DTI projection is deterministic arithmetic. Conflicting signals are if/else rules.' },
       { k: 'Forward DTI formula',  v: 'futureDti = totalDebt / (annualIncome × daysToExpiry / 365). Calculated when INCOME_EXPIRY is set in BCA_DTI.' },
+      { k: 'Rate-Stress DTI formula', v: 'futureDtiRateStress = totalDebt / (annualIncome - totalDebt × bufferPct). bufferPct (3%) read live from RegulatoryThresholds (RATE_STRESS_BUFFER, APG 223). Applies to every customer, independent of income expiry.' },
       { k: 'timeToBreach meaning', v: 'Negative = days already in breach (since BREACH_DATE). Positive = projected days until breach after income expiry.' },
       { k: 'Why no LLM',           v: 'Arithmetic projection does not need a language model. LLM would add latency and hallucination risk without any gain over deterministic calculation.' },
       { k: 'Execution order',      v: 'Runs BEFORE Relationship Agent intentionally — provides forward DTI position as context for the APS 221 exposure assessment.' },
@@ -312,6 +313,7 @@ function render(d) {
     '<div class="kv-grid">' +
       kv('Current DTI', traj.currentDti != null ? num(traj.currentDti, 2) + 'x' : '—') +
       kv('Forward DTI', traj.futureDti  != null ? num(traj.futureDti, 2) + 'x' : '—') +
+      kv('Rate-Stress DTI (+3%, APG 223)', traj.futureDtiRateStress != null ? num(traj.futureDtiRateStress, 2) + 'x' : '—') +
       kv('Days to Income Expiry', traj.daysToExpiry  != null ? traj.daysToExpiry  + ' days' : '—') +
       kv('Time to Breach',        traj.timeToBreach  != null ? traj.timeToBreach  + ' days' : '—') +
       kv('Forward Position', traj.forwardPosition || '—') +

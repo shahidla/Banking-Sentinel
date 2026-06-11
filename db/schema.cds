@@ -101,6 +101,7 @@ entity DFKKOP {
   DAYS_OVERDUE      : Integer;
   STATUS            : String(10);    // OPEN, CLEARED
   CURRENCY          : String(3);
+  MAHNS             : Integer;       // Dunning Level (SAP FKKMAKO.MAHNS, 0-4; this demo uses 0-3)
 }
 
 // AI: Payment-history node — settled repayment track record per loan
@@ -117,6 +118,7 @@ entity DFKKOPK {
   AUGDT             : Date;          // clearing date (date payment was applied)
   AUGBL             : String(20);    // clearing document number
   CURRENCY          : String(3);
+  MAHNS             : Integer;       // Dunning Level (SAP FKKMAKO.MAHNS, 0-4; this demo uses 0-3)
 }
 
 // AI: Sector classification node — concentration risk grouping

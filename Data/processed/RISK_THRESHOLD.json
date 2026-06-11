@@ -38,6 +38,18 @@
       "NOTE": "Demo 1 threshold = 8.0 (DTI 7.2 compliant). Twinkle 2 updates to 6.0 via apra-embedder.js when real DTI notice is synced — triggers breach on re-run."
     },
     {
+      "THRESHOLD_ID": "APRA-RATE-STRESS",
+      "THRESHOLD_TYPE": "RATE_STRESS_BUFFER",
+      "DESCRIPTION": "APRA Serviceability Buffer (Interest Rate Stress Test)",
+      "LIMIT_VALUE": null,
+      "CURRENCY": null,
+      "LIMIT_PCT": 3,
+      "REGULATOR": "APRA",
+      "STANDARD": "APG 223",
+      "EFFECTIVE_FROM": "2021-10-01",
+      "NOTE": "APG 223 serviceability buffer: lenders must assess a borrower's capacity to repay assuming interest rates are 3 percentage points higher than the loan's actual rate. Trajectory Agent uses this to project DTI under a uniform rate-stress scenario."
+    },
+    {
       "THRESHOLD_ID": "SECTOR-RETAIL-PROP",
       "THRESHOLD_TYPE": "SECTOR_CONCENTRATION",
       "DESCRIPTION": "Retail Property Sector Concentration Limit",

@@ -2,6 +2,7 @@
 // AI: Threshold proximity + conflicting signals — the "where is this heading?" reasoning type
 // Banking: DTI 7.2 today + income contract expires 60 days → effective DTI goes critical imminently
 // SAP: BCA_DTI.INCOME_EXPIRY drives forward DTI; LoanSchedule confirms payment obligations during expiry window
+// SAP: RegulatoryThresholds.RATE_STRESS_BUFFER (APG 223 serviceability buffer, 3%) drives the rate-stress DTI projection
 
 'use strict';
 const cds = require('@sap/cds');
@@ -21,6 +22,12 @@ async function trajectoryAgent(state) {
     SELECT.from('bankingsentinel.RegulatoryThresholds').where({ THRESHOLD_TYPE: 'DEBT_TO_INCOME' }).limit(1)
   );
   const APRA_DTI_LIMIT = parseFloat(thresholdRows[0]?.LIMIT_PCT) || 8.0;
+
+  // Fetch APG 223 serviceability buffer (rate-stress test)
+  const rateStressRows = await cds.run(
+    SELECT.from('bankingsentinel.RegulatoryThresholds').where({ THRESHOLD_TYPE: 'RATE_STRESS_BUFFER' }).limit(1)
+  );
+  const RATE_STRESS_BUFFER_PCT = parseFloat(rateStressRows[0]?.LIMIT_PCT) || 3.0;
 
   // Fetch DTI data
   const dtiRows = await cds.run(
@@ -55,6 +62,21 @@ async function trajectoryAgent(state) {
     }
   }
 
+  // ── Forward DTI: model APRA APG 223 +3% rate-stress scenario ──────────────
+  // A uniform rate rise increases the annual cost of servicing total debt by
+  // RATE_STRESS_BUFFER_PCT; effective income shrinks by that amount.
+  let futureDtiRateStress = null;
+  if (annualIncome > 0) {
+    const additionalAnnualCost = totalDebt * (RATE_STRESS_BUFFER_PCT / 100);
+    const stressedIncome = annualIncome - additionalAnnualCost;
+    if (stressedIncome > 0) {
+      futureDtiRateStress = parseFloat((totalDebt / stressedIncome).toFixed(2));
+    }
+  }
+  const rateStressBreach = futureDtiRateStress !== null
+    && futureDtiRateStress > APRA_DTI_LIMIT
+    && currentDti <= APRA_DTI_LIMIT;
+
   // ── Conflicting signals ────────────────────────────────────────────────────
   const conflictingSignals = [];
   const patternRiskLevel   = state.patternAssessment?.riskLevel;
@@ -78,6 +100,9 @@ async function trajectoryAgent(state) {
   }
   if (futureDti !== null && futureDti > APRA_DTI_LIMIT * 1.5) {
     conflictingSignals.push(`Forward DTI of ${futureDti.toFixed(1)}× projected — ${((futureDti / APRA_DTI_LIMIT - 1) * 100).toFixed(0)}% above APRA limit post-expiry`);
+  }
+  if (rateStressBreach) {
+    conflictingSignals.push(`DTI of ${currentDti.toFixed(1)}× is within the APRA limit of ${APRA_DTI_LIMIT}× today, but a standard +${RATE_STRESS_BUFFER_PCT}% rate-stress test (APG 223 serviceability buffer) projects ${futureDtiRateStress.toFixed(1)}× — would breach the limit`);
   }
 
   // ── Scheduled payment obligations during expiry window ───────────────────
@@ -123,7 +148,8 @@ async function trajectoryAgent(state) {
   let forwardPosition;
   const isDeteriorating = breachFlag
     || (futureDti !== null && futureDti > APRA_DTI_LIMIT)
-    || (daysToExpiry !== null && daysToExpiry < 90);
+    || (daysToExpiry !== null && daysToExpiry < 90)
+    || rateStressBreach;
   const isStable = !breachFlag
     && currentDti < APRA_DTI_LIMIT * 0.80
     && (daysToExpiry === null || daysToExpiry > INCOME_EXPIRY_WARN_DAYS);
@@ -132,10 +158,10 @@ async function trajectoryAgent(state) {
 
   forwardPosition = isDeteriorating ? 'DETERIORATING' : isStable ? 'STABLE' : isImproving ? 'IMPROVING' : 'MONITORING';
 
-  console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
+  console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} rateStress:${futureDtiRateStress} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
   conflictingSignals.forEach((s, i) => console.log(`  [Trajectory] Signal ${i+1}: ${s}`));
 
-  endSpan(span, { forwardPosition, currentDti, futureDti, daysToExpiry }, {
+  endSpan(span, { forwardPosition, currentDti, futureDti, futureDtiRateStress, daysToExpiry }, {
     conflictingSignals: conflictingSignals.length,
     timeToBreach
   });
@@ -144,6 +170,7 @@ async function trajectoryAgent(state) {
     trajectoryAnalysis: {
       currentDti,
       futureDti,
+      futureDtiRateStress,
       daysToExpiry,
       timeToBreach,
       conflictingSignals,
