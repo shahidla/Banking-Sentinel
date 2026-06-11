@@ -8,9 +8,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-03-01",
-      "AUGDT": "2025-02-28",
+      "AUGDT": "2025-03-01",
       "AUGBL": "CL-L001-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H02",
@@ -19,9 +20,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-04-01",
-      "AUGDT": "2025-03-31",
+      "AUGDT": "2025-04-02",
       "AUGBL": "CL-L001-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H03",
@@ -32,7 +34,8 @@
       "FAEDN": "2025-05-01",
       "AUGDT": "2025-04-30",
       "AUGBL": "CL-L001-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H04",
@@ -41,9 +44,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-06-01",
-      "AUGDT": "2025-05-31",
+      "AUGDT": "2025-06-01",
       "AUGBL": "CL-L001-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H05",
@@ -52,9 +56,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-07-01",
-      "AUGDT": "2025-06-30",
+      "AUGDT": "2025-07-02",
       "AUGBL": "CL-L001-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H06",
@@ -63,9 +68,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-08-01",
-      "AUGDT": "2025-07-31",
+      "AUGDT": "2025-08-01",
       "AUGBL": "CL-L001-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H07",
@@ -76,7 +82,8 @@
       "FAEDN": "2025-09-01",
       "AUGDT": "2025-08-31",
       "AUGBL": "CL-L001-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H08",
@@ -85,9 +92,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-10-01",
-      "AUGDT": "2025-09-30",
+      "AUGDT": "2025-10-02",
       "AUGBL": "CL-L001-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H09",
@@ -96,9 +104,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-11-01",
-      "AUGDT": "2025-10-31",
+      "AUGDT": "2025-11-05",
       "AUGBL": "CL-L001-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L001-H10",
@@ -107,9 +116,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2025-12-01",
-      "AUGDT": "2025-11-30",
+      "AUGDT": "2025-12-13",
       "AUGBL": "CL-L001-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 1
     },
     {
       "OPBEL": "OP-L001-H11",
@@ -118,9 +128,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2026-01-01",
-      "AUGDT": "2025-12-31",
+      "AUGDT": "2026-02-05",
       "AUGBL": "CL-L001-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 2
     },
     {
       "OPBEL": "OP-L001-H12",
@@ -129,9 +140,10 @@
       "LOAN_ID": "L-001",
       "BETRW": 8950,
       "FAEDN": "2026-02-01",
-      "AUGDT": "2026-01-31",
+      "AUGDT": "2026-04-23",
       "AUGBL": "CL-L001-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 3
     },
     {
       "OPBEL": "OP-L002-H01",
@@ -140,9 +152,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-03-01",
-      "AUGDT": "2025-02-28",
+      "AUGDT": "2025-03-01",
       "AUGBL": "CL-L002-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H02",
@@ -151,9 +164,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-04-01",
-      "AUGDT": "2025-03-31",
+      "AUGDT": "2025-04-02",
       "AUGBL": "CL-L002-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H03",
@@ -164,7 +178,8 @@
       "FAEDN": "2025-05-01",
       "AUGDT": "2025-04-30",
       "AUGBL": "CL-L002-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H04",
@@ -173,9 +188,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-06-01",
-      "AUGDT": "2025-05-31",
+      "AUGDT": "2025-06-01",
       "AUGBL": "CL-L002-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H05",
@@ -184,9 +200,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-07-01",
-      "AUGDT": "2025-06-30",
+      "AUGDT": "2025-07-02",
       "AUGBL": "CL-L002-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H06",
@@ -195,9 +212,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-08-01",
-      "AUGDT": "2025-07-31",
+      "AUGDT": "2025-08-01",
       "AUGBL": "CL-L002-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H07",
@@ -208,7 +226,8 @@
       "FAEDN": "2025-09-01",
       "AUGDT": "2025-08-31",
       "AUGBL": "CL-L002-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H08",
@@ -217,9 +236,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-10-01",
-      "AUGDT": "2025-09-30",
+      "AUGDT": "2025-10-02",
       "AUGBL": "CL-L002-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H09",
@@ -228,9 +248,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-11-01",
-      "AUGDT": "2025-10-31",
+      "AUGDT": "2025-11-04",
       "AUGBL": "CL-L002-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L002-H10",
@@ -239,9 +260,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2025-12-01",
-      "AUGDT": "2025-11-30",
+      "AUGDT": "2025-12-10",
       "AUGBL": "CL-L002-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 1
     },
     {
       "OPBEL": "OP-L002-H11",
@@ -250,9 +272,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2026-01-01",
-      "AUGDT": "2025-12-31",
+      "AUGDT": "2026-01-25",
       "AUGBL": "CL-L002-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 2
     },
     {
       "OPBEL": "OP-L002-H12",
@@ -261,9 +284,10 @@
       "LOAN_ID": "L-002",
       "BETRW": 6580,
       "FAEDN": "2026-02-01",
-      "AUGDT": "2026-01-31",
+      "AUGDT": "2026-03-23",
       "AUGBL": "CL-L002-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 3
     },
     {
       "OPBEL": "OP-L003-H01",
@@ -272,9 +296,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-03-21",
-      "AUGDT": "2025-03-20",
+      "AUGDT": "2025-03-21",
       "AUGBL": "CL-L003-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H02",
@@ -283,9 +308,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-04-21",
-      "AUGDT": "2025-04-20",
+      "AUGDT": "2025-04-22",
       "AUGBL": "CL-L003-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H03",
@@ -296,7 +322,8 @@
       "FAEDN": "2025-05-21",
       "AUGDT": "2025-05-20",
       "AUGBL": "CL-L003-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H04",
@@ -305,9 +332,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-06-21",
-      "AUGDT": "2025-06-20",
+      "AUGDT": "2025-06-21",
       "AUGBL": "CL-L003-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H05",
@@ -316,9 +344,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-07-21",
-      "AUGDT": "2025-07-20",
+      "AUGDT": "2025-07-22",
       "AUGBL": "CL-L003-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H06",
@@ -327,9 +356,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-08-21",
-      "AUGDT": "2025-08-20",
+      "AUGDT": "2025-08-21",
       "AUGBL": "CL-L003-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H07",
@@ -340,7 +370,8 @@
       "FAEDN": "2025-09-21",
       "AUGDT": "2025-09-20",
       "AUGBL": "CL-L003-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H08",
@@ -349,9 +380,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-10-21",
-      "AUGDT": "2025-10-20",
+      "AUGDT": "2025-10-21",
       "AUGBL": "CL-L003-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H09",
@@ -360,9 +392,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-11-21",
-      "AUGDT": "2025-11-20",
+      "AUGDT": "2025-11-23",
       "AUGBL": "CL-L003-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L003-H10",
@@ -371,9 +404,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2025-12-21",
-      "AUGDT": "2025-12-20",
+      "AUGDT": "2025-12-27",
       "AUGBL": "CL-L003-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 1
     },
     {
       "OPBEL": "OP-L003-H11",
@@ -382,9 +416,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2026-01-21",
-      "AUGDT": "2026-01-20",
+      "AUGDT": "2026-02-06",
       "AUGBL": "CL-L003-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 1
     },
     {
       "OPBEL": "OP-L003-H12",
@@ -393,9 +428,10 @@
       "LOAN_ID": "L-003",
       "BETRW": 7420,
       "FAEDN": "2026-02-21",
-      "AUGDT": "2026-02-20",
+      "AUGDT": "2026-03-23",
       "AUGBL": "CL-L003-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 2
     },
     {
       "OPBEL": "OP-L004-H01",
@@ -404,9 +440,10 @@
       "LOAN_ID": "L-004",
       "BETRW": 41800,
       "FAEDN": "2025-09-10",
-      "AUGDT": "2025-09-09",
+      "AUGDT": "2025-09-10",
       "AUGBL": "CL-L004-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L004-H02",
@@ -415,9 +452,10 @@
       "LOAN_ID": "L-004",
       "BETRW": 41800,
       "FAEDN": "2025-10-10",
-      "AUGDT": "2025-10-09",
+      "AUGDT": "2025-10-11",
       "AUGBL": "CL-L004-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L004-H03",
@@ -428,7 +466,8 @@
       "FAEDN": "2025-11-10",
       "AUGDT": "2025-11-09",
       "AUGBL": "CL-L004-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L004-H04",
@@ -437,9 +476,10 @@
       "LOAN_ID": "L-004",
       "BETRW": 41800,
       "FAEDN": "2025-12-10",
-      "AUGDT": "2025-12-09",
+      "AUGDT": "2025-12-10",
       "AUGBL": "CL-L004-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L004-H05",
@@ -448,9 +488,10 @@
       "LOAN_ID": "L-004",
       "BETRW": 41800,
       "FAEDN": "2026-01-10",
-      "AUGDT": "2026-01-09",
+      "AUGDT": "2026-01-11",
       "AUGBL": "CL-L004-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L004-H06",
@@ -459,9 +500,10 @@
       "LOAN_ID": "L-004",
       "BETRW": 41800,
       "FAEDN": "2026-02-10",
-      "AUGDT": "2026-02-09",
+      "AUGDT": "2026-02-10",
       "AUGBL": "CL-L004-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H01",
@@ -470,9 +512,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-03-28",
-      "AUGDT": "2025-03-27",
+      "AUGDT": "2025-03-28",
       "AUGBL": "CL-L005-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H02",
@@ -481,9 +524,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-04-28",
-      "AUGDT": "2025-04-27",
+      "AUGDT": "2025-04-29",
       "AUGBL": "CL-L005-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H03",
@@ -494,7 +538,8 @@
       "FAEDN": "2025-05-28",
       "AUGDT": "2025-05-27",
       "AUGBL": "CL-L005-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H04",
@@ -503,9 +548,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-06-28",
-      "AUGDT": "2025-06-27",
+      "AUGDT": "2025-06-28",
       "AUGBL": "CL-L005-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H05",
@@ -514,9 +560,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-07-28",
-      "AUGDT": "2025-07-27",
+      "AUGDT": "2025-07-29",
       "AUGBL": "CL-L005-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H06",
@@ -525,9 +572,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-08-28",
-      "AUGDT": "2025-08-27",
+      "AUGDT": "2025-08-28",
       "AUGBL": "CL-L005-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H07",
@@ -538,7 +586,8 @@
       "FAEDN": "2025-09-28",
       "AUGDT": "2025-09-27",
       "AUGBL": "CL-L005-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H08",
@@ -547,9 +596,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-10-28",
-      "AUGDT": "2025-10-27",
+      "AUGDT": "2025-10-28",
       "AUGBL": "CL-L005-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H09",
@@ -558,9 +608,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-11-28",
-      "AUGDT": "2025-11-27",
+      "AUGDT": "2025-11-29",
       "AUGBL": "CL-L005-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H10",
@@ -569,9 +620,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2025-12-28",
-      "AUGDT": "2025-12-27",
+      "AUGDT": "2026-01-01",
       "AUGBL": "CL-L005-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L005-H11",
@@ -580,9 +632,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2026-01-28",
-      "AUGDT": "2026-01-27",
+      "AUGDT": "2026-02-06",
       "AUGBL": "CL-L005-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 1
     },
     {
       "OPBEL": "OP-L005-H12",
@@ -591,9 +644,10 @@
       "LOAN_ID": "L-005",
       "BETRW": 9840,
       "FAEDN": "2026-02-28",
-      "AUGDT": "2026-02-27",
+      "AUGDT": "2026-03-15",
       "AUGBL": "CL-L005-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 1
     },
     {
       "OPBEL": "OP-L006-H01",
@@ -602,9 +656,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-03-15",
-      "AUGDT": "2025-03-14",
+      "AUGDT": "2025-03-15",
       "AUGBL": "CL-L006-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H02",
@@ -613,9 +668,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-04-15",
-      "AUGDT": "2025-04-14",
+      "AUGDT": "2025-04-16",
       "AUGBL": "CL-L006-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H03",
@@ -626,7 +682,8 @@
       "FAEDN": "2025-05-15",
       "AUGDT": "2025-05-14",
       "AUGBL": "CL-L006-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H04",
@@ -635,9 +692,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-06-15",
-      "AUGDT": "2025-06-14",
+      "AUGDT": "2025-06-15",
       "AUGBL": "CL-L006-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H05",
@@ -646,9 +704,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-07-15",
-      "AUGDT": "2025-07-14",
+      "AUGDT": "2025-07-16",
       "AUGBL": "CL-L006-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H06",
@@ -657,9 +716,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-08-15",
-      "AUGDT": "2025-08-14",
+      "AUGDT": "2025-08-15",
       "AUGBL": "CL-L006-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H07",
@@ -670,7 +730,8 @@
       "FAEDN": "2025-09-15",
       "AUGDT": "2025-09-14",
       "AUGBL": "CL-L006-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H08",
@@ -679,9 +740,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-10-15",
-      "AUGDT": "2025-10-14",
+      "AUGDT": "2025-10-15",
       "AUGBL": "CL-L006-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H09",
@@ -690,9 +752,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-11-15",
-      "AUGDT": "2025-11-14",
+      "AUGDT": "2025-11-15",
       "AUGBL": "CL-L006-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H10",
@@ -701,9 +764,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2025-12-15",
-      "AUGDT": "2025-12-14",
+      "AUGDT": "2025-12-16",
       "AUGBL": "CL-L006-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H11",
@@ -714,7 +778,8 @@
       "FAEDN": "2026-01-15",
       "AUGDT": "2026-01-14",
       "AUGBL": "CL-L006-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L006-H12",
@@ -723,9 +788,10 @@
       "LOAN_ID": "L-006",
       "BETRW": 36200,
       "FAEDN": "2026-02-15",
-      "AUGDT": "2026-02-14",
+      "AUGDT": "2026-02-15",
       "AUGBL": "CL-L006-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H01",
@@ -734,9 +800,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-03-01",
-      "AUGDT": "2025-02-28",
+      "AUGDT": "2025-03-01",
       "AUGBL": "CL-L007-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H02",
@@ -745,9 +812,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-04-01",
-      "AUGDT": "2025-03-31",
+      "AUGDT": "2025-04-02",
       "AUGBL": "CL-L007-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H03",
@@ -758,7 +826,8 @@
       "FAEDN": "2025-05-01",
       "AUGDT": "2025-04-30",
       "AUGBL": "CL-L007-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H04",
@@ -767,9 +836,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-06-01",
-      "AUGDT": "2025-05-31",
+      "AUGDT": "2025-06-01",
       "AUGBL": "CL-L007-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H05",
@@ -778,9 +848,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-07-01",
-      "AUGDT": "2025-06-30",
+      "AUGDT": "2025-07-02",
       "AUGBL": "CL-L007-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H06",
@@ -789,9 +860,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-08-01",
-      "AUGDT": "2025-07-31",
+      "AUGDT": "2025-08-01",
       "AUGBL": "CL-L007-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H07",
@@ -802,7 +874,8 @@
       "FAEDN": "2025-09-01",
       "AUGDT": "2025-08-31",
       "AUGBL": "CL-L007-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H08",
@@ -811,9 +884,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-10-01",
-      "AUGDT": "2025-09-30",
+      "AUGDT": "2025-10-01",
       "AUGBL": "CL-L007-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H09",
@@ -822,9 +896,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-11-01",
-      "AUGDT": "2025-10-31",
+      "AUGDT": "2025-11-01",
       "AUGBL": "CL-L007-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H10",
@@ -833,9 +908,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2025-12-01",
-      "AUGDT": "2025-11-30",
+      "AUGDT": "2025-12-02",
       "AUGBL": "CL-L007-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H11",
@@ -846,7 +922,8 @@
       "FAEDN": "2026-01-01",
       "AUGDT": "2025-12-31",
       "AUGBL": "CL-L007-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-H12",
@@ -855,9 +932,10 @@
       "LOAN_ID": "L-007",
       "BETRW": 940,
       "FAEDN": "2026-02-01",
-      "AUGDT": "2026-01-31",
+      "AUGDT": "2026-02-01",
       "AUGBL": "CL-L007-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H01",
@@ -866,9 +944,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-03-05",
-      "AUGDT": "2025-03-04",
+      "AUGDT": "2025-03-05",
       "AUGBL": "CL-L008-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H02",
@@ -877,9 +956,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-04-05",
-      "AUGDT": "2025-04-04",
+      "AUGDT": "2025-04-06",
       "AUGBL": "CL-L008-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H03",
@@ -890,7 +970,8 @@
       "FAEDN": "2025-05-05",
       "AUGDT": "2025-05-04",
       "AUGBL": "CL-L008-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H04",
@@ -899,9 +980,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-06-05",
-      "AUGDT": "2025-06-04",
+      "AUGDT": "2025-06-05",
       "AUGBL": "CL-L008-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H05",
@@ -910,9 +992,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-07-05",
-      "AUGDT": "2025-07-04",
+      "AUGDT": "2025-07-06",
       "AUGBL": "CL-L008-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H06",
@@ -921,9 +1004,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-08-05",
-      "AUGDT": "2025-08-04",
+      "AUGDT": "2025-08-05",
       "AUGBL": "CL-L008-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H07",
@@ -934,7 +1018,8 @@
       "FAEDN": "2025-09-05",
       "AUGDT": "2025-09-04",
       "AUGBL": "CL-L008-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H08",
@@ -943,9 +1028,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-10-05",
-      "AUGDT": "2025-10-04",
+      "AUGDT": "2025-10-05",
       "AUGBL": "CL-L008-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H09",
@@ -954,9 +1040,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-11-05",
-      "AUGDT": "2025-11-04",
+      "AUGDT": "2025-11-05",
       "AUGBL": "CL-L008-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H10",
@@ -965,9 +1052,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2025-12-05",
-      "AUGDT": "2025-12-04",
+      "AUGDT": "2025-12-06",
       "AUGBL": "CL-L008-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H11",
@@ -978,7 +1066,8 @@
       "FAEDN": "2026-01-05",
       "AUGDT": "2026-01-04",
       "AUGBL": "CL-L008-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-H12",
@@ -987,9 +1076,10 @@
       "LOAN_ID": "L-008",
       "BETRW": 13950,
       "FAEDN": "2026-02-05",
-      "AUGDT": "2026-02-04",
+      "AUGDT": "2026-02-05",
       "AUGBL": "CL-L008-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H01",
@@ -998,9 +1088,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-03-01",
-      "AUGDT": "2025-02-28",
+      "AUGDT": "2025-03-01",
       "AUGBL": "CL-L009-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H02",
@@ -1009,9 +1100,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-04-01",
-      "AUGDT": "2025-03-31",
+      "AUGDT": "2025-04-02",
       "AUGBL": "CL-L009-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H03",
@@ -1022,7 +1114,8 @@
       "FAEDN": "2025-05-01",
       "AUGDT": "2025-04-30",
       "AUGBL": "CL-L009-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H04",
@@ -1031,9 +1124,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-06-01",
-      "AUGDT": "2025-05-31",
+      "AUGDT": "2025-06-01",
       "AUGBL": "CL-L009-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H05",
@@ -1042,9 +1136,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-07-01",
-      "AUGDT": "2025-06-30",
+      "AUGDT": "2025-07-02",
       "AUGBL": "CL-L009-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H06",
@@ -1053,9 +1148,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-08-01",
-      "AUGDT": "2025-07-31",
+      "AUGDT": "2025-08-01",
       "AUGBL": "CL-L009-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H07",
@@ -1066,7 +1162,8 @@
       "FAEDN": "2025-09-01",
       "AUGDT": "2025-08-31",
       "AUGBL": "CL-L009-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H08",
@@ -1075,9 +1172,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-10-01",
-      "AUGDT": "2025-09-30",
+      "AUGDT": "2025-10-01",
       "AUGBL": "CL-L009-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H09",
@@ -1086,9 +1184,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-11-01",
-      "AUGDT": "2025-10-31",
+      "AUGDT": "2025-11-01",
       "AUGBL": "CL-L009-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H10",
@@ -1097,9 +1196,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2025-12-01",
-      "AUGDT": "2025-11-30",
+      "AUGDT": "2025-12-02",
       "AUGBL": "CL-L009-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H11",
@@ -1110,7 +1210,8 @@
       "FAEDN": "2026-01-01",
       "AUGDT": "2025-12-31",
       "AUGBL": "CL-L009-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-H12",
@@ -1119,9 +1220,10 @@
       "LOAN_ID": "L-009",
       "BETRW": 62400,
       "FAEDN": "2026-02-01",
-      "AUGDT": "2026-01-31",
+      "AUGDT": "2026-02-01",
       "AUGBL": "CL-L009-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H01",
@@ -1130,9 +1232,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-03-12",
-      "AUGDT": "2025-03-11",
+      "AUGDT": "2025-03-12",
       "AUGBL": "CL-L010-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H02",
@@ -1141,9 +1244,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-04-12",
-      "AUGDT": "2025-04-11",
+      "AUGDT": "2025-04-13",
       "AUGBL": "CL-L010-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H03",
@@ -1154,7 +1258,8 @@
       "FAEDN": "2025-05-12",
       "AUGDT": "2025-05-11",
       "AUGBL": "CL-L010-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H04",
@@ -1163,9 +1268,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-06-12",
-      "AUGDT": "2025-06-11",
+      "AUGDT": "2025-06-12",
       "AUGBL": "CL-L010-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H05",
@@ -1174,9 +1280,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-07-12",
-      "AUGDT": "2025-07-11",
+      "AUGDT": "2025-07-13",
       "AUGBL": "CL-L010-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H06",
@@ -1185,9 +1292,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-08-12",
-      "AUGDT": "2025-08-11",
+      "AUGDT": "2025-08-12",
       "AUGBL": "CL-L010-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H07",
@@ -1198,7 +1306,8 @@
       "FAEDN": "2025-09-12",
       "AUGDT": "2025-09-11",
       "AUGBL": "CL-L010-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H08",
@@ -1207,9 +1316,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-10-12",
-      "AUGDT": "2025-10-11",
+      "AUGDT": "2025-10-12",
       "AUGBL": "CL-L010-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H09",
@@ -1218,9 +1328,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-11-12",
-      "AUGDT": "2025-11-11",
+      "AUGDT": "2025-11-12",
       "AUGBL": "CL-L010-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H10",
@@ -1229,9 +1340,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2025-12-12",
-      "AUGDT": "2025-12-11",
+      "AUGDT": "2025-12-13",
       "AUGBL": "CL-L010-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H11",
@@ -1242,7 +1354,8 @@
       "FAEDN": "2026-01-12",
       "AUGDT": "2026-01-11",
       "AUGBL": "CL-L010-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-H12",
@@ -1251,9 +1364,10 @@
       "LOAN_ID": "L-010",
       "BETRW": 5300,
       "FAEDN": "2026-02-12",
-      "AUGDT": "2026-02-11",
+      "AUGDT": "2026-02-12",
       "AUGBL": "CL-L010-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H01",
@@ -1262,9 +1376,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-03-15",
-      "AUGDT": "2025-03-14",
+      "AUGDT": "2025-03-15",
       "AUGBL": "CL-L011-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H02",
@@ -1273,9 +1388,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-04-15",
-      "AUGDT": "2025-04-14",
+      "AUGDT": "2025-04-16",
       "AUGBL": "CL-L011-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H03",
@@ -1286,7 +1402,8 @@
       "FAEDN": "2025-05-15",
       "AUGDT": "2025-05-14",
       "AUGBL": "CL-L011-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H04",
@@ -1295,9 +1412,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-06-15",
-      "AUGDT": "2025-06-14",
+      "AUGDT": "2025-06-15",
       "AUGBL": "CL-L011-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H05",
@@ -1306,9 +1424,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-07-15",
-      "AUGDT": "2025-07-14",
+      "AUGDT": "2025-07-16",
       "AUGBL": "CL-L011-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H06",
@@ -1317,9 +1436,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-08-15",
-      "AUGDT": "2025-08-14",
+      "AUGDT": "2025-08-15",
       "AUGBL": "CL-L011-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H07",
@@ -1330,7 +1450,8 @@
       "FAEDN": "2025-09-15",
       "AUGDT": "2025-09-14",
       "AUGBL": "CL-L011-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H08",
@@ -1339,9 +1460,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-10-15",
-      "AUGDT": "2025-10-14",
+      "AUGDT": "2025-10-15",
       "AUGBL": "CL-L011-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H09",
@@ -1350,9 +1472,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-11-15",
-      "AUGDT": "2025-11-14",
+      "AUGDT": "2025-11-15",
       "AUGBL": "CL-L011-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H10",
@@ -1361,9 +1484,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2025-12-15",
-      "AUGDT": "2025-12-14",
+      "AUGDT": "2025-12-16",
       "AUGBL": "CL-L011-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H11",
@@ -1374,7 +1498,8 @@
       "FAEDN": "2026-01-15",
       "AUGDT": "2026-01-14",
       "AUGBL": "CL-L011-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-H12",
@@ -1383,9 +1508,10 @@
       "LOAN_ID": "L-011",
       "BETRW": 905,
       "FAEDN": "2026-02-15",
-      "AUGDT": "2026-02-14",
+      "AUGDT": "2026-02-15",
       "AUGBL": "CL-L011-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H01",
@@ -1394,9 +1520,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-03-20",
-      "AUGDT": "2025-03-19",
+      "AUGDT": "2025-03-20",
       "AUGBL": "CL-L012-01",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H02",
@@ -1405,9 +1532,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-04-20",
-      "AUGDT": "2025-04-19",
+      "AUGDT": "2025-04-21",
       "AUGBL": "CL-L012-02",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H03",
@@ -1418,7 +1546,8 @@
       "FAEDN": "2025-05-20",
       "AUGDT": "2025-05-19",
       "AUGBL": "CL-L012-03",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H04",
@@ -1427,9 +1556,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-06-20",
-      "AUGDT": "2025-06-19",
+      "AUGDT": "2025-06-20",
       "AUGBL": "CL-L012-04",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H05",
@@ -1438,9 +1568,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-07-20",
-      "AUGDT": "2025-07-19",
+      "AUGDT": "2025-07-21",
       "AUGBL": "CL-L012-05",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H06",
@@ -1449,9 +1580,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-08-20",
-      "AUGDT": "2025-08-19",
+      "AUGDT": "2025-08-20",
       "AUGBL": "CL-L012-06",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H07",
@@ -1462,7 +1594,8 @@
       "FAEDN": "2025-09-20",
       "AUGDT": "2025-09-19",
       "AUGBL": "CL-L012-07",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H08",
@@ -1471,9 +1604,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-10-20",
-      "AUGDT": "2025-10-19",
+      "AUGDT": "2025-10-20",
       "AUGBL": "CL-L012-08",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H09",
@@ -1482,9 +1616,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-11-20",
-      "AUGDT": "2025-11-19",
+      "AUGDT": "2025-11-20",
       "AUGBL": "CL-L012-09",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H10",
@@ -1493,9 +1628,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2025-12-20",
-      "AUGDT": "2025-12-19",
+      "AUGDT": "2025-12-21",
       "AUGBL": "CL-L012-10",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H11",
@@ -1506,7 +1642,8 @@
       "FAEDN": "2026-01-20",
       "AUGDT": "2026-01-19",
       "AUGBL": "CL-L012-11",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-H12",
@@ -1515,9 +1652,10 @@
       "LOAN_ID": "L-012",
       "BETRW": 9680,
       "FAEDN": "2026-02-20",
-      "AUGDT": "2026-02-19",
+      "AUGDT": "2026-02-20",
       "AUGBL": "CL-L012-12",
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     }
   ]
 }

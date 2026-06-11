@@ -11,7 +11,8 @@
       "BUDAT": null,
       "STATUS": "OPEN",
       "DAYS_OVERDUE": 81,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 3
     },
     {
       "OPBEL": "OP-L001-002",
@@ -23,7 +24,8 @@
       "BUDAT": null,
       "STATUS": "OPEN",
       "DAYS_OVERDUE": 50,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 3
     },
     {
       "OPBEL": "OP-L002-001",
@@ -35,7 +37,8 @@
       "BUDAT": null,
       "STATUS": "OPEN",
       "DAYS_OVERDUE": 50,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 3
     },
     {
       "OPBEL": "OP-L003-001",
@@ -47,7 +50,8 @@
       "BUDAT": null,
       "STATUS": "OPEN",
       "DAYS_OVERDUE": 30,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 2
     },
     {
       "OPBEL": "OP-L005-001",
@@ -59,7 +63,8 @@
       "BUDAT": null,
       "STATUS": "OPEN",
       "DAYS_OVERDUE": 15,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 1
     },
     {
       "OPBEL": "OP-L006-001",
@@ -71,7 +76,8 @@
       "BUDAT": "2026-04-14",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L008-001",
@@ -83,7 +89,8 @@
       "BUDAT": "2026-04-04",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L009-001",
@@ -95,7 +102,8 @@
       "BUDAT": "2026-03-31",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L012-001",
@@ -107,7 +115,8 @@
       "BUDAT": "2026-04-19",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L007-001",
@@ -119,7 +128,8 @@
       "BUDAT": "2026-03-31",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L010-001",
@@ -131,7 +141,8 @@
       "BUDAT": "2026-04-11",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L011-001",
@@ -143,7 +154,8 @@
       "BUDAT": "2026-04-14",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     },
     {
       "OPBEL": "OP-L004-001",
@@ -155,7 +167,8 @@
       "BUDAT": "2026-04-09",
       "STATUS": "CLEARED",
       "DAYS_OVERDUE": 0,
-      "CURRENCY": "AUD"
+      "CURRENCY": "AUD",
+      "MAHNS": 0
     }
   ]
 }

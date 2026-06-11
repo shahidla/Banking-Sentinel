@@ -115,8 +115,21 @@ breach under standard rate-stress test) = compounding risk finding.
    Also confirmed the trial instance had auto-suspended mid-session
    ("HANA Database instance is stopping") — user restarted via BTP cockpit;
    unrelated to the privilege issue above.
-3. Regenerate `Data/processed/DFKKOPK.json`: realistic `payment_delay_days`
-   variance + `dunning_level` escalation per the narrative above.
+3. **DONE** — `scripts/regenerate-payment-history.js` regenerated
+   `Data/processed/DFKKOPK.json` (138 rows): `AUGDT` now varies ±0-1 day
+   around `FAEDN` for clean months (was hardcoded `FAEDN-1` for all rows),
+   and the last 5 months (H08-H12) of the 4 distressed loans escalate per
+   the narrative — `L-001` `(1,0)→(4,0)→(12,1)→(35,2)→(81,3)`, `L-002`
+   `(1,0)→(3,0)→(9,1)→(24,2)→(50,3)`, `L-003`
+   `(0,0)→(2,0)→(6,1)→(16,1)→(30,2)`, `L-005`
+   `(0,0)→(1,0)→(4,0)→(9,1)→(15,1)` — each ending at the same magnitude as
+   that loan's currently-open `DFKKOP` overdue item. `Data/processed/DFKKOP.json`
+   (13 rows) got `MAHNS` set to match: 3/3/3/2/1 for the 5 open overdue rows
+   (`OP-L001-001/002`, `OP-L002-001`, `OP-L003-001`, `OP-L005-001`), 0 for all
+   8 `CLEARED` rows. `mapDFKKOP`/`mapDFKKOPK` in `scripts/seed.js` updated to
+   pass `MAHNS` through (default 0). Reseeded (138/13 rows) and verified via
+   `audit-demo-customers.js` (clean for all 11 customers) and
+   `/admin/api/hana/DFKKOP` (MAHNS values confirmed).
 4. `ml/anomaly-service.py`: 2D feature vector (payment_delay_days,
    dunning_level) + `contamination='auto'`.
 5. `pattern-agent.js` `fetchCustomerData`: include `dunning_level` in scikit
@@ -125,9 +138,9 @@ breach under standard rate-stress test) = compounding risk finding.
    30100001, 30100003, 30100004.
 
 ## Next
-- Steps 1-2 done. Step 3 (regenerate DFKKOPK.json with payment_delay_days
-  variance + MAHNS escalation narrative, update seed.js mapDFKKOP/mapDFKKOPK
-  to pass through MAHNS) — awaiting go-ahead.
+- Steps 1-3 done. Step 4 (`ml/anomaly-service.py` 2D feature vector
+  payment_delay_days + dunning_level, `contamination='auto'`) — awaiting
+  go-ahead.
 
 ## Gotchas / decisions to not forget
 - This whole IF/Trajectory thread is presented to SAP/bank stakeholders —

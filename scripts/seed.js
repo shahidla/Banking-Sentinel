@@ -103,6 +103,7 @@ function mapDFKKOP(records) {
     DAYS_OVERDUE: r.DAYS_OVERDUE,
     STATUS:       r.STATUS,
     CURRENCY:     r.CURRENCY || 'AUD',
+    MAHNS:        r.MAHNS ?? 0,
   }));
 }
 
@@ -117,6 +118,7 @@ function mapDFKKOPK(records) {
     AUGDT:    r.AUGDT,
     AUGBL:    r.AUGBL,
     CURRENCY: r.CURRENCY || 'AUD',
+    MAHNS:    r.MAHNS ?? 0,
   }));
 }
 
