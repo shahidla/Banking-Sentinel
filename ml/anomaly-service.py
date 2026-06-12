@@ -88,6 +88,7 @@ def anomaly():
 
 if __name__ == '__main__':
     import os
-    port = int(os.environ.get('SCIKIT_PORT', 5001))
+    # CF sets PORT and routes to whatever the app binds to; SCIKIT_PORT is the local-dev override
+    port = int(os.environ.get('PORT', os.environ.get('SCIKIT_PORT', 5001)))
     print(f'Banking Sentinel anomaly service starting on port {port}')
     app.run(host='0.0.0.0', port=port, debug=False)

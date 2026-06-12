@@ -63,15 +63,13 @@ async function trajectoryAgent(state) {
   }
 
   // ── Forward DTI: model APRA APG 223 +3% rate-stress scenario ──────────────
-  // A uniform rate rise increases the annual cost of servicing total debt by
-  // RATE_STRESS_BUFFER_PCT; effective income shrinks by that amount.
+  // A uniform rate rise increases the cost of servicing existing debt —
+  // modelled as the debt side growing by RATE_STRESS_BUFFER_PCT, keeping
+  // income constant so the ratio stays comparable to APRA_DTI_LIMIT.
   let futureDtiRateStress = null;
   if (annualIncome > 0) {
-    const additionalAnnualCost = totalDebt * (RATE_STRESS_BUFFER_PCT / 100);
-    const stressedIncome = annualIncome - additionalAnnualCost;
-    if (stressedIncome > 0) {
-      futureDtiRateStress = parseFloat((totalDebt / stressedIncome).toFixed(2));
-    }
+    const stressedDebt = totalDebt * (1 + RATE_STRESS_BUFFER_PCT / 100);
+    futureDtiRateStress = parseFloat((stressedDebt / annualIncome).toFixed(2));
   }
   const rateStressBreach = futureDtiRateStress !== null
     && futureDtiRateStress > APRA_DTI_LIMIT
@@ -156,7 +154,7 @@ async function trajectoryAgent(state) {
   // Only IMPROVING when DTI is clearly below limit with no income risk — else MONITORING
   const isImproving = !breachFlag && currentDti < APRA_DTI_LIMIT * 0.70 && daysToExpiry === null;
 
-  forwardPosition = isDeteriorating ? 'DETERIORATING' : isStable ? 'STABLE' : isImproving ? 'IMPROVING' : 'MONITORING';
+  forwardPosition = isDeteriorating ? 'DETERIORATING' : isImproving ? 'IMPROVING' : isStable ? 'STABLE' : 'MONITORING';
 
   console.log(`  [Trajectory] DTI current:${currentDti} future:${futureDti} rateStress:${futureDtiRateStress} daysToExpiry:${daysToExpiry} timeToBreach:${timeToBreach} position:${forwardPosition} signals:${conflictingSignals.length}`);
   conflictingSignals.forEach((s, i) => console.log(`  [Trajectory] Signal ${i+1}: ${s}`));

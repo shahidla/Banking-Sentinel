@@ -229,11 +229,67 @@ Exactly the trend-narrative behavior designed — confirms the LLM is now
 reasoning over the payment-history trajectory rather than a static snapshot.
 Full risk run HTTP 200, riskScore 62 HIGH, no errors.
 
+## Completed — prioritized review-list batch fixes (this session)
+From `Docs/code review/PROD-GRADE-REVIEW.md` / `production_review.md`
+(items numbered 1-19):
+- **#5 (M-7)**: `srv/explain-agent.js` `SCHEDULE_TODAY` was hardcoded
+  `'2026-05-21'` — now computed live (`new Date().toISOString().split('T')[0]`)
+  so the LoanSchedule↔DFKKOP↔DFKKOPK cross-reference stays correct as the
+  demo dataset's dates roll forward. `CLAUDE.md` updated to match.
+- **#9 (M-2)**: `srv/agents/simple-query.js` — removed the unused `B-001`
+  partner-alias map; borrower-data queries use `customerId` directly
+  (`PARTNER`/`GPART`).
+- **#10 (M-3)**: new `srv/utils/fetch-retry.js` (`fetchWithRetry`, retries
+  429/502/503/504 + network errors, exponential backoff). Wired into
+  `pattern-agent.js` (RPT-1 + scikit fetches) and `mcp-tools.js` (OpenAI
+  embeddings + GraphDB SPARQL).
+- **#12 (H-4)**: RPT-1/embedding cost tracking — confirmed no fix needed
+  (RPT-1 trial tier is free).
+- **#17**: `readme.md` rewritten from default CAP starter to real project
+  docs (architecture, agent pipeline, setup, Admin UI, API example,
+  deployment).
+- **#18**: `scripts/seed-regulatory.js` — per-source try/catch around the
+  `APRA_SOURCES` fetch/parse loop; partial failures are skipped and logged,
+  only aborts if ALL sources fail.
+- **#19**: new `srv/utils/connectivity-check.js` — startup self-check for
+  required env vars + live GraphDB SPARQL `ASK` (detects expired-sandbox
+  redirects via `redirect: 'manual'`). Wired into `server.js` bootstrap and
+  surfaced as `connectivity` field on `/a2a/health`. `CLAUDE.md` gained a
+  new "Credential / endpoint drift (local .env vs CF)" section documenting
+  `cf set-env` / `cf restage` / `manifest.yml.template` sync.
+- **End-to-end verification**: killed stale local processes (old code),
+  restarted `npm run start:local`, confirmed `/a2a/health` connectivity:ok,
+  full risk-analysis runs for 30100001/30100003 completed successfully with
+  RPT-1, scikit, OpenAI embeddings, GraphDB all working; H-7 rate-stress DTI
+  fix re-verified (30100001 5.8→5.95, 30100003 7.2→7.42, neither falsely
+  breaches the 8.0 limit).
+
+## Deferred (explicit, do not implement without further instruction)
+- **#15 (L-5)**: RAGAS hallucination-check redundancy — discussion only.
+  RAGAS (`srv/observability/ragas-evaluator.js`) runs async/fire-and-forget
+  after `res.json()`, delivered only via SSE `ragas_scores` to a live
+  browser `EventSource`, scored to Langfuse only (not persisted to HANA).
+  Faithfulness scores are structurally ~0.00 because `regulatoryDocs`
+  (general APRA policy text) can never "support" customer-specific HANA
+  findings (DTI ratios, dollar exposures) — a context-mismatch in the
+  evaluator design, not a real hallucination signal. This sits alongside two
+  other quality checks already in the pipeline: Reflection
+  (`srv/agents/reflection.js`, confidence-based re-query loop, max 2
+  iterations) and Synthesis's guardrail
+  (`srv/guardrails/validate.js` `crossCheckClaimsAgainstSources`, synchronous
+  claim-source word-overlap, gates `apraReady` + populates
+  `brief.uncertainties`). Open question: is RAGAS redundant with the
+  Synthesis guardrail, or does it serve a distinct (Langfuse-side,
+  trace-level) observability purpose? No code changes made.
+- Auth-related fixes (C-3/C-4/C-5/H-1/M-5) and `.cdsrc.json` (C-1) — "not
+  required" for this PoC per user, deferred indefinitely.
+
 ## Next
-- All 6 AGREED DESIGN steps + the Pattern Agent LLM enhancement above are
-  done, reseeded (where applicable), and verified end-to-end via real
-  `/a2a/agent` risk-analysis runs. Nothing outstanding from this design doc.
-  Recommend: review `git diff`, then commit + push.
+- All 6 AGREED DESIGN steps + the Pattern Agent LLM enhancement, plus this
+  session's 6 batch fixes (#5, #9, #10, #12-ack, #17, #18, #19), are done,
+  verified end-to-end, and ready to commit + push.
+- Resume RAGAS discussion (#15) if the user wants to revisit — no
+  implementation pending.
 
 ## Gotchas / decisions to not forget
 - This whole IF/Trajectory thread is presented to SAP/bank stakeholders —

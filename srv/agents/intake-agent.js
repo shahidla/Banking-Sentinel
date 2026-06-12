@@ -7,6 +7,7 @@
 'use strict';
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { getLangchainHandler } = require('../observability/langfuse-client');
+const { extractJson } = require('../utils/llm-json');
 
 const INTAKE_SYSTEM = `You are the Intake Agent for Banking Sentinel, an AI risk intelligence system for a major Australian bank.
 
@@ -56,9 +57,8 @@ async function intakeAgent(state) {
       ? response.content
       : JSON.stringify(response.content);
 
-    // Extract JSON from response (handle markdown code blocks)
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    // Extract JSON from response (handle markdown code blocks and trailing prose)
+    parsed = extractJson(content);
 
     const inputTokens = response.usage_metadata?.input_tokens || 0;
     const outputTokens = response.usage_metadata?.output_tokens || 0;

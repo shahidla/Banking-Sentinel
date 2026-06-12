@@ -9,12 +9,23 @@ const { Pool } = require('pg');
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
 function mkClient() { return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }); }
+
+// USD prices × 1.55 AUD/USD — mirrors server.js MODEL_PRICING_AUD
+const MODEL_PRICING_AUD = {
+  'claude-haiku-4-5-20251001': { in: 0.000388, out: 0.001938 },
+  'claude-sonnet-4-6':         { in: 0.00465,  out: 0.02325  },
+  'claude-opus-4-7':           { in: 0.02325,  out: 0.11625  }
+};
+function calculateCostAUD(inputTokens, outputTokens) {
+  const rates = MODEL_PRICING_AUD[MODEL] || MODEL_PRICING_AUD['claude-haiku-4-5-20251001'];
+  return (inputTokens / 1000 * rates.in) + (outputTokens / 1000 * rates.out);
+}
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// Reference "today" for the demo dataset — consistent with the DAYS_OVERDUE
-// values seeded into DFKKOP. Used to distinguish a genuinely missing past-due
-// payment from a future LoanSchedule row that simply isn't due yet.
-const SCHEDULE_TODAY = '2026-05-21';
+// Reference "today" used to distinguish a genuinely missing past-due payment
+// from a future LoanSchedule row that simply isn't due yet. Computed live so
+// the cross-reference stays correct as the demo dataset's dates roll forward.
+const SCHEDULE_TODAY = new Date().toISOString().split('T')[0];
 
 // ── Explanation cache (Supabase Postgres — same instance as the LangGraph checkpointer) ──
 // Generating the trail calls Claude 5 times per session. Without a cache, re-opening the
@@ -32,9 +43,11 @@ async function ensureCacheTable() {
       session_id  TEXT PRIMARY KEY,
       partner_id  TEXT,
       sections    JSONB NOT NULL,
+      meta        JSONB,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  await pgPool.query(`ALTER TABLE explain_cache ADD COLUMN IF NOT EXISTS meta JSONB`);
   cacheTableReady = true;
 }
 
@@ -43,7 +56,7 @@ async function loadCachedExplanation(sessionId) {
   try {
     await ensureCacheTable();
     const { rows } = await pgPool.query(
-      'SELECT partner_id, sections FROM explain_cache WHERE session_id = $1', [sessionId]
+      'SELECT partner_id, sections, meta FROM explain_cache WHERE session_id = $1', [sessionId]
     );
     return rows[0] || null;
   } catch (e) {
@@ -52,14 +65,14 @@ async function loadCachedExplanation(sessionId) {
   }
 }
 
-async function saveExplanation(sessionId, partnerId, sections) {
+async function saveExplanation(sessionId, partnerId, sections, meta) {
   if (!pgPool) return;
   try {
     await ensureCacheTable();
     await pgPool.query(
-      `INSERT INTO explain_cache (session_id, partner_id, sections) VALUES ($1, $2, $3)
-       ON CONFLICT (session_id) DO UPDATE SET partner_id = $2, sections = $3, created_at = now()`,
-      [sessionId, partnerId, JSON.stringify(sections)]
+      `INSERT INTO explain_cache (session_id, partner_id, sections, meta) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (session_id) DO UPDATE SET partner_id = $2, sections = $3, meta = $4, created_at = now()`,
+      [sessionId, partnerId, JSON.stringify(sections), JSON.stringify(meta || {})]
     );
     console.log(`  [Explain/cache] Saved evidence trail for session ${sessionId} (${sections.length} sections)`);
   } catch (e) {
@@ -72,6 +85,7 @@ async function saveExplanation(sessionId, partnerId, sections) {
 // to a live run; only the source (cache vs. fresh LLM call) differs.
 async function replayExplanation(cached, partnerId, pushFn) {
   pushFn({ type: 'explain_start', partnerId, cached: true });
+  if (cached.meta) pushFn({ type: 'explain_meta', ...cached.meta });
   for (const s of cached.sections) {
     pushFn({ type: 'explain_section_begin', sectionId: s.sectionId, icon: s.icon,
              title: s.title, subtitle: s.subtitle, staticHtml: s.staticHtml });
@@ -151,6 +165,119 @@ function kv(label, value, flagged) {
 function contextNote(lines) {
   const items = lines.map(l => `<li>${l}</li>`).join('');
   return `<div class="context-note"><div class="context-note-title">How this check works</div><ul>${items}</ul></div>`;
+}
+
+// ── Agent reference — the full LangGraph pipeline, written once so nobody has to
+// ask how it works again. Each entry doubles as the "How It Works" panel for the
+// System Overview section AND is reused, per-run, with that run's actual outcome.
+const AGENT_HOW = {
+  intake: {
+    name: 'Intake Agent', pattern: 'Router / Classifier · Node 1/7',
+    how: [
+      { k: 'AI Model',       v: 'Claude Haiku (claude-haiku-4-5-20251001) — fast, cheap, structured JSON output.' },
+      { k: 'Input',          v: 'The raw natural-language query typed by the risk officer (e.g. "Assess customer 30100003 for APRA risk").' },
+      { k: 'Action',         v: 'Parses the query, extracts the customer/business-partner ID, and classifies intent into one of three routes.' },
+      { k: 'Output',         v: 'A structured JSON intent object: { customerId, isRiskAnalysis, isSimpleDataQuery, isInappropriateRequest, description }.' },
+      { k: 'Outcome / Routing', v: 'RISK_ASSESS → the full 6-agent pipeline below runs. SIMPLE_QUERY → a direct HANA lookup answers immediately, no pipeline. REJECTION → the request is declined with a reason, pipeline does not run.' },
+      { k: 'Why it exists',  v: 'Every downstream agent expects structured input (a customer ID + a known task type). Without Intake, each agent would need its own free-text parser — Intake is the single place that translates human language into a pipeline trigger.' },
+      { k: 'SAP Technology', v: 'CAP A2A service endpoint (JSON-RPC 2.0) · Solace topic banking/intake/complete' }
+    ]
+  },
+  pattern: {
+    name: 'Pattern Agent', pattern: 'Parallel Multi-Model Execution · Node 2/7',
+    how: [
+      { k: 'Input',          v: 'customerId. Independently queries DFKKOP (payment ledger), DFKKOPK (payment history), BCA_DTI, Loans for this customer and a portfolio sample.' },
+      { k: 'Action',         v: 'Runs THREE independent risk signals simultaneously via Promise.allSettled — no single model decides alone: (1) RPT-1 tabular model, (2) Isolation Forest anomaly detection, (3) Claude Haiku narrative scan.' },
+      { k: 'RPT-1',          v: 'rpt.cloud.sap consumer API — tabular foundation model. Classifies risk category (HIGH/MEDIUM/LOW/CRITICAL) and returns a real confidence score (e.g. 0.82).' },
+      { k: 'Isolation Forest', v: 'scikit-learn (default) or HANA PAL — trains on DFKKOP ∪ DFKKOPK payment_delay_days/dunning_level across the portfolio, then scores this customer\'s own rows as outliers (label -1) or normal (label 1).' },
+      { k: 'LLM Narrative',  v: 'Claude Haiku reads DTI, income, loans and recent payments and writes a plain-English anomaly list for CPS 230 justification — catches narrative signals (e.g. "income expires in 40 days") that pure statistics miss.' },
+      { k: 'Output',         v: '{ signal: stable/unclear/concerning, rpt1: {category, score, confidence}, pal/scikit: {anomalyCount, findings[]}, llm: {anomalies[]} }.' },
+      { k: 'Outcome / Routing', v: 'combinedAnomalies = scikit/PAL outliers + LLM anomalies. >2 → "concerning", >0 → "unclear", 0 → "stable". This signal feeds Trajectory and Reflection as context, but does not itself gate the pipeline.' },
+      { k: 'Why three models', v: 'RPT-1 scores financial ratios against a foundation model\'s learned patterns. Isolation Forest catches statistical outliers in payment timing. The LLM catches narrative/contextual signals neither numeric model sees. Each catches what the others miss — consensus is stronger evidence than any single model.' },
+      { k: 'SAP Technology', v: 'rpt.cloud.sap tabular API · HANA PAL ScriptServer (requires 3 vCPU AFL, scikit is the active default) · Solace banking/pattern/progress per sub-result' }
+    ]
+  },
+  trajectory: {
+    name: 'Trajectory Agent', pattern: 'Deterministic Rule Engine (No LLM) · Node 3/7',
+    how: [
+      { k: 'Input',          v: 'BCA_DTI row for this customer (TOTAL_DEBT, ANNUAL_INCOME, INCOME_EXPIRY, BREACH_DATE) + RegulatoryThresholds (RATE_STRESS_BUFFER, APG 223) + LoanSchedule.' },
+      { k: 'Action',         v: 'Pure arithmetic — no model call. Projects this customer\'s debt-to-income ratio forward in time under two scenarios.' },
+      { k: 'Forward DTI formula',  v: 'futureDti = totalDebt / (annualIncome × daysToExpiry / 365). Only calculated when INCOME_EXPIRY is set — projects DTI at the moment income stops.' },
+      { k: 'Rate-Stress DTI formula', v: 'futureDtiRateStress = totalDebt / (annualIncome − totalDebt × bufferPct). bufferPct (3%) is read live from RegulatoryThresholds (RATE_STRESS_BUFFER, APG 223) and applies to EVERY customer, independent of income expiry.' },
+      { k: 'Output',         v: '{ currentDti, futureDti, futureDtiRateStress, daysToExpiry, timeToBreach, forwardPosition, conflictingSignals[] }. timeToBreach: negative = days already in breach since BREACH_DATE; positive = projected days until breach after income expiry.' },
+      { k: 'Outcome / Routing', v: 'forwardPosition and conflictingSignals are passed to the Relationship Agent as context — e.g. an imminent income expiry makes group exposure more material even if current DTI looks fine today.' },
+      { k: 'Why no LLM',     v: 'Arithmetic projection does not need a language model — a deterministic formula is auditable, reproducible, and cannot hallucinate a number. An LLM here would add latency and hallucination risk for zero gain over the formula.' },
+      { k: 'Execution order', v: 'Runs BEFORE the Relationship Agent intentionally — its forward DTI position becomes input context for the APS 221 exposure assessment.' },
+      { k: 'SAP Technology', v: 'BCA_DTI.INCOME_EXPIRY + BREACH_DATE + LoanSchedule via HANA CAP CDS · no external ML call' }
+    ]
+  },
+  relationship: {
+    name: 'Relationship Agent', pattern: 'ReAct Loop (Reason + Act) · Node 4/7',
+    how: [
+      { k: 'Input',          v: 'customerId + Trajectory\'s forwardPosition/conflictingSignals as context. Optionally re-invoked with a targeted reQueryHint from Reflection.' },
+      { k: 'Action',         v: 'Claude Haiku with tool-calling iteratively reasons about graph findings and decides which tool to call next — up to 6 ReAct steps (Reason → Act → Observe → repeat).' },
+      { k: 'Tools available', v: 'hana_graph_traverse (BFS via BUT050 + BCA_GUARANTOR edges, up to 8 hops via SPARQL property paths), exposure_calculator (SUM(Loans.AMOUNT) across all connected entities found so far), apra_threshold_check (compares group exposure % against the live APS 221 limit).' },
+      { k: 'Output',         v: '{ nodes[] (connected business partners), edges[] (relationship type + hop count), groupExposure (AUD), aps221Pct, confidence, finding }.' },
+      { k: 'Outcome / Routing', v: 'This is the output the Reflection step scrutinises most closely — e.g. a HIGH RPT-1 risk score alongside zero connected parties found here is exactly the inconsistency Reflection is designed to catch and re-query.' },
+      { k: 'Why graph traversal', v: 'APS 221 (Large Exposures) requires aggregating exposure across ALL connected parties — parents, subsidiaries, guarantors, family trusts — because one failure can cascade across the whole network. SQL JOINs cannot express open-ended multi-hop traversal; SPARQL property paths can.' },
+      { k: 'Execution order', v: 'Runs AFTER the Trajectory Agent — uses the forward DTI position to judge whether group exposure is material given an imminent income expiry.' },
+      { k: 'SAP Technology', v: 'GraphDB RDF triple store (sandbox = HANA Knowledge Graph Engine in production) · SPARQL 1.1 property paths · BUT050 + BCA_GUARANTOR graph edges' }
+    ]
+  },
+  reflection: {
+    name: 'Reflection', pattern: 'Epistemic Self-Evaluation (Reflexion) · Node 5/7',
+    how: [
+      { k: 'Input',          v: 'The combined JSON output of the Pattern, Trajectory and Relationship agents — read as data, not prose.' },
+      { k: 'Action',         v: 'Implements <strong>Reflexion</strong> (Shinn et al., 2023): an LLM "actor" (Relationship Agent) produces an output, an LLM "evaluator" (this step) critiques it in natural language, and the critique becomes a targeted re-query rather than a generic retry.' },
+      { k: 'Four dimensions scored', v: '(1) Graph completeness — did traversal reach parent/connected entities, or stop too early? (2) Signal consistency — e.g. HIGH RPT-1 + zero connected parties is a red flag, not a clean result. (3) Were conflicting Trajectory signals actually resolved? (4) Evidence trail — is every risk claim backed by a specific record?' },
+      { k: 'Output',         v: '{ overallConfidence (0-1), reasoning, gaps[], reQueryHint }. Appended to reflectionHistory — one entry per iteration.' },
+      { k: 'Outcome / Routing (deterministic)', v: 'overallConfidence < 0.70 → re-query the Relationship Agent with the targeted reQueryHint describing exactly what evidence is missing. ≥ 0.70 → proceed to Human Approval. Capped at 2 re-queries to bound cost/latency — after the cap, the pipeline proceeds regardless and any unresolved gaps surface as uncertainties in the final brief.' },
+      { k: 'Why needed',     v: 'Prevents presenting incomplete findings to a risk officer. Catches cases where the graph found 0 connected parties despite an RPT-1 HIGH score — a suspicious inconsistency a simple threshold check would miss.' },
+      { k: 'SAP Technology', v: 'LangGraph addConditionalEdges · Claude Haiku · Langfuse quality scoring · reflectionHistory array — one entry per iteration preserved in state' }
+    ]
+  },
+  humanApproval: {
+    name: 'Human Approval', pattern: 'Human-in-the-Loop (HITL) · Node 6/7',
+    how: [
+      { k: 'Input',          v: 'The complete agent state after Reflection clears its confidence gate — every prior agent\'s output, intact.' },
+      { k: 'Action',         v: 'LangGraph interruptBefore pauses graph execution — this is not an agent producing new output, it is a deliberate break for a human decision.' },
+      { k: 'HITL OFF mode (default)', v: 'Auto-approves immediately without pausing — used for fast demo/dev iteration.' },
+      { k: 'HITL ON mode',   v: 'Execution pauses. A risk officer reviews the preliminary findings in the UI and explicitly clicks Approve or Reject before Synthesis runs.' },
+      { k: 'Output',         v: '{ approvedBy, approvedAt } recorded to AuditLog. On resume, graph.updateState() continues from the exact same checkpointed state — nothing is recomputed.' },
+      { k: 'Why required',   v: 'APRA CPS 230 requires a documented human-in-the-loop checkpoint for AI-assisted risk decisions — no risk brief is sealed without a named risk officer reviewing preliminary findings first.' },
+      { k: 'SAP Technology', v: 'LangGraph interrupt() · PostgresSaver (PostgreSQL/Supabase) checkpoint · graph.updateState() on resume · Solace banking/human/approval' }
+    ]
+  },
+  synthesis: {
+    name: 'Synthesis Agent', pattern: 'RAG + Brief Generation · Node 7/7',
+    how: [
+      { k: 'Input',          v: 'The full structured JSON output of Pattern, Trajectory, Relationship and Reflection — plus retrieved APRA regulatory text chunks.' },
+      { k: 'Action — retrieval', v: 'Runs up to FOUR separate HANA Vector Engine searches, one per active risk signal: DTI ratio → APS 220 DTI clauses, group exposure → APS 221 connected-party limits, income-expiry/conflicting signals → CPS 230 risk management, plus a constant CPS 230 AI-governance query. Results are de-duplicated by document ID and capped at 7 chunks total.' },
+      { k: 'Action — generation', v: 'Claude Haiku receives the structured agent JSON + retrieved chunks and writes the risk brief: score (0-100), level, up to 5 findings (each tagged with a standard + evidenceSource), up to 3 recommendations, up to 3 uncertainties. A fixed rule maps score→level (≥76 CRITICAL, ≥51 HIGH, ≥26 MEDIUM, else LOW) — the model is told the level MUST match the band, it is not free to choose.' },
+      { k: 'Output',         v: '{ riskScore, riskLevel, confidence, findings[], recommendations[], regulatoryRefs[], uncertainties[], apraReady }. Persisted to RiskAssessments.' },
+      { k: '"APRA Ready" gate (deterministic)', v: 'NOT an LLM decision — a hard logical AND of four code-checked conditions: synthesis confidence ≥ 70%, Reflection evidence check passed, regulatory references retrieved, vector-search context available. A separate "claim-source overlap" guardrail then cross-checks each finding\'s wording against the retrieved chunks — low overlap adds an uncertainty flagging possible hallucination.' },
+      { k: 'Why RAG',        v: 'The brief must cite specific, CURRENT APRA standards, not the LLM\'s training-data snapshot. APRA standards change — the Vector store is refreshed via the APRA Notice button. Without RAG the model would cite outdated clause numbers.' },
+      { k: 'SAP Technology', v: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity · Langfuse RAGAS evaluation' }
+    ]
+  }
+};
+
+function howGrid(items) {
+  return '<div class="how-grid">' + items.map(it =>
+    `<div class="how-item"><div class="how-k">${esc(it.k)}</div><div class="how-v">${it.v}</div></div>`
+  ).join('') + '</div>';
+}
+
+// One agent's reference card: static "How It Works" panel + this run's actual outcome.
+function agentCard(num, key, outcomeRows) {
+  const a = AGENT_HOW[key];
+  return `
+    <div class="agent-card">
+      <div class="agent-card-hdr"><span class="agent-num">${a.pattern.split('·')[1]?.trim() || ''}</span><span class="agent-name">${a.name}</span><span class="agent-pattern">${a.pattern.split('·')[0].trim()}</span></div>
+      <div class="sub-title">How It Works</div>
+      ${howGrid(a.how)}
+      ${outcomeRows ? `<div class="sub-title">This Run's Outcome</div>${howGrid(outcomeRows)}` : ''}
+    </div>`;
 }
 
 // ── Static HTML builders ──────────────────────────────────────────────────────
@@ -541,6 +668,98 @@ function buildVerdictHtml(synth, riskRow, agentState) {
   `;
 }
 
+// ── System Overview — the full pipeline + every agent, role/input/output/outcome,
+// rendered fresh for every run so this page alone answers "how does this work?"
+function buildSystemOverviewHtml(agentState, customerId) {
+  const int_  = agentState.intent             || {};
+  const pat   = agentState.patternAssessment  || {};
+  const pal   = pat.pal || pat.scikit || {};
+  const traj  = agentState.trajectoryAnalysis || {};
+  const rel   = agentState.relationshipMap    || {};
+  const reflection = agentState.reflectionEvaluation || {};
+  const reflectionHistory = agentState.reflectionHistory || [];
+  const requeryCount = agentState.requeryCount ?? 0;
+  const synth = agentState.synthesisResult    || {};
+  const reflectionPassed = (reflection.overallConfidence ?? 1) >= 0.70 || reflectionHistory.length === 0;
+  const hitlEnabled = agentState.hitlEnabled ?? true;
+
+  const cards = [
+    agentCard(1, 'intake', [
+      { k: 'Query',       v: esc(agentState.query || '—') },
+      { k: 'Customer ID', v: esc(customerId) },
+      { k: 'Intent',      v: int_.isRiskAnalysis ? 'Risk Analysis' : (int_.isSimpleDataQuery ? 'Simple Query' : '—') },
+      { k: 'Route',       v: int_.isRiskAnalysis ? 'RISK_ASSESS &rarr; full 6-agent pipeline' : (int_.isSimpleDataQuery ? 'SIMPLE_QUERY' : '—') },
+    ]),
+    agentCard(2, 'pattern', [
+      { k: 'Overall Signal',   v: esc(pat.signal || '—') },
+      { k: 'RPT-1',            v: `${esc(pat.rpt1?.category || '—')} &middot; score ${esc(pat.rpt1?.score ?? '—')} &middot; confidence ${pat.rpt1?.confidence != null ? Math.round(pat.rpt1.confidence*100)+'%' : '—'}` },
+      { k: 'Isolation Forest', v: pal.success === false ? 'Unavailable' : (pal.anomalyCount != null ? `${pal.anomalyCount} / ${pal.totalScored ?? '?'} payment rows flagged` : '—') },
+      { k: 'LLM Anomalies',    v: `${(pat.llm?.anomalies || []).length} detected` },
+    ]),
+    agentCard(3, 'trajectory', [
+      { k: 'Current DTI',              v: traj.currentDti != null ? traj.currentDti.toFixed(2)+'x' : '—' },
+      { k: 'Forward DTI',              v: traj.futureDti != null ? traj.futureDti.toFixed(2)+'x' : '—' },
+      { k: 'Rate-Stress DTI (+3%, APG 223)', v: traj.futureDtiRateStress != null ? traj.futureDtiRateStress.toFixed(2)+'x' : '—' },
+      { k: 'Time to Breach',           v: traj.timeToBreach != null ? traj.timeToBreach+' days' : '—' },
+      { k: 'Forward Position',         v: esc(traj.forwardPosition || '—') },
+    ]),
+    agentCard(4, 'relationship', [
+      { k: 'Connected Parties',  v: (rel.nodes || []).length },
+      { k: 'Group Exposure',     v: rel.groupExposure != null ? 'AUD ' + Number(rel.groupExposure).toLocaleString(undefined,{maximumFractionDigits:0}) : '—' },
+      { k: 'APS 221 Utilisation', v: rel.aps221Pct != null ? rel.aps221Pct.toFixed(1)+'% of limit' : '—' },
+      { k: 'Confidence',         v: rel.confidence != null ? Math.round(rel.confidence*100)+'%' : '—' },
+      { k: 'Finding',            v: esc(rel.finding || '—') },
+    ]),
+    agentCard(5, 'reflection', [
+      { k: 'Overall Confidence', v: reflection.overallConfidence != null ? Math.round(reflection.overallConfidence*100)+'%' : '—' },
+      { k: 'Re-query Count',     v: `${requeryCount} / 2 max` },
+      { k: 'Routing Decision',   v: reflectionPassed ? 'Proceed to Human Approval' : 'Re-query Relationship Agent' },
+      { k: 'Reasoning',          v: esc(reflection.reasoning || '—') },
+    ]),
+    agentCard(6, 'humanApproval', [
+      { k: 'Mode',        v: hitlEnabled ? 'HITL: ON &mdash; manual approval required' : 'HITL: OFF &mdash; auto-approved' },
+      { k: 'Approved By', v: esc(agentState.approvedBy || (hitlEnabled ? 'Pending' : 'Auto-approved (HITL OFF)')) },
+    ]),
+    agentCard(7, 'synthesis', [
+      { k: 'Risk Score',  v: synth.riskScore != null ? synth.riskScore+' / 100' : '—' },
+      { k: 'Risk Level',  v: esc(synth.riskLevel || '—') },
+      { k: 'Confidence',  v: synth.confidence != null ? Math.round(synth.confidence*100)+'%' : '—' },
+      { k: 'APRA Ready',  v: synth.apraReady ? 'Yes' : 'No &mdash; held for human review' },
+    ]),
+  ].join('');
+
+  return contextNote([
+    '<strong>Banking Sentinel</strong> runs every risk query through a <strong>7-node LangGraph StateGraph</strong> — a directed pipeline where each node is either an AI agent or a deterministic step, and the full state (every agent\'s output) is checkpointed after each node so the run can be paused, resumed, replayed or re-queried without recomputation.',
+    'The seven cards below are the full pipeline, in execution order, each showing (1) what it is given, (2) what it does with it, (3) what it produces, and (4) <strong>this run\'s actual outcome</strong> — so this page alone documents both the system and this specific analysis, for every run.',
+    'Three design principles run through the whole pipeline: <strong>use the simplest tool that works</strong> (Trajectory is pure arithmetic, not an LLM, because arithmetic cannot hallucinate); <strong>never let one model decide alone</strong> (Pattern runs 3 independent signals, Synthesis\'s "APRA Ready" gate is a 4-condition code AND, not an LLM opinion); and <strong>critique before presenting</strong> (Reflection — Reflexion, Shinn et al. 2023 — re-queries the Relationship Agent with a targeted hint if evidence looks incomplete, capped at 2 iterations).',
+    'This evidence trail itself (the sections below) follows the same philosophy: each section pairs a static "How this check works" panel (the mechanism, named explicitly) with a 4-bullet Claude Haiku narrative — Input / Interpretation / Output / Significance — that walks THIS customer\'s real numbers through THAT mechanism. The trail is generated once per session and cached (Supabase Postgres <code>explain_cache</code>), so re-opening it always replays the identical record.',
+  ]) + `<div class="agent-cards">${cards}</div>`;
+}
+
+// ── Audit Trail & Cost — CPS 230 full decision log for this run
+function buildAuditTrailHtml(auditTrail, totals) {
+  const rows = (auditTrail || []).map(t => ({
+    Action:       t.ACTION || '—',
+    Model:        t.MODEL || '—',
+    'Tokens In':  t.TOKENS_IN || 0,
+    'Tokens Out': t.TOKENS_OUT || 0,
+    'Cost AUD':   Number(t.COST_AUD || 0).toFixed(4),
+    'Latency ms': t.LATENCY_MS || 0,
+  }));
+
+  return contextNote([
+    '<strong>CPS 230</strong> requires that every AI-assisted decision be reconstructable after the fact: which model was called, with what inputs, producing what output, at what cost and latency. This table is that record — one row per LLM call made by the pipeline for this session, written to the HANA <code>AuditLog</code> table as each agent completes.',
+    'Costs are calculated from the Claude API\'s published per-token pricing for the model used (claude-haiku-4-5) and converted to AUD. Latency is wall-clock time for that single call, not cumulative — the pipeline runs Pattern Agent\'s 3 models in parallel (Promise.allSettled), so the pipeline\'s total latency is less than the sum of every row here.',
+  ]) + (rows.length ? tbl(rows) : '<p class="no-data">No LLM calls were recorded for this session (e.g. a cached/replayed trail, or a SIMPLE_QUERY route that bypassed the agent pipeline).</p>') + `
+    <div class="calc-box" style="margin-top:10px">
+      <div class="calc-row"><span>Total LLM Calls</span><span><strong>${rows.length}</strong></span></div>
+      <div class="calc-row"><span>Total Tokens</span><span><strong>${(totals.totalInputTokens + totals.totalOutputTokens).toLocaleString()}</strong> (${totals.totalInputTokens.toLocaleString()} in / ${totals.totalOutputTokens.toLocaleString()} out)</span></div>
+      <div class="calc-row"><span>Total Cost</span><span><strong>AUD ${totals.totalCostAUD.toFixed(4)}</strong></span></div>
+      <div class="calc-row"><span>Total Latency (sum of calls)</span><span><strong>${Math.round(totals.totalLatencyMs/1000)}s</strong></span></div>
+    </div>
+  `;
+}
+
 // ── LLM prompt builders ───────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are a banking risk analyst writing one section of an evidence paper. Your reader has already seen a "How this check works" panel above your text that names the exact tables, formulas, model mechanics and decision thresholds involved — and a data table or calculation box showing this customer's actual numbers run through that mechanism. Your job is to be the bridge between the two: walk the reader from the raw input, THROUGH the specific calculation or model step that was applied, TO the output it produced — using this customer's real numbers at each step, not generic description.
@@ -860,7 +1079,45 @@ async function generateExplanation(sessionId, graph, pushFn) {
   let riskRow = null;
   try { riskRow = await cds.run(SELECT.one.from('bankingsentinel.RiskAssessments').where({ SESSION_ID: sessionId })); } catch (_) {}
 
+  // Audit trail + cost/latency totals — feeds both the KPI row and the Audit Trail section.
+  let auditTrail = [];
+  try {
+    auditTrail = await cds.run(
+      SELECT.from('bankingsentinel.AuditLog').where({ SESSION_ID: sessionId }).orderBy('CREATED_AT asc')
+    );
+  } catch (_) {}
+  const totalInputTokens  = agentState.totalInputTokens  || 0;
+  const totalOutputTokens = agentState.totalOutputTokens || 0;
+  const totals = {
+    totalInputTokens, totalOutputTokens,
+    totalCostAUD: auditTrail.length
+      ? auditTrail.reduce((sum, r) => sum + (parseFloat(r.COST_AUD) || 0), 0)
+      : calculateCostAUD(totalInputTokens, totalOutputTokens),
+    totalLatencyMs: auditTrail.reduce((sum, r) => sum + (parseInt(r.LATENCY_MS) || 0), 0) || (agentState.totalLatencyMs || 0),
+  };
+  agentState.approvedBy = auditTrail.find(r => r.ACTION === 'human_approval')?.DETAILS || null;
+
+  // KPI/header data for the page chrome — pushed once, before sections begin streaming,
+  // and persisted alongside the cached sections so replays populate the same header.
+  const meta = {
+    riskScore:  synth?.riskScore  ?? riskRow?.RISK_SCORE  ?? null,
+    riskLevel:  synth?.riskLevel  ?? riskRow?.RISK_LEVEL  ?? null,
+    confidence: synth?.confidence ?? null,
+    apraReady:  synth?.apraReady  ?? null,
+    approvedBy: agentState.approvedBy || null,
+    query:      agentState.query  || null,
+    generatedAt: new Date().toISOString(),
+    ...totals,
+  };
+  pushFn({ type: 'explain_meta', ...meta });
+
   const generatedSections = [];
+
+  generatedSections.push(await runSection(pushFn, client, {
+    sectionId: 'overview', icon: '00', title: 'System Overview — How This Analysis Works',
+    subtitle: '7-Agent LangGraph Pipeline · Reflexion · RAG · HITL',
+    staticHtml: buildSystemOverviewHtml(agentState, customerId),
+  }));
 
   generatedSections.push(await runSection(pushFn, client, {
     sectionId: 'snapshot', icon: '01', title: 'Customer Snapshot',
@@ -916,10 +1173,16 @@ async function generateExplanation(sessionId, graph, pushFn) {
     prompt: buildVerdictPrompt(synth, riskRow, customerId, dtiLimit, groupLimit, agentState),
   }));
 
+  generatedSections.push(await runSection(pushFn, client, {
+    sectionId: 'audit', icon: '09', title: 'Audit Trail & Cost',
+    subtitle: 'CPS 230 · Full LLM Decision Log',
+    staticHtml: buildAuditTrailHtml(auditTrail, totals),
+  }));
+
   pushFn({ type: 'explain_complete', sectionsGenerated: generatedSections.length });
 
   // Persist so every future open of this session replays this exact trail.
-  await saveExplanation(sessionId, customerId, generatedSections);
+  await saveExplanation(sessionId, customerId, generatedSections, meta);
 }
 
 module.exports = { generateExplanation };

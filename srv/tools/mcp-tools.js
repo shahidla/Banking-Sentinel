@@ -7,6 +7,7 @@
 
 'use strict';
 const cds = require('@sap/cds');
+const { fetchWithRetry } = require('../utils/fetch-retry');
 
 // ─── TOOL 1: hana_relational_query ──────────────────────────────────────────
 // AI: Structured data retrieval — TRBK relational tables. No reasoning here.
@@ -31,14 +32,15 @@ async function hana_relational_query({ tables, filters = {}, fields = [] }) {
 //      push-down, no full table scan in Node.js. EMBEDDING stored as JSON array string.
 
 async function getEmbedding(text) {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
+  const response = await fetchWithRetry('https://api.openai.com/v1/embeddings', () => ({
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small', input: text })
-  });
+    body: JSON.stringify({ model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small', input: text }),
+    signal: AbortSignal.timeout(15000)
+  }));
   if (!response.ok) throw new Error(`OpenAI embedding error ${response.status}`);
   const data = await response.json();
   return data.data[0].embedding;
@@ -98,12 +100,12 @@ const BASE_URI = 'urn:banking-sentinel:';
 async function sparqlQuery(sparql) {
   const endpoint = `${process.env.GRAPHDB_ENDPOINT}/repositories/${process.env.GRAPHDB_REPOSITORY}`;
   const auth = Buffer.from(`${process.env.GRAPHDB_USERNAME}:${process.env.GRAPHDB_PASSWORD}`).toString('base64');
-  const res = await fetch(endpoint, {
+  const res = await fetchWithRetry(endpoint, () => ({
     method: 'POST',
     headers: { 'Content-Type': 'application/sparql-query', 'Accept': 'application/sparql-results+json', 'Authorization': `Basic ${auth}` },
     body: sparql,
     signal: AbortSignal.timeout(8000)
-  });
+  }));
   if (!res.ok) throw new Error(`GraphDB SPARQL error ${res.status}: ${(await res.text()).substring(0, 200)}`);
   return res.json();
 }

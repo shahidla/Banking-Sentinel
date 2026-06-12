@@ -127,26 +127,37 @@ async function run() {
   console.log('  Cleared.\n');
 
   let totalChunks = 0;
+  const failed = [];
 
   for (const source of APRA_SOURCES) {
-    console.log(`  Fetching: ${source.title}`);
-    const buffer = await fetchPdf(source.url);
-    console.log(`  Downloaded ${(buffer.length / 1024).toFixed(0)} KB`);
+    try {
+      console.log(`  Fetching: ${source.title}`);
+      const buffer = await fetchPdf(source.url);
+      console.log(`  Downloaded ${(buffer.length / 1024).toFixed(0)} KB`);
 
-    let text = await extractText(buffer);
-    console.log(`  Extracted ${text.length} chars`);
+      let text = await extractText(buffer);
+      console.log(`  Extracted ${text.length} chars`);
 
-    if (source.standard === 'DTI_NOTICE') {
-      text = modifyDtiTextForDemo1(text);
-      console.log('  DTI text modified: 6.0x → 8.0x (Demo 1 baseline)');
+      if (source.standard === 'DTI_NOTICE') {
+        text = modifyDtiTextForDemo1(text);
+        console.log('  DTI text modified: 6.0x → 8.0x (Demo 1 baseline)');
+      }
+
+      const chunks = chunkText(text);
+      console.log(`  ${chunks.length} chunks → embedding...`);
+
+      const n = await embedAndInsert(source.title, source.standard, chunks);
+      totalChunks += n;
+      console.log(`  Done: ${n} chunks for ${source.standard}\n`);
+    } catch (e) {
+      console.error(`  SKIPPED ${source.standard} — ${e.message}\n`);
+      failed.push(source.standard);
     }
+  }
 
-    const chunks = chunkText(text);
-    console.log(`  ${chunks.length} chunks → embedding...`);
-
-    const n = await embedAndInsert(source.title, source.standard, chunks);
-    totalChunks += n;
-    console.log(`  Done: ${n} chunks for ${source.standard}\n`);
+  if (failed.length === APRA_SOURCES.length) {
+    console.error('  All regulatory sources failed — aborting, RegulatoryDocuments left empty.');
+    process.exit(1);
   }
 
   // Set Demo 1 baseline threshold: 8.0x (compliant state)
@@ -165,6 +176,7 @@ async function run() {
   console.log('='.repeat(70));
   console.log(`  Total chunks embedded: ${totalChunks}`);
   byStd.forEach(r => console.log(`    ${r.STANDARD}: ${r.N} chunks`));
+  if (failed.length > 0) console.log(`  Skipped sources (fetch failed): ${failed.join(', ')}`);
   console.log('\n  Demo 1 regulatory knowledge base READY');
   console.log('  Click "Apply APRA Notice" to load real 6.0x threshold → Demo 2\n');
 

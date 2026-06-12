@@ -101,10 +101,13 @@ function connectSession() {
 }
 
 // ── Core publish — queue if not yet connected, send immediately if ready ─────
+const MAX_QUEUE_SIZE = 100;
+
 async function publish(topic, payload) {
   if (!process.env.SOLACE_URL) return false;
 
   _queue.push({ topic, payload });
+  if (_queue.length > MAX_QUEUE_SIZE) _queue.shift();
 
   if (_ready && _session) {
     flushQueue();

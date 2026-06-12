@@ -31,14 +31,10 @@ async function simpleQueryNode(state) {
   let borrowerData = '';
   const customerId = state.intent?.customerId || state.customerId;
   if (customerId) {
-    const partnerMap = { 'B-001': '30100001', 'B-002': '30100002', 'B-003': '30100003',
-      'G-001': '30910005', 'G-002': '30910006' };
-    const partnerId = partnerMap[customerId] || customerId;
-
     const [dti, loans, overdue] = await Promise.all([
-      cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: partnerId })),
-      cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: partnerId })),
-      cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: partnerId, STATUS: 'OPEN' }))
+      cds.run(SELECT.from('bankingsentinel.BCA_DTI').where({ PARTNER: customerId })),
+      cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: customerId })),
+      cds.run(SELECT.from('bankingsentinel.DFKKOP').where({ GPART: customerId, STATUS: 'OPEN' }))
     ]);
 
     if (dti.length > 0) {

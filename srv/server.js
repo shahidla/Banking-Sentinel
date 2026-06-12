@@ -19,9 +19,11 @@ const {
 const { runRagasEvaluation } = require('./observability/ragas-evaluator');
 const { getLangfuse, flush: langfuseFlush } = require('./observability/langfuse-client');
 const { progressEmitter } = require('./agents/pattern-agent');
+const { runConnectivityChecks } = require('./utils/connectivity-check');
 
 let graph = null;
 let langfuse = null;
+let connectivityStatus = [];
 
 // ── SSE client registry — browser connects here for real-time agent events ──
 // AI: SSE relays per-node graph.stream() events directly to the HTML UI
@@ -66,7 +68,6 @@ function calculateCostAUD(inputTokens, outputTokens) {
 
 async function logToAuditLog(sessionId, query, response, state, latencyMs = 0) {
   try {
-    const { v4: uuid } = require('uuid');
     await cds.run(INSERT.into('bankingsentinel.AuditLog').entries({
       LOG_ID:     uuid(),
       SESSION_ID: sessionId,
@@ -126,12 +127,16 @@ cds.on('bootstrap', async (app) => {
   mountAdminUI(app);
 
   // Initialise LangGraph graph (connects to PostgreSQL for state persistence)
-  const { createBankingSentinelGraph } = require('./graph/banking-sentinel');
+  const { createBankingSentinelGraph, getCheckpointerMode } = require('./graph/banking-sentinel');
   graph = await createBankingSentinelGraph();
   console.log('  [Server] LangGraph graph ready');
 
   // Initialise Langfuse observability
   initLangfuse();
+
+  // Startup connectivity self-check (GraphDB sandbox + required API keys) —
+  // catches credential/endpoint drift between local .env and CF env at boot.
+  connectivityStatus = await runConnectivityChecks();
 
   // ── A2A Endpoint — JSON-RPC 2.0 ────────────────────────────────────────────
   // AI: A2A protocol — standard for agent-to-agent communication
@@ -330,7 +335,7 @@ cds.on('bootstrap', async (app) => {
       const latencyMs = Date.now() - startTime;
       const cost = calculateCostAUD(finalState.totalInputTokens, finalState.totalOutputTokens);
 
-      // Store latency in state so /api/report can read it without AuditLog
+      // Store latency in state so /explain can read it without AuditLog
       try { await graph.updateState(config, { totalLatencyMs: latencyMs }); } catch (_) {}
 
       console.log(`[A2A] Done | type: ${responseType} | tokens: ${finalState.totalInputTokens}in/${finalState.totalOutputTokens}out | AUD ${cost.toFixed(4)} | ${latencyMs}ms`);
@@ -571,94 +576,11 @@ cds.on('bootstrap', async (app) => {
     }
   });
 
-  // ── Explainability Report — JSON API ─────────────────────────────────────
-  // Reads the LangGraph checkpoint for a session and returns full per-agent data
-  app.get('/api/report/:sessionId', async (req, res) => {
-    const { sessionId } = req.params;
-    try {
-      if (!graph) return res.status(503).json({ error: 'Graph not ready' });
-      const checkpoint = await graph.getState({ configurable: { thread_id: sessionId } });
-      if (!checkpoint || !checkpoint.values) return res.status(404).json({ error: 'Session not found' });
-      const s = checkpoint.values;
-
-      // Pull AuditLog rows for this session from HANA
-      let auditTrail = [];
-      try {
-        auditTrail = await cds.run(
-          SELECT.from('bankingsentinel.AuditLog').where({ SESSION_ID: sessionId }).orderBy('CREATED_AT asc')
-        );
-      } catch (_) {}
-
-      const synth = s.synthesisResult || {};
-      res.json({
-        sessionId,
-        generatedAt:  new Date().toISOString(),
-        standard:     'CPS 230 · APS 221',
-        partner:      s.customerId || '—',
-        query:        s.query || '—',
-        // Intent
-        intent:       s.intent || null,
-        // Pattern Agent
-        patternAssessment: s.patternAssessment || null,
-        // Trajectory Agent
-        trajectoryAnalysis: s.trajectoryAnalysis || null,
-        // Relationship Agent
-        relationshipMap: s.relationshipMap ? {
-          nodes:         s.relationshipMap.nodes,
-          edges:         s.relationshipMap.edges,
-          groupExposure: s.relationshipMap.groupExposure,
-          aps221Pct:     s.relationshipMap.aps221Pct,
-          confidence:    s.relationshipMap.confidence,
-          finding:       s.relationshipMap.finding || null,
-          hops:          s.relationshipMap.hops || null
-        } : null,
-        // Reflection
-        reflectionEvaluation: s.reflectionEvaluation || null,
-        reflectionHistory:    s.reflectionHistory    || [],
-        requeryCount:  s.requeryCount || 0,
-        reQueryHint:   s.reQueryHint || null,
-        // Human Approval
-        hitlEnabled:  s.hitlEnabled ?? true,
-        approvedBy:   auditTrail.find(r => r.ACTION === 'human_approval')?.DETAILS || null,
-        // Synthesis
-        riskScore:    synth.riskScore,
-        riskLevel:    synth.riskLevel,
-        confidence:   synth.confidence,
-        findings:     synth.findings || [],
-        recommendations: synth.recommendations || [],
-        regulatoryRefs:  synth.regulatoryRefs || [],
-        uncertainties:   synth.uncertainties || [],
-        apraReady:    synth.apraReady,
-        // Tokens + cost totals — from audit trail if available, else calculated from state tokens
-        totalInputTokens:  s.totalInputTokens || 0,
-        totalOutputTokens: s.totalOutputTokens || 0,
-        totalCostAUD:  auditTrail.length
-          ? auditTrail.reduce((sum, r) => sum + (parseFloat(r.COST_AUD) || 0), 0)
-          : calculateCostAUD(s.totalInputTokens || 0, s.totalOutputTokens || 0),
-        totalLatencyMs: auditTrail.reduce((sum, r) => sum + (parseInt(r.LATENCY_MS) || 0), 0) || (s.totalLatencyMs || 0),
-        // SAP tables accessed during this pipeline run
-        trbkTables: ['BUT050', 'BCA_GUARANTOR', 'DFKKOP', 'DFKKOPK', 'BCA_DTI', 'BCA_LOAN_HDR', 'Loans', 'BCA_SECTOR'],
-        // Audit
-        auditTrail:   auditTrail.map(r => ({
-          action:    r.ACTION,
-          model:     r.MODEL,
-          tokensIn:  r.TOKENS_IN,
-          tokensOut: r.TOKENS_OUT,
-          costAUD:   r.COST_AUD,
-          latencyMs: r.LATENCY_MS
-        }))
-      });
-    } catch (err) {
-      console.error('[Report]', err.message);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ── Explainability Report — HTML page ────────────────────────────────────
-  // Self-contained page; fetches /api/report/:sessionId and renders full trail
+  // ── Risk Analysis Report — redirect to the merged Evidence Trail page ────
+  // /report and /explain used to be separate pages; they are now one page
+  // (covering both "what it found" and "how it works"), served at /explain.
   app.get('/report/:sessionId', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(require('./report-page').renderReportPage(req.params.sessionId));
+    res.redirect('/explain/' + req.params.sessionId);
   });
 
   // ── Evidence Explanation — HTML page ─────────────────────────────────────
@@ -708,11 +630,14 @@ cds.on('bootstrap', async (app) => {
 
   // Health check
   app.get('/a2a/health', (req, res) => {
+    const issues = connectivityStatus.filter(c => !c.ok);
     res.json({
       status: 'ok',
       service: 'banking-sentinel',
       graph: graph ? 'ready' : 'not initialised',
-      langfuse: langfuse ? 'connected' : 'not connected'
+      checkpointer: getCheckpointerMode(),
+      langfuse: langfuse ? 'connected' : 'not connected',
+      connectivity: issues.length === 0 ? 'ok' : issues.map(c => ({ name: c.name, detail: c.detail }))
     });
   });
 
@@ -732,6 +657,15 @@ cds.on('bootstrap', async (app) => {
 cds.on('served', () => {
   console.log('  [Server] CAP OData service ready');
   console.log('  [Server] Banking Sentinel fully operational\n');
+});
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+// AI: CF sends SIGTERM before killing the container — flush Langfuse traces
+// Banking: in-flight observability data must not be lost on redeploy/restart
+process.on('SIGTERM', async () => {
+  console.log('  [Server] SIGTERM received — flushing Langfuse traces');
+  await langfuseFlush();
+  process.exit(0);
 });
 
 module.exports = cds.server;

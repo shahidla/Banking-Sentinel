@@ -98,9 +98,12 @@
   }
 
   .ab-label { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.7); white-space: nowrap; }
-  .ab-items { display: flex; gap: 16px; overflow: hidden; }
+  .ab-items { flex: 1; min-width: 0; overflow: hidden; }
+  .ab-track { display: inline-flex; gap: 16px; white-space: nowrap; animation: ab-scroll linear infinite; animation-duration: var(--ab-duration, 30s); will-change: transform; }
+  .ab-items:hover .ab-track { animation-play-state: paused; }
   .ab-item { font-family: var(--sans); font-size: 11px; font-weight: 500; color: var(--white); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
   .ab-sep { color: rgba(255,255,255,0.3); }
+  @keyframes ab-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
   /* MAIN */
   main {
@@ -382,7 +385,7 @@
 
 <div class="alert-bar" id="liveAlertsBar" style="display:none;">
   <div class="ab-label">Live Alerts</div>
-  <div class="ab-items" id="liveAlertItems"></div>
+  <div class="ab-items"><div class="ab-track" id="liveAlertItems"></div></div>
 </div>
 
 <!-- Agent Detail Popup Modal -->
@@ -929,13 +932,19 @@ function getCompletionHtml(e) {
     case 'trajectory': {
       const fp     = e.forwardPosition || '—';
       const col    = fp === 'DETERIORATING' ? 'r' : fp === 'IMPROVING' ? 'g' : fp === 'MONITORING' ? 'w' : 'w';
+      const fpDesc = {
+        DETERIORATING: 'Debt position is worsening — already over the limit, projected to breach it, or income at risk within 90 days.',
+        STABLE:        'Debt position is healthy — comfortably under the limit with no near-term income risk.',
+        IMPROVING:     'Debt position is strong — well under the limit with no income-expiry risk on record.',
+        MONITORING:    'Does not clearly fit the other categories — held under routine watch, no immediate concern.'
+      }[fp] || '';
       const dte    = e.daysToExpiry != null ? ` · Income expiry <span class="r">${e.daysToExpiry}d</span>` : '';
       const sigs   = (e.conflictingSignals || []).length;
       const sigTxt = sigs > 0 ? ` · <span class="w">${sigs} conflicting signal${sigs > 1 ? 's' : ''}</span>` : '';
       const ttb    = e.timeToBreach != null
         ? (e.timeToBreach < 0 ? ` · Breach active <span class="r">${Math.abs(e.timeToBreach)}d</span>` : ` · Breach projected <span class="w">${e.timeToBreach}d</span>`)
         : '';
-      return `Forward: <span class="${col}">${fp}</span>${dte}${sigTxt}${ttb}`;
+      return `Forward: <span class="${col}" title="${fpDesc}" style="cursor:help;border-bottom:1px dotted currentColor">${fp}</span>${dte}${sigTxt}${ttb}`;
     }
     case 'synthesis': {
       const fc = e.findingsCount || '?';
@@ -1444,13 +1453,17 @@ function renderRiskBrief(s) {
   document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's total';
   document.getElementById('reportBtnWrap').style.display = 'flex'; // show after synthesis
 
-  // Populate live alerts bar (top ticker) from findings
+  // Populate live alerts bar (scrolling ticker) from findings
   const findings = s.findings || [];
   if (findings.length > 0) {
-    const barHtml = findings.slice(0, 3).map(f =>
-      `<div class="ab-item">▲ ${(f.finding || '').substring(0, 80)}</div>`
-    ).join('<div class="ab-sep">|</div>');
-    document.getElementById('liveAlertItems').innerHTML = barHtml;
+    const escHtml = t => (t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const items = findings.map(f => `<div class="ab-item">▲ ${escHtml(f.finding)}</div>`);
+    const itemsHtml = items.join('<div class="ab-sep">|</div>');
+    // Duplicate the track so translateX(-50%) loops seamlessly; speed scales with content length.
+    const track = document.getElementById('liveAlertItems');
+    track.innerHTML = itemsHtml + '<div class="ab-sep">|</div>' + itemsHtml;
+    const totalChars = items.reduce((sum, t) => sum + t.length, 0);
+    track.style.setProperty('--ab-duration', Math.max(20, totalChars * 0.12) + 's');
     document.getElementById('liveAlertsBar').style.display = 'flex';
     const pill = document.getElementById('alertCountPill');
     pill.textContent = `▲ ${findings.length} Alert${findings.length !== 1 ? 's' : ''}`;
@@ -1458,10 +1471,10 @@ function renderRiskBrief(s) {
   }
 }
 
-// ── Explainability Report ─────────────────────────────────────────────────────
+// ── Risk Analysis Report (merged evidence trail + agent reference) ────────────
 function openExplainReport() {
   if (!sessionId) return;
-  window.open(`${API}/report/${sessionId}`, '_blank', 'noopener');
+  window.open(`${API}/explain/${sessionId}`, '_blank', 'noopener');
 }
 
 // ── Graph canvas ──────────────────────────────────────────────────────────────

@@ -148,7 +148,7 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`
   }
   // Strip markdown code fences, then extract the first balanced JSON object
   const text = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  const brief = extractJson(text);
+  let brief = extractJson(text);
   if (!brief) console.warn('  [Synthesis] JSON parse failed. Raw LLM output:', rawText.substring(0, 800));
 
   // Coerce riskScore to number if LLM returned it as string

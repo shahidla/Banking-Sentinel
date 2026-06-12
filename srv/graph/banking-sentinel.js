@@ -1,8 +1,9 @@
 // Banking Sentinel — LangGraph StateGraph
 // AI: StateGraph orchestrates five specialist agents. Conditional edges = dynamic routing.
 //     Each node reads ALL previous findings from state, adds its own, passes forward.
-// Banking: Sequential risk analysis: Intake → Pattern → Relationship → Trajectory → Synthesis
-//          With conditional shortcuts: simple queries skip the pipeline entirely
+// Banking: Sequential risk analysis: Intake → Pattern → (high-risk) Trajectory → Relationship
+//          → Reflection → Human Approval → Synthesis. Low-risk shortcut: Pattern routes
+//          straight to Synthesis, skipping Trajectory/Relationship/Reflection entirely.
 // SAP: LangGraph on BTP CF. PostgresSaver = CPS 230 operational resilience requirement.
 //      MemorySaver resets on CF restart — not acceptable for production.
 
@@ -24,6 +25,11 @@ const { humanApprovalNode } = require('../agents/human-approval');
 const { reflectionNode, checkConfidence } = require('../agents/reflection');
 
 let graphInstance = null;
+let checkpointerMode = 'unknown';
+
+function getCheckpointerMode() {
+  return checkpointerMode;
+}
 
 async function createBankingSentinelGraph() {
   if (graphInstance) return graphInstance;
@@ -43,6 +49,7 @@ async function createBankingSentinelGraph() {
     const pgCheckpointer = new PostgresSaver(pgPool);
     await pgCheckpointer.setup();
     checkpointer = pgCheckpointer;
+    checkpointerMode = 'postgres';
     console.log('  [Graph] PostgresSaver initialised — agent state will survive CF restarts');
   } catch (e) {
     // VCAP_APPLICATION is always set by CF — reject MemorySaver in any CF environment
@@ -51,6 +58,7 @@ async function createBankingSentinelGraph() {
       throw new Error(`PostgresSaver required on BTP CF — set POSTGRES_URL env var. ${e.message}`);
     }
     checkpointer = new MemorySaver();
+    checkpointerMode = 'memory (non-persistent)';
     console.warn(`  [Graph] PostgresSaver unavailable (${e.message.substring(0, 60)}) — MemorySaver active (LOCAL DEV ONLY — state will not survive restarts)`);
   }
 
@@ -84,7 +92,7 @@ async function createBankingSentinelGraph() {
   graph.addEdge('rejection',   END);
 
   // ── Risk pipeline — pattern runs first, then routes on score ──────────────
-  // AI: routeAfterPattern shortcut — score < 30 skips Relationship + Trajectory + Reflection
+  // AI: routeAfterPattern shortcut — score < 30 skips Trajectory + Relationship + Reflection
   // Banking: Performing borrower (score 5) gets a fast synthesis; high-risk gets full pipeline
   graph.addEdge('riskStart', 'pattern');
 
@@ -119,4 +127,4 @@ async function createBankingSentinelGraph() {
   return graphInstance;
 }
 
-module.exports = { createBankingSentinelGraph };
+module.exports = { createBankingSentinelGraph, getCheckpointerMode };

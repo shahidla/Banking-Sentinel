@@ -4,10 +4,11 @@ LangGraph multi-agent risk-analysis demo for an Australian bank, built on SAP CA
 
 ## Architecture
 
-**Agent pipeline** (`srv/agents/`): Intake → Pattern → Relationship → Trajectory → Synthesis,
-orchestrated as a LangGraph StateGraph in `srv/server.js`. Intake classifies queries
-(SIMPLE_DATA_QUERY / RISK_ANALYSIS / INAPPROPRIATE_REQUEST) via an LLM; RISK_ANALYSIS is the
-default fallback.
+**Agent pipeline** (`srv/agents/`): Intake → Pattern, then `routeAfterPattern` branches on risk
+score — low_risk → Synthesis directly, high_risk → Trajectory → Relationship → Reflection →
+Human Approval → Synthesis. Orchestrated as a LangGraph StateGraph in
+`srv/graph/banking-sentinel.js`. Intake classifies queries (SIMPLE_DATA_QUERY / RISK_ANALYSIS /
+INAPPROPRIATE_REQUEST) via an LLM; RISK_ANALYSIS is the default fallback.
 
 Pattern Agent (`srv/agents/pattern-agent.js`) runs three things in parallel via
 `Promise.allSettled`:
@@ -33,9 +34,9 @@ active loan), **DFKKOPK** (cleared items / payment history — ~12 months per lo
 
 DFKKOP+DFKKOPK together give every demo loan a full payment story: months of clean DFKKOPK
 history, then current open/overdue DFKKOP items. `srv/explain-agent.js` does a 3-way
-cross-reference of LoanSchedule ↔ DFKKOP ↔ DFKKOPK using a fixed reference date
-`SCHEDULE_TODAY = '2026-05-21'` (a deliberate "demo today", not the wall-clock date) to
-distinguish genuinely-missing past-due payments from not-yet-due future ones.
+cross-reference of LoanSchedule ↔ DFKKOP ↔ DFKKOPK using `SCHEDULE_TODAY` (computed live as
+`new Date().toISOString().split('T')[0]`) to distinguish genuinely-missing past-due payments
+from not-yet-due future ones.
 
 11 demo customers: 30100001-30100006, 30100008-30100010, 30100012-30100013
 (30100007/30100011 don't exist — used as "not found" test cases).
@@ -54,6 +55,26 @@ distinguish genuinely-missing past-due payments from not-yet-due future ones.
 `npm run start:local` — already passes `--profile hybrid` to `cds serve`, no `CDS_ENV` needed.
 Standalone scripts (`scripts/*.js`) need `CDS_ENV=hybrid node --env-file=.env scripts/<name>.js`
 since they call `cds.connect.to('db')` directly without a `--profile` flag.
+
+## Credential / endpoint drift (local .env vs CF)
+
+`.env` (local) and the CF app's env vars (`cf set-env` / `manifest.yml.template`) are two
+separate copies — nothing syncs them automatically. When a key rotates locally (API keys,
+`GRAPHDB_PASSWORD`) or the GraphDB sandbox is replaced (expires every 7 days,
+`GRAPHDB_ENDPOINT`/`GRAPHDB_PASSWORD` change), CF keeps the old value until someone runs:
+
+```bash
+cf set-env banking-sentinel <VAR> "<new value>"
+cf restage banking-sentinel
+```
+
+`GET /a2a/health` reports a `connectivity` field — a startup self-check
+(`srv/utils/connectivity-check.js`) verifies required env vars are set and does a live
+GraphDB SPARQL `ASK` against `GRAPHDB_ENDPOINT`/`GRAPHDB_REPOSITORY`. A redirect (expired
+sandbox) or HTTP error shows up there immediately after deploy/restart — check this before
+debugging a "GraphDB traversal failed" error deeper in the pipeline. Also update
+`manifest.yml.template`'s `GRAPHDB_ENDPOINT` so a future `cf push` doesn't reintroduce the
+stale value.
 
 ## HANA Cloud trial recovery
 

@@ -10,6 +10,7 @@ const { EventEmitter } = require('events');
 const { startSpan, endSpan } = require('../observability/langfuse-client');
 const { ChatAnthropic } = require('@langchain/anthropic');
 const { extractJson } = require('../utils/llm-json');
+const { fetchWithRetry } = require('../utils/fetch-retry');
 
 const progressEmitter = new EventEmitter();
 progressEmitter.setMaxListeners(50);
@@ -106,12 +107,12 @@ async function callRpt1(data, customerId) {
     }
   };
 
-  const response = await fetch('https://rpt.cloud.sap/api/predict', {
+  const response = await fetchWithRetry('https://rpt.cloud.sap/api/predict', () => ({
     method:  'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body:    JSON.stringify(payload),
     signal:  AbortSignal.timeout(20000)
-  });
+  }));
 
   const rawResponse = await response.text();
   console.log(`  [Pattern/RPT-1] HTTP ${response.status} — ${rawResponse.length} chars — context rows:${contextRows.length}`);
@@ -190,12 +191,12 @@ async function runScikitAnomalyDetection(data, customerId) {
     })),
   ];
 
-  const response = await fetch(`${url}/anomaly`, {
+  const response = await fetchWithRetry(`${url}/anomaly`, () => ({
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ portfolio, payments }),
     signal:  AbortSignal.timeout(15000)
-  });
+  }));
 
   if (!response.ok) {
     const text = await response.text();

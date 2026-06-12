@@ -267,7 +267,11 @@ async function loadSessions() {
         const sid   = r.SESSION_ID || '';
         const cost  = r.COST_AUD   ? 'AUD ' + Number(r.COST_AUD).toFixed(4) : '—';
         const lat   = r.LATENCY_MS ? Math.round(r.LATENCY_MS / 1000) + 's'  : '—';
-        const tok   = (r.TOKENS_IN || r.TOKENS_OUT) ? (r.TOKENS_IN || 0) + '+' + (r.TOKENS_OUT || 0) : '—';
+        const tIn   = r.TOKENS_IN  || 0;
+        const tOut  = r.TOKENS_OUT || 0;
+        const tok   = (tIn || tOut)
+          ? \`<span title="\${tIn.toLocaleString()} in / \${tOut.toLocaleString()} out">\${(tIn + tOut).toLocaleString()}</span>\`
+          : '—';
         html += \`<tr>
           <td><span style="color:\${col};font-weight:700">\${r.RISK_LEVEL || '—'}</span></td>
           <td class="num">\${r.RISK_SCORE ?? '—'}</td>
@@ -279,8 +283,7 @@ async function loadSessions() {
           <td>\${ts}</td>
           <td style="font-family:monospace;font-size:10px;color:#94a3b8;word-break:break-all">\${sid}</td>
           <td style="display:flex;gap:6px;flex-wrap:nowrap">
-            <button onclick="window.open('/report/\${sid}','_blank','noopener')" style="padding:4px 10px;background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;border-radius:3px;font-size:12px;cursor:pointer;white-space:nowrap">View Report ↗</button>
-            <button onclick="window.open('/explain/\${sid}','_blank','noopener')" style="padding:4px 10px;background:#14532d;color:#4ade80;border:1px solid #166534;border-radius:3px;font-size:12px;cursor:pointer;white-space:nowrap">Explain ↗</button>
+            <button onclick="window.open('/explain/\${sid}','_blank','noopener')" style="padding:4px 10px;background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;border-radius:3px;font-size:12px;cursor:pointer;white-space:nowrap">View Report ↗</button>
             <button onclick="deleteSession('\${sid}',this)" style="padding:4px 10px;background:#3d1515;color:#fca5a5;border:1px solid #7f1d1d;border-radius:3px;font-size:12px;cursor:pointer">✕</button>
           </td>
         </tr>\`;

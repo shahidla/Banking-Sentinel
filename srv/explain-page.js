@@ -9,7 +9,7 @@ function renderExplainPage(sessionId) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Banking Sentinel — Evidence Trail</title>
+<title>Banking Sentinel — Risk Analysis Report</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -113,6 +113,19 @@ function renderExplainPage(sessionId) {
   .context-note strong{color:rgba(255,255,255,0.9);font-weight:600}
   /* Agent note */
   .agent-note{font-size:12px;color:var(--mid);background:#f8f9fb;border:1px solid var(--border);border-radius:3px;padding:10px 12px;margin-top:6px;line-height:1.7}
+  /* System Overview — per-agent reference cards */
+  .agent-cards{display:flex;flex-direction:column;gap:12px}
+  .agent-card{border:1px solid var(--border);border-radius:3px;overflow:hidden}
+  .agent-card-hdr{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#eef1f5}
+  .agent-num{font-family:var(--mono);font-size:10px;font-weight:700;color:#fff;background:var(--dark);padding:2px 8px;border-radius:2px;letter-spacing:0.5px;white-space:nowrap}
+  .agent-name{font-weight:700;font-size:13px;flex:1;color:var(--dark)}
+  .agent-pattern{font-family:var(--mono);font-size:10px;color:var(--amber);text-align:right}
+  .agent-card .sub-title{margin:10px 14px 6px}
+  .how-grid{display:grid;grid-template-columns:190px 1fr;gap:0;padding:0 14px 8px}
+  .how-item{display:contents}
+  .how-item .how-k{font-family:var(--mono);font-size:10px;color:var(--amber);padding:5px 12px 5px 0;border-bottom:1px solid rgba(0,0,0,0.04)}
+  .how-item .how-v{font-size:12px;color:var(--mid);padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.04);line-height:1.6}
+  .how-item:last-child .how-k,.how-item:last-child .how-v{border-bottom:none}
   /* Error */
   #error-msg{display:none;background:#2d1515;border:1px solid #7f1d1d;border-radius:4px;padding:16px 20px;color:#fca5a5;margin-bottom:20px}
   /* Footer */
@@ -125,13 +138,12 @@ function renderExplainPage(sessionId) {
 
 <header>
   <div class="hdr-left">
-    <h1>Banking Sentinel — Evidence Trail</h1>
+    <h1>Banking Sentinel — Risk Analysis Report</h1>
     <div class="sub" id="hdr-sub">Session ${sessionId.slice(0,12)}… · Loading…</div>
   </div>
   <div class="hdr-right">
     <span class="badge-level" id="hdr-badge" style="display:none"></span>
     <button class="print-btn" onclick="window.print()">⎙ Print</button>
-    <button class="print-btn" onclick="window.open('/report/${sessionId}','_blank')">Risk Report ↗</button>
   </div>
 </header>
 
@@ -148,9 +160,14 @@ function renderExplainPage(sessionId) {
   <div class="kpi-row" id="kpi-row" style="display:none">
     <div class="kpi"><div class="kpi-label">Risk Score</div><div class="kpi-val" id="kpi-score">—</div><div class="kpi-sub">out of 100</div></div>
     <div class="kpi"><div class="kpi-label">Risk Level</div><div class="kpi-val" id="kpi-level" style="font-size:16px">—</div></div>
+    <div class="kpi"><div class="kpi-label">Confidence</div><div class="kpi-val" id="kpi-confidence" style="font-size:18px">—</div><div class="kpi-sub">Synthesis confidence</div></div>
+    <div class="kpi"><div class="kpi-label">APRA Status</div><div class="kpi-val" id="kpi-apra" style="font-size:16px">—</div><div class="kpi-sub" id="kpi-approved-by">—</div></div>
     <div class="kpi"><div class="kpi-label">Customer</div><div class="kpi-val" style="font-size:16px" id="kpi-partner">—</div></div>
     <div class="kpi"><div class="kpi-label">Session</div><div class="kpi-val" style="font-size:11px;font-family:monospace" id="kpi-session">—</div></div>
     <div class="kpi"><div class="kpi-label">Generated</div><div class="kpi-val" style="font-size:13px" id="kpi-ts">—</div></div>
+    <div class="kpi"><div class="kpi-label">Tokens</div><div class="kpi-val" id="kpi-tokens" style="font-size:18px">—</div><div class="kpi-sub" id="kpi-tokens-sub">—</div></div>
+    <div class="kpi"><div class="kpi-label">Cost (AUD)</div><div class="kpi-val" id="kpi-cost" style="font-size:18px">—</div></div>
+    <div class="kpi"><div class="kpi-label">Latency</div><div class="kpi-val" id="kpi-latency" style="font-size:18px">—</div></div>
   </div>
 
   <div id="sections-container"></div>
@@ -170,7 +187,7 @@ const statusText = document.getElementById('status-text');
 const statusDone = document.getElementById('status-done');
 
 let sectionCount  = 0;
-const TOTAL_SECTIONS = 8;
+const TOTAL_SECTIONS = 10;
 let sectionCursors = {};  // sectionId → cursor element
 
 const levelColors = { CRITICAL:'critical', HIGH:'high', MEDIUM:'medium', LOW:'low' };
@@ -257,6 +274,10 @@ function handleEvent(ev) {
       setProgress(5);
       break;
 
+    case 'explain_meta':
+      populateMeta(ev);
+      break;
+
     case 'explain_section_begin':
       statusText.textContent = 'Building: ' + ev.title + '…';
       mkSection(ev);
@@ -288,15 +309,48 @@ function handleEvent(ev) {
   }
 }
 
-// Populate KPI score/level from DOM once verdict section arrives
-function tryPopulateKpis() {
-  setTimeout(() => {
-    const scoreEl = document.querySelector('.kv-val');  // first kv-val in snapshot
-    const badge   = document.getElementById('hdr-badge');
-    const kpiScore = document.getElementById('kpi-score');
-    const kpiLevel = document.getElementById('kpi-level');
-    // These get populated from explain_start data or from verdict section
-  }, 500);
+// Populates the KPI row + header badge from the explain_meta event — fired once,
+// before sections begin streaming, with the run's risk score, confidence, APRA
+// status and cost/token/latency totals (same data on cached replays).
+function levelColor(level) {
+  return { CRITICAL:'#D42020', HIGH:'#D42020', MEDIUM:'#C47A00', LOW:'#0D7A3E' }[level] || '#888';
+}
+
+function populateMeta(ev) {
+  const scoreEl = document.getElementById('kpi-score');
+  const levelEl = document.getElementById('kpi-level');
+  const badge   = document.getElementById('hdr-badge');
+
+  if (ev.riskScore != null) {
+    scoreEl.textContent = ev.riskScore;
+    scoreEl.style.color = levelColor(ev.riskLevel);
+  }
+  if (ev.riskLevel) {
+    levelEl.textContent = ev.riskLevel;
+    levelEl.style.color = levelColor(ev.riskLevel);
+    badge.textContent = ev.riskLevel + ' RISK';
+    badge.className = 'badge-level ' + (levelColors[ev.riskLevel] || '');
+    badge.style.display = 'inline-block';
+  }
+  if (ev.confidence != null) {
+    document.getElementById('kpi-confidence').textContent = Math.round(ev.confidence * 100) + '%';
+  }
+  if (ev.apraReady != null) {
+    const apraEl = document.getElementById('kpi-apra');
+    apraEl.textContent = ev.apraReady ? '✓ Ready' : '⚠ Review';
+    apraEl.style.color = ev.apraReady ? '#0D7A3E' : '#C47A00';
+  }
+  document.getElementById('kpi-approved-by').textContent = ev.approvedBy || 'Auto-approved';
+
+  const totalTokens = (ev.totalInputTokens || 0) + (ev.totalOutputTokens || 0);
+  document.getElementById('kpi-tokens').textContent = totalTokens.toLocaleString();
+  document.getElementById('kpi-tokens-sub').textContent = (ev.totalInputTokens || 0) + ' in · ' + (ev.totalOutputTokens || 0) + ' out';
+  document.getElementById('kpi-cost').textContent = 'AUD ' + (ev.totalCostAUD || 0).toFixed(4);
+  document.getElementById('kpi-latency').textContent = Math.round((ev.totalLatencyMs || 0) / 1000) + 's';
+
+  if (ev.generatedAt) {
+    document.getElementById('kpi-ts').textContent = new Date(ev.generatedAt).toLocaleString();
+  }
 }
 
 // SSE connection

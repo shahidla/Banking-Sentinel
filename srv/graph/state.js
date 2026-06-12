@@ -144,9 +144,9 @@ const BankingSentinelState = Annotation.Root({
   reflectionHistory: Annotation({ reducer: append, default: () => [] }),
 
   // ── Pipeline config ────────────────────────────────────────────────────────
-  // AI: HITL toggle — persisted so /api/report can read the mode for a given session
+  // AI: HITL toggle — persisted so /explain can read the mode for a given session
   // Banking: CPS 230 co-pilot — report must show whether human approved or auto-approved
-  // SAP: Set in initialState from params.hitl; read by /api/report endpoint
+  // SAP: Set in initialState from params.hitl; read by the merged /explain report
   hitlEnabled: Annotation({ reducer: last, default: () => true }),
 
   // ── Observability ──────────────────────────────────────────────────────────

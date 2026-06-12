@@ -28,11 +28,25 @@ applications:
       OPENAI_EMBEDDING_MODEL: text-embedding-3-small
       LANGFUSE_HOST: https://us.cloud.langfuse.com
       LANGFUSE_BASE_URL: https://us.cloud.langfuse.com
-      GRAPHDB_ENDPOINT: https://t5f027c83a0e2488da5e.sandbox.graphwise.ai
+      GRAPHDB_ENDPOINT: https://hb5e1e56a3de544c297a.sandbox.graphwise.ai
       GRAPHDB_REPOSITORY: banking-sentinel
       ANOMALY_ENGINE: scikit
-      SCIKIT_SERVICE_URL: http://localhost:5001
+      SCIKIT_SERVICE_URL: https://banking-sentinel-scikit.cfapps.us10-001.hana.ondemand.com
       SOLACE_URL: wss://mr-connection-rcgt0ju559a.messaging.solace.cloud:443
       SOLACE_VPN: mj-live
       SOLACE_USERNAME: solace-cloud-client
       ADMIN_IP_WHITELIST: disabled
+
+  # ── Scikit Isolation Forest anomaly service (Flask) ──────────────────────────
+  # AI: separate CF app so the Node app's nodejs_buildpack doesn't need Python.
+  # Banking: ANOMALY_ENGINE=scikit (above) calls this app's /anomaly endpoint.
+  - name: banking-sentinel-scikit
+    memory: 512M
+    disk_quota: 512M
+    instances: 1
+    buildpacks:
+      - python_buildpack
+    path: ml
+    command: python anomaly-service.py
+    routes:
+      - route: banking-sentinel-scikit.cfapps.us10-001.hana.ondemand.com
