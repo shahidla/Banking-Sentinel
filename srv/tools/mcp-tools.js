@@ -47,6 +47,10 @@ async function getEmbedding(text) {
 }
 
 async function hana_vector_search({ query, topK = 5, useHyDE = false, standard = null }) {
+  // AI: topK comes from an LLM tool call and is interpolated into a SQL TOP clause —
+  //     clamp to a safe integer range so a malformed/injected value can't reach SQL text.
+  topK = Number.isInteger(topK) && topK > 0 && topK <= 20 ? topK : 5;
+
   let searchText = query;
 
   // HyDE: generate a hypothetical APRA document excerpt first, then embed that

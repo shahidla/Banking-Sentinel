@@ -295,6 +295,28 @@ guardrail (claim-source overlap, post-synthesis, gates `apraReady`) remain
 as the two quality-control layers — both already did real work, unlike
 RAGAS.
 
+## Completed — review re-audit + M-4 fix (this session)
+Re-checked the remaining production_review.md LOW/MEDIUM items against
+current code — most were already fixed in earlier sessions, review doc was
+stale:
+- L-2 (duplicate uuid import), L-3 (`const brief` reassignment), L-4
+  (unreachable IMPROVING state), L-7 (SIGTERM handler), L-8 (requirements.txt
+  pins), L-9 (Solace queue cap), L-10 (.cfignore), M-1 (intake-agent
+  extractJson), M-8 (checkpointer mode on /a2a/health) — all already done.
+  CLAUDE.md's stale M-1 note corrected.
+- **M-4 fixed this session**: `srv/tools/mcp-tools.js` `hana_vector_search` —
+  `topK` is an LLM tool-call argument interpolated into `SELECT TOP ${topK}`.
+  Clamped to `Number.isInteger(topK) && topK > 0 && topK <= 20 ? topK : 5`
+  before use. Verified live: full risk-analysis run for 30100003 (HTTP 200,
+  riskScore 63 HIGH, vector search/APS221 retrieval working normally).
+
+## Remaining open items (not yet triaged this session)
+- H-2 (SSE client registry — bounded by `req.on('close')`, likely fine for
+  PoC), H-3 (SCIKIT_SERVICE_URL hardcoded in CF manifest), H-5 (no rate
+  limit/body-size limit), H-6 (CORS `*` on SSE/explain-stream), L-1 (no test
+  suite), L-6 (DTI parsing fallback + operator override endpoint), C-2
+  (rotate shared passwords — ops task, not code).
+
 ## Deferred (explicit, do not implement without further instruction)
 - Auth-related fixes (C-3/C-4/C-5/H-1/M-5) and `.cdsrc.json` (C-1) — "not
   required" for this PoC per user, deferred indefinitely.
