@@ -157,7 +157,7 @@ const BankingSentinelState = Annotation.Root({
   totalOutputTokens: Annotation({ reducer: sum,  default: () => 0 }),
   totalLatencyMs:    Annotation({ reducer: last, default: () => 0 }),
 
-  // AI: Retrieved APRA regulatory chunks — set by Synthesis Agent, read by RAGAS evaluator
+  // AI: Retrieved APRA regulatory chunks — set by Synthesis Agent, read by its own guardrail
   // Banking: Faithfulness check: does the risk brief cite regulations that were actually retrieved?
   // SAP: Stored without EMBEDDING field (too large) — STANDARD + CONTENT only
   retrievedDocs: Annotation({ reducer: last }),

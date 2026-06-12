@@ -583,7 +583,6 @@
   <div class="sb-item">Tokens <span id="tc">0</span></div>
   <div class="sb-item">Latency <span id="lat">—</span></div>
   <div class="sb-item">Synth Conf <span id="rag">—</span></div>
-  <div class="sb-item">RAGAS <span id="ragScore">—</span></div>
   <div class="sb-item">Connected Entities <span id="gh">0</span></div>
   <div class="sb-item">Reflection Re-queries <span id="rq">0</span></div>
   <div class="sb-item">Cost <span id="costAud">—</span></div>
@@ -858,16 +857,6 @@ function handleEvent(evt) {
     summary.innerHTML = lines.map(l => `<div>· ${l}</div>`).join('');
     agentData.humanApproval = e;
     document.getElementById('approveBar').style.display = 'flex';
-  }
-
-  if (e.type === 'ragas_scores') {
-    const f = e.faithfulness    != null ? e.faithfulness    : null;
-    const r = e.answer_relevance != null ? e.answer_relevance : null;
-    const avg = (f != null && r != null) ? ((f + r) / 2) : (f ?? r ?? 0);
-    const el = document.getElementById('ragScore');
-    el.textContent = avg.toFixed(2);
-    el.style.color = avg >= 0.70 ? '#2add7a' : avg >= 0.50 ? '#FFD000' : '#ff6666';
-    return;
   }
 
   if (e.type === 'regulatory_update') {
@@ -1270,7 +1259,7 @@ const AGENT_HOW = {
       { label: 'Per-signal retrieval', val: 'Four separate searches: DTI → APS 220 DTI clauses, group exposure → APS 221 connected party limits, income expiry → CPS 230 risk management, governance → CPS 230 AI oversight. Deduped, capped at 7 chunks.' },
       { label: 'Why RAG', val: 'Brief must cite specific APRA standards, not training data. APRA standards change — Vector store is updated via the APRA Notice button. Without RAG, LLM cites outdated training-data versions.' },
       { label: 'apraReady flag', val: 'Deterministic — not LLM-decided. All must pass: synthesis confidence ≥ 0.70, regulatory refs retrieved, no unresolved Reflection gaps, no embedding service failure.' },
-      { label: 'SAP Technology', val: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity · Langfuse RAGAS evaluation' }
+      { label: 'SAP Technology', val: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity' }
     ]
   }
 };

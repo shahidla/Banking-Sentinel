@@ -257,7 +257,7 @@ const AGENT_HOW = {
       { k: 'Output',         v: '{ riskScore, riskLevel, confidence, findings[], recommendations[], regulatoryRefs[], uncertainties[], apraReady }. Persisted to RiskAssessments.' },
       { k: '"APRA Ready" gate (deterministic)', v: 'NOT an LLM decision — a hard logical AND of four code-checked conditions: synthesis confidence ≥ 70%, Reflection evidence check passed, regulatory references retrieved, vector-search context available. A separate "claim-source overlap" guardrail then cross-checks each finding\'s wording against the retrieved chunks — low overlap adds an uncertainty flagging possible hallucination.' },
       { k: 'Why RAG',        v: 'The brief must cite specific, CURRENT APRA standards, not the LLM\'s training-data snapshot. APRA standards change — the Vector store is refreshed via the APRA Notice button. Without RAG the model would cite outdated clause numbers.' },
-      { k: 'SAP Technology', v: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity · Langfuse RAGAS evaluation' }
+      { k: 'SAP Technology', v: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity' }
     ]
   }
 };

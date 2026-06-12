@@ -264,23 +264,38 @@ From `Docs/code review/PROD-GRADE-REVIEW.md` / `production_review.md`
   fix re-verified (30100001 5.8→5.95, 30100003 7.2→7.42, neither falsely
   breaches the 8.0 limit).
 
+## Completed — #15 RAGAS removal
+After discussion, decided RAGAS was redundant: its `faithfulness` metric
+duplicated the Synthesis guardrail's `crossCheckClaimsAgainstSources`
+(same `findings` vs `regulatoryDocs` comparison, just LLM-based), and both
+suffer the same structural flaw — general APRA policy text can never
+"support" customer-specific HANA findings (DTI ratios, dollar exposures),
+so the score sits near 0.00 regardless of actual brief quality. The only
+non-duplicated metric (`answer_relevance`) had no consumer either — neither
+gated `apraReady` nor was persisted to HANA, only shipped to Langfuse +
+an SSE `ragas_scores` event for a UI badge.
+
+Removed entirely (option 1):
+- Deleted `srv/observability/ragas-evaluator.js`.
+- `srv/server.js`: removed the import and both `runRagasEvaluation(...)`
+  fire-and-forget call sites (initial analysis path + `/a2a/approve` path).
+- `srv/observability/langfuse-client.js`: removed now-unused `submitScore`
+  helper and its export.
+- `v0-source-files/Banking-Sentinel-AustralianBank.html`: removed the
+  "RAGAS" status-bar badge (`#ragScore`) and its `ragas_scores` SSE handler;
+  removed "Langfuse RAGAS evaluation" from the Synthesis Agent's "SAP
+  Technology" info-panel label (also in `srv/explain-agent.js`).
+- `srv/graph/state.js`: updated stale `retrievedDocs` comment ("read by
+  RAGAS evaluator" → "read by its own guardrail").
+- `CLAUDE.md`: removed `ragas-evaluator` from the `extractJson()` convention
+  list.
+
+Reflection (evidence-completeness, pre-synthesis) and the Synthesis
+guardrail (claim-source overlap, post-synthesis, gates `apraReady`) remain
+as the two quality-control layers — both already did real work, unlike
+RAGAS.
+
 ## Deferred (explicit, do not implement without further instruction)
-- **#15 (L-5)**: RAGAS hallucination-check redundancy — discussion only.
-  RAGAS (`srv/observability/ragas-evaluator.js`) runs async/fire-and-forget
-  after `res.json()`, delivered only via SSE `ragas_scores` to a live
-  browser `EventSource`, scored to Langfuse only (not persisted to HANA).
-  Faithfulness scores are structurally ~0.00 because `regulatoryDocs`
-  (general APRA policy text) can never "support" customer-specific HANA
-  findings (DTI ratios, dollar exposures) — a context-mismatch in the
-  evaluator design, not a real hallucination signal. This sits alongside two
-  other quality checks already in the pipeline: Reflection
-  (`srv/agents/reflection.js`, confidence-based re-query loop, max 2
-  iterations) and Synthesis's guardrail
-  (`srv/guardrails/validate.js` `crossCheckClaimsAgainstSources`, synchronous
-  claim-source word-overlap, gates `apraReady` + populates
-  `brief.uncertainties`). Open question: is RAGAS redundant with the
-  Synthesis guardrail, or does it serve a distinct (Langfuse-side,
-  trace-level) observability purpose? No code changes made.
 - Auth-related fixes (C-3/C-4/C-5/H-1/M-5) and `.cdsrc.json` (C-1) — "not
   required" for this PoC per user, deferred indefinitely.
 

@@ -62,23 +62,10 @@ function getLangchainHandler(traceId, agentName) {
   }
 }
 
-// ── Score helper — attach quality scores to a trace ─────────────────────────
-// AI: LLM-as-judge scores submitted to Langfuse dashboard for RAGAS-style eval
-// Banking: "Was the risk brief faithful to the APRA documents retrieved?"
-// SAP: Appears as score in Langfuse trace view — sortable, filterable by value
-
-async function submitScore(traceId, name, value, comment = '') {
-  const lf = getLangfuse();
-  if (!lf || !traceId) return;
-  try {
-    await lf.score({ traceId, name, value, comment });
-  } catch (e) { /* non-blocking */ }
-}
-
 async function flush() {
   const lf = getLangfuse();
   if (!lf) return;
   try { await lf.flushAsync?.(); } catch (e) { /* non-blocking */ }
 }
 
-module.exports = { getLangfuse, getLangchainHandler, startSpan, endSpan, submitScore, flush };
+module.exports = { getLangfuse, getLangchainHandler, startSpan, endSpan, flush };

@@ -16,7 +16,6 @@ const {
   publishRegulatoryUpdate,
   publishSessionReset
 } = require('./events/solace-publisher');
-const { runRagasEvaluation } = require('./observability/ragas-evaluator');
 const { getLangfuse, flush: langfuseFlush } = require('./observability/langfuse-client');
 const { progressEmitter } = require('./agents/pattern-agent');
 const { runConnectivityChecks } = require('./utils/connectivity-check');
@@ -343,15 +342,6 @@ cds.on('bootstrap', async (app) => {
       // Persist to AuditLog
       await logToAuditLog(sessionId, params.query, answer, finalState, latencyMs);
 
-      // RAGAS-style quality evaluation — fire-and-forget, pushes SSE when done
-      if (finalState.synthesisResult && traceId) {
-        runRagasEvaluation(traceId, params.query, finalState.synthesisResult, finalState.retrievedDocs)
-          .then(ragasResult => {
-            if (ragasResult) pushSSE(sessionId, 'ragas_scores', ragasResult);
-          })
-          .catch(e => console.warn('[RAGAS] evaluation error:', e.message));
-      }
-
       // Finalise and flush Langfuse trace
       trace?.update({ output: answer, metadata: { latencyMs, cost, responseType, tokensIn: finalState.totalInputTokens, tokensOut: finalState.totalOutputTokens } });
       await langfuseFlush();
@@ -456,16 +446,10 @@ cds.on('bootstrap', async (app) => {
       const approveLatMs = Date.now() - approveStart;
       console.log(`[A2A] /approve complete | score:${synthesis?.riskScore} level:${synthesis?.riskLevel}`);
 
-      // AuditLog + RAGAS — same as the initial analysis path (Incomplete 3 fix)
+      // AuditLog — same as the initial analysis path (Incomplete 3 fix)
       const savedState = checkpoint.values || {};
       const origQuery  = savedState.query   || '';
-      const traceId    = savedState.traceId || null;
       await logToAuditLog(sessionId, origQuery, synthesis, finalState, approveLatMs);
-      if (synthesis) {
-        runRagasEvaluation(traceId, origQuery, synthesis, finalState.retrievedDocs)
-          .then(r => { if (r) pushSSE(sessionId, 'ragas_scores', r); })
-          .catch(() => {});
-      }
 
       const approveCost = calculateCostAUD(finalState.totalInputTokens || 0, finalState.totalOutputTokens || 0);
       res.json({
