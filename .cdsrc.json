@@ -7,21 +7,5 @@
     "auth": {
       "kind": "dummy"
     }
-  },
-  "[development]": {
-    "requires": {
-      "db": {
-        "kind": "hana",
-        "credentials": {
-          "host": "3ad6bab2-7da6-42bc-bd91-13248e061d01.hna1.prod-us10.hanacloud.ondemand.com",
-          "port": "443",
-          "user": "B8EC4EAB42CB46BE940B89D1209CC93D_2YVP9Q1VW2PDKGOWTJN27DE7F_RT",
-          "password": "***REMOVED-HANA-HDI-RT-PASSWORD***",
-          "schema": "B8EC4EAB42CB46BE940B89D1209CC93D",
-          "encrypt": true,
-          "sslValidateCertificate": false
-        }
-      }
-    }
   }
 }

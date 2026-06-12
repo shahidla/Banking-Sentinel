@@ -310,6 +310,39 @@ stale:
   before use. Verified live: full risk-analysis run for 30100003 (HTTP 200,
   riskScore 63 HIGH, vector search/APS221 retrieval working normally).
 
+## Completed — C-1 fix (this session)
+`.cdsrc.json` had a `[development]` profile block with a live HANA Cloud
+`_RT` user + 120-char password, plaintext, tracked in git (since Phase 1,
+already pushed to GitHub — repo confirmed **private** via GitHub API 404 to
+unauthenticated requests). Confirmed this block was **dead config**: the
+actual app (`npm run start:local` → `cds serve --profile hybrid`) and all
+standalone scripts (`CDS_ENV=hybrid` / `cds bind --exec ... --profile
+hybrid`) resolve `db` via `.cdsrc-private.json`'s `[hybrid]` CF
+service-key binding (already gitignored, no embedded password) — the
+`[development]` block was superseded since Phase 8 and unused.
+
+Deleted the `[development]` block from `.cdsrc.json` entirely. Verified
+zero functional impact: restarted `npm run start:local`, `/a2a/health`
+returns `connectivity:ok`, `/admin/api/hana/BusinessPartners` returns 1000
+rows normally.
+
+**Not done (flagged for user, requires external action)**:
+- The old `_RT` password remains in git history (committed since the first
+  commit) — scrubbing requires `git filter-repo`/BFG + force-push, a
+  destructive history rewrite not attempted without explicit instruction.
+  Lower urgency given the repo is private and this is a HANA Cloud **trial**
+  instance whose service keys get regenerated whenever the trial is
+  recreated (see HANA recovery procedure below) — regenerating the HDI
+  service key via BTP cockpit would invalidate the leaked password
+  naturally.
+- C-2 (`.env` shared `Saplabs12#Saplabs12#` across `HANA_PASSWORD`/
+  `CF_PASSWORD`/`CPI_PASSWORD`): `.env` is gitignored, never pushed — no git
+  exposure. Grepped usage: `HANA_HOST/PORT/USER/PASSWORD` are only read by
+  two **archived** scripts (`scripts/archive/test-kge.js`,
+  `test-triple-store.js`); `CF_*`/`CPI_*` vars are unused by any `.js` file.
+  Dead config in a local-only file — no code change made; rotate at your
+  discretion if/when those archived scripts are ever revived.
+
 ## Remaining open items (not yet triaged this session)
 - H-2 (SSE client registry — bounded by `req.on('close')`, likely fine for
   PoC), H-3 (SCIKIT_SERVICE_URL hardcoded in CF manifest), H-5 (no rate
