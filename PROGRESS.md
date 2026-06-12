@@ -361,6 +361,35 @@ rows normally.
 - Resume RAGAS discussion (#15) if the user wants to revisit — no
   implementation pending.
 
+## Completed — git history scrub of leaked HDI credentials (this session)
+User flagged a SECOND leaked credential beyond C-1: `scripts/archive/deploy-procedure.js`
+(originally `scripts/deploy-procedure.js`, introduced in commit `13654c5` "Phase 8") had a
+hardcoded HDI `_DT` user password + a `_RT`-named GRANT statement, for the same HDI container
+as the C-1 `.cdsrc.json` `_RT` password. Both removed from the working tree already (the
+`_DT` one in `39c1b5c` this session, before this conversation), but both passwords remained
+readable in git history (commits `13654c5`, `39c1b5c`/`f84d85b`) on the private GitHub repo.
+
+User chose to scrub history (not just rotate the key):
+1. Backed up full repo: `c:\Dev\Banking-Sentinel-backup-pre-filter-repo.bundle`
+   (`git bundle create ... --all`, verified OK).
+2. `git filter-repo --replace-text ../filter-repo-replacements.txt --force` — replaced both
+   exact password strings everywhere in history with
+   `***REMOVED-HANA-HDI-RT-PASSWORD***` / `***REMOVED-HANA-HDI-DT-PASSWORD***`.
+   Verified via `git log --all -S'<substring>'` for both passwords — now empty.
+3. Re-added `origin` remote (filter-repo removes it) and force-pushed:
+   `git push origin --force main` — old `f84d85b` -> new `070c87b` (all commits from
+   `13654c5` onward got new hashes). Restored upstream tracking
+   (`git branch --set-upstream-to=origin/main main`).
+
+**Still recommended (not done, BTP-cockpit action)**: regenerate the
+`banking-sentinel-db-key` HDI service key for container
+`B8EC4EAB42CB46BE940B89D1209CC93D...` — both scrubbed passwords were live credentials at
+time of writing; history scrub doesn't rotate the actual key. Do this during the next HANA
+trial recovery per the recovery procedure in CLAUDE.md.
+
+`../filter-repo-replacements.txt` and the backup bundle are local-only (outside the repo,
+not tracked) — safe to delete once you've confirmed the GitHub repo looks correct.
+
 ## Gotchas / decisions to not forget
 - This whole IF/Trajectory thread is presented to SAP/bank stakeholders —
   algorithm choices must be justified by real bank/SAP practice (done — see
