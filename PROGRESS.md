@@ -387,8 +387,8 @@ User chose to scrub history (not just rotate the key):
 time of writing; history scrub doesn't rotate the actual key. Do this during the next HANA
 trial recovery per the recovery procedure in CLAUDE.md.
 
-`../filter-repo-replacements.txt` and the backup bundle are local-only (outside the repo,
-not tracked) — safe to delete once you've confirmed the GitHub repo looks correct.
+`../filter-repo-replacements.txt` and the backup bundle were local-only (outside the repo,
+not tracked) — deleted after confirming the GitHub repo looks correct.
 
 ## Gotchas / decisions to not forget
 - This whole IF/Trajectory thread is presented to SAP/bank stakeholders —
