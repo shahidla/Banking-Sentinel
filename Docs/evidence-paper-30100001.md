@@ -407,11 +407,11 @@ With APRA limit = 6.00x and current DTI = 5.80x:
 
 ---
 
-### Agent 5: Self-RAG Check
+### Agent 5: Reflection Check
 
 **Role:** Evaluate the quality of findings produced by Agents 2, 3, and 4. Flag findings that make claims without evidence. Flag inconsistencies. Report a quality score.
 
-**[AI]** Self-RAG (Self-Retrieval Augmented Generation) is a technique where the AI system evaluates its own output. For each finding, it checks: Is the claim supported by a specific source record? Does the finding mention a concrete data point (table name, field value, record ID)? Is the confidence level justified by the evidence?
+**[AI]** Reflection is a Reflexion-style critic step where the AI system evaluates the outputs of the prior agents rather than generating new findings. For each finding, it checks: Is the claim supported by a specific source record? Does the finding mention a concrete data point (table name, field value, record ID)? Is the confidence level justified by the evidence?
 
 **Findings evaluated:**
 
@@ -424,7 +424,7 @@ With APRA limit = 6.00x and current DTI = 5.80x:
 | Income not documented | Yes — INCOME_SOURCE and INCOME_EXPIRY empty | HIGH |
 | Term deposit misclassified | Yes — TD-001 LOAN_TYPE = TERM_DEP | MEDIUM |
 
-**Self-RAG verdict:** Overall confidence = 0.92. All primary findings are evidence-backed. No hallucinated claims detected.
+**Reflection verdict:** Overall confidence = 0.92. All primary findings are evidence-backed. No hallucinated claims detected.
 
 ---
 

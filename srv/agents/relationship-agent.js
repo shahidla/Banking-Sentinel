@@ -94,13 +94,13 @@ async function runRelationshipAgent(state, customerId) {
   }).bindTools(TOOLS);
 
   // ── System prompt: first run vs targeted re-query ─────────────────────────
-  // AI: Re-query prompt is more specific — Self-RAG identified what was missing
+  // AI: Re-query prompt is more specific — Reflection identified what was missing
   // Banking: First pass = broad sweep. Re-query = targeted investigation of identified gap.
-  // SAP: reQueryHint from selfRagCheckNode guides where to traverse and what to recalculate
+  // SAP: reQueryHint from reflectionNode guides where to traverse and what to recalculate
   const systemPrompt = isRequery && reQueryHint
     ? `You are a banking risk analyst performing a TARGETED RE-QUERY. The previous traversal was incomplete.
 
-Self-RAG quality evaluation identified this gap: "${reQueryHint}"
+Reflection quality evaluation identified this gap: "${reQueryHint}"
 
 Previous traversal found these nodes: ${prevNodes.join(', ') || 'none'}
 

@@ -46,7 +46,7 @@ distinguish genuinely-missing past-due payments from not-yet-due future ones.
 - **LLM JSON parsing**: any agent asking Claude for JSON must use `extractJson()` from
   `srv/utils/llm-json.js` — balanced brace-counting instead of a greedy regex, so trailing
   prose containing `{`/`}` doesn't break parsing. Wired into pattern-agent,
-  relationship-agent, self-rag, synthesis-agent, ragas-evaluator. `intake-agent.js` (~line 60)
+  relationship-agent, reflection, synthesis-agent, ragas-evaluator. `intake-agent.js` (~line 60)
   still uses the old greedy regex — flagged, not yet migrated.
 
 ## Running locally

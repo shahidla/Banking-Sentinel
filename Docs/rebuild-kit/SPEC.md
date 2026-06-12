@@ -294,7 +294,7 @@ Production swap: HANA Knowledge Graph Engine — same SPARQL queries, one endpoi
 ### LangGraph Graph Topology
 ```
 Nodes:  intake, simpleQuery, rejection, riskStart, pattern,
-        trajectory, relationship, selfRagCheck, humanApproval, synthesis
+        trajectory, relationship, reflectionCheck, humanApproval, synthesis
 
 Entry:  intake
 
@@ -308,9 +308,9 @@ Edges:
   pattern ──(conditional)──> synthesis         [if riskScore < 30]
   pattern ──(conditional)──> trajectory        [if riskScore >= 30]
   trajectory  ──> relationship
-  relationship ──> selfRagCheck
-  selfRagCheck ──(conditional)──> relationship [if confidence < 0.70 AND requeryCount < 2]
-  selfRagCheck ──(conditional)──> humanApproval [otherwise]
+  relationship ──> reflectionCheck
+  reflectionCheck ──(conditional)──> relationship [if confidence < 0.70 AND requeryCount < 2]
+  reflectionCheck ──(conditional)──> humanApproval [otherwise]
   humanApproval ──> synthesis
   synthesis ──> END
 
@@ -333,10 +333,10 @@ Compile options:
   relationshipMap:     last        // Relationship Agent output object
   trajectoryAnalysis:  last        // Trajectory Agent output object
   synthesisResult:     last        // Synthesis Agent output object
-  selfRagEvaluation:   last        // most recent Self-RAG evaluation
-  selfRagHistory:      append      // ALL Self-RAG iterations — one entry per run
+  reflectionEvaluation:   last        // most recent Reflection evaluation
+  reflectionHistory:      append      // ALL Reflection iterations — one entry per run
   reQueryHint:         last        // targeted instruction for Relationship re-query
-  requeryCount:        last        // how many times Self-RAG has re-queried
+  requeryCount:        last        // how many times Reflection has re-queried
   hitlEnabled:         last        // boolean — was HITL on for this run?
   totalInputTokens:    sum         // accumulates across all agents
   totalOutputTokens:   sum         // accumulates across all agents
@@ -711,11 +711,11 @@ Return your final summary as JSON:
 {"nodes": [...], "edges": [...], "groupExposure": <AUD>, "aps221Pct": <pct>, "confidence": <0.0-1.0>, "finding": "<one sentence>"}
 ```
 
-### System prompt (re-query run — when Self-RAG triggered):
+### System prompt (re-query run — when Reflection triggered):
 ```
 You are a banking risk analyst performing a TARGETED RE-QUERY. The previous traversal was incomplete.
 
-Self-RAG quality evaluation identified this gap: "{reQueryHint}"
+Reflection quality evaluation identified this gap: "{reQueryHint}"
 
 Previous traversal found these nodes: {prevNodes}
 
@@ -743,7 +743,7 @@ Return your final summary as JSON:
 
 ---
 
-## PART 10 — AGENT 4: SELF-RAG CHECK
+## PART 10 — AGENT 4: REFLECTION CHECK
 
 **Purpose:** Evaluate evidence quality. Re-query if incomplete.
 
@@ -783,16 +783,16 @@ otherwise                               →  proceed (humanApproval)
 ```
 
 **CRITICAL — append reducer interaction:**
-The `selfRagHistory` field uses an append reducer. Return ONLY the new entry, not the full rebuilt array:
+The `reflectionHistory` field uses an append reducer. Return ONLY the new entry, not the full rebuilt array:
 ```javascript
 // CORRECT:
-return { selfRagHistory: [{ iteration: reqCount + 1, ...evaluation }] }
+return { reflectionHistory: [{ iteration: reqCount + 1, ...evaluation }] }
 
 // WRONG — causes duplicates:
-return { selfRagHistory: [...prevHistory, { iteration: reqCount + 1, ...evaluation }] }
+return { reflectionHistory: [...prevHistory, { iteration: reqCount + 1, ...evaluation }] }
 ```
 
-**Output shape (`state.selfRagHistory` gets one new entry appended):**
+**Output shape (`state.reflectionHistory` gets one new entry appended):**
 ```json
 {
   "iteration":        1,
@@ -862,7 +862,7 @@ Risk score scale: LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100.
 riskLevel must match riskScore: score 51 = HIGH, score 76 = CRITICAL.
 Reference the conflictingSignals array — each unresolved conflict reduces confidence.
 Pattern confidence (rpt1Conf) is the real RPT-1 confidence — cite it in findings.
-Self-RAG reasoning explains the evidence quality decision — cite it if relevant.
+Reflection reasoning explains the evidence quality decision — cite it if relevant.
 
 Return ONLY valid JSON. Keep each finding under 20 words. Max 5 findings, 3 recommendations, 3 uncertainties.
 {
@@ -880,10 +880,10 @@ Return ONLY the JSON object. No markdown, no explanation.
 
 **apraReady — DETERMINISTIC override (never trust LLM for compliance flags):**
 ```javascript
-const selfRagPassed = selfRagEvaluation.overallConfidence >= 0.70
+const reflectionPassed = reflectionEvaluation.overallConfidence >= 0.70
 brief.apraReady = (
   brief.confidence >= 0.70 &&
-  selfRagPassed &&
+  reflectionPassed &&
   regulatoryRefs.length > 0 &&
   regulatoryContextAvailable
 )
@@ -965,8 +965,8 @@ INSERT INTO AuditLog: SESSION_ID, ACTION='risk_analysis', MODEL, TOKENS_IN, TOKE
   "patternAssessment":  { ... },
   "trajectoryAnalysis": { ... },
   "relationshipMap":    { ... },
-  "selfRagEvaluation":  { ... },
-  "selfRagHistory":     [ ... ],
+  "reflectionEvaluation":  { ... },
+  "reflectionHistory":     [ ... ],
   "synthesisResult":    { ... },
   "hitlEnabled":        false,
   "approvedBy":         null,
@@ -1107,11 +1107,11 @@ All events sent as `text/event-stream`. Each event is JSON.
 }
 ```
 
-### Event: selfrag_complete
+### Event: reflection_complete
 ```json
 {
   "type": "agent_complete",
-  "agent": "selfRag",
+  "agent": "reflection",
   "data": {
     "overallConfidence": 0.72,
     "gaps":              ["Graph traversal incomplete"],
@@ -1146,7 +1146,7 @@ All events sent as `text/event-stream`. Each event is JSON.
     "apraReady":          true,
     "totalCostAUD":       0.0022,
     "totalLatencyMs":     40655,
-    "selfRagHistory":     [...],
+    "reflectionHistory":     [...],
     "currentDti":         5.8,
     "futureDti":          7.05,
     "timeToBreach":       null,
@@ -1228,7 +1228,7 @@ Cost per pipeline run (typical):
 2. Ensure RegulatoryThresholds has `DEBT_TO_INCOME = 8.0`
 3. Type: "Analyse credit risk for customer 30100001"
 4. Expected outcome: riskScore=50, MEDIUM, forwardPosition=MONITORING, timeToBreach=null
-5. Self-RAG: confidence ~0.72, 1 iteration, no re-query
+5. Reflection: confidence ~0.72, 1 iteration, no re-query
 6. Synthesis: 5 findings, 3 recommendations, apraReady=true
 
 ### Demo 2 — DETERIORATING Risk (after APRA Notice)
@@ -1258,7 +1258,7 @@ Three main panels:
 ### Panel 2 — Agent Pipeline (live updates via SSE)
 Seven agent badges in order:
 ```
-Intake → Pattern → Trajectory → Relationship → Self-RAG → Human Approval → Synthesis
+Intake → Pattern → Trajectory → Relationship → Reflection → Human Approval → Synthesis
 ```
 Each badge states: Waiting / ● Thinking / ↻ Re-querying / ✓ Complete
 
@@ -1266,7 +1266,7 @@ Badge shows [View Details] when complete. Each View Details popup shows:
 - **Pattern:** RPT-1 score + category + confidence | PAL "X/N rows flagged" | LLM anomaly list
 - **Trajectory:** currentDti | futureDti | daysToExpiry | timeToBreach | forwardPosition | conflictingSignals
 - **Relationship:** connected party table (name, BP ID, hop, relType) | group exposure | aps221Pct | ReAct steps | finding sentence
-- **Self-RAG:** one section per iteration | confidence | gaps | reQueryHint | PASSED/REQUERIED decision
+- **Reflection:** one section per iteration | confidence | gaps | reQueryHint | PASSED/REQUERIED decision
 - **Synthesis:** full brief — all findings with severity/standard/evidenceSource/confidence | recommendations | regulatoryRefs | uncertainties | apraReady | tokens | cost
 
 ### Panel 3 — Risk Brief (populated after synthesis)

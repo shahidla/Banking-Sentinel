@@ -435,6 +435,40 @@ function buildAnomalyHtml(raw, patternAss) {
   `;
 }
 
+function buildReflectionHtml(agentState) {
+  const reflection = agentState?.reflectionEvaluation || {};
+  const history     = agentState?.reflectionHistory || [];
+  const requeryCount = agentState?.requeryCount ?? 0;
+  const reQueryHint  = agentState?.reQueryHint || null;
+  const gaps = reflection.gaps || [];
+  const overallConfidence = reflection.overallConfidence;
+  const passed = (overallConfidence ?? 1) >= 0.70 || history.length === 0;
+
+  return contextNote([
+    'This step implements <strong>Reflexion</strong> (Shinn et al., 2023) — an LLM "actor" (the Relationship Agent) produces an output, an LLM "evaluator" (this Reflection step) critiques that output in natural language, and the critique is fed back to the actor as a targeted re-query rather than a generic retry.',
+    'Claude Haiku reads the combined JSON output of the Pattern, Trajectory and Relationship agents — not prose — and scores it on <strong>four dimensions</strong>: (1) graph completeness — did the traversal reach parent/connected entities, or stop too early? (2) signal consistency — e.g. a HIGH RPT-1 score alongside zero connected parties is a red flag, not a clean result. (3) were any conflicting signals from the Trajectory Agent actually resolved? (4) evidence trail — is every risk claim backed by a specific record, not a generic statement?',
+    'Routing is deterministic: <strong>overall confidence &lt; 0.70 → re-query</strong> the Relationship Agent with a targeted <code>reQueryHint</code> describing exactly what evidence is missing; <strong>≥ 0.70 → proceed</strong> to Human Approval. The loop is capped at <strong>2 re-queries</strong> to bound cost and latency — after the cap, the pipeline proceeds regardless, and any unresolved gaps are surfaced as uncertainties in the final brief.',
+  ]) + `
+    <div class="kv-grid">
+      ${kv('Overall Confidence', overallConfidence != null ? Math.round(overallConfidence*100)+'%' : '—', overallConfidence != null && overallConfidence < 0.70)}
+      ${kv('Re-query Count', requeryCount + ' / 2 max', requeryCount > 0)}
+      ${kv('Routing Decision', passed ? 'Proceed to Human Approval' : 'Re-query Relationship Agent', !passed)}
+      ${kv('Re-query Hint Issued', reQueryHint || 'None')}
+    </div>
+    ${reflection.reasoning ? `<div class="sub-title">Evaluator's Reasoning</div><p class="agent-note">${esc(reflection.reasoning)}</p>` : ''}
+    ${gaps.length ? `<div class="sub-title">Evidence Gaps Identified (${gaps.length})</div><ul class="anomaly-list">${gaps.map(g=>`<li>${esc(g)}</li>`).join('')}</ul>` : ''}
+    ${history.length > 1 ? `
+    <div class="sub-title">Re-query History — ${history.length} Iteration(s)</div>
+    ${tbl(history.map((it,i) => ({
+      Iteration: i+1,
+      Confidence: it.overallConfidence != null ? Math.round(it.overallConfidence*100)+'%' : '—',
+      Gaps: (it.gaps||[]).length,
+      Reasoning: it.reasoning || '—',
+    })))}
+    ` : `<p class="no-data">No re-query was triggered — the first evaluation already met the 70% confidence threshold.</p>`}
+  `;
+}
+
 function buildVerdictHtml(synth, riskRow, agentState) {
   const s   = synth || {};
   const row = riskRow || {};
@@ -443,17 +477,17 @@ function buildVerdictHtml(synth, riskRow, agentState) {
     try { findings = JSON.parse(row.FINDINGS); } catch (_) {}
   }
 
-  const selfRag = agentState?.selfRagEvaluation || {};
-  const selfRagHistory = agentState?.selfRagHistory || [];
+  const reflection = agentState?.reflectionEvaluation || {};
+  const reflectionHistory = agentState?.reflectionHistory || [];
   const confidence = s.confidence ?? 0;
 
   // Reproduce the deterministic apraReady gate exactly as synthesis-agent.js computes it —
   // this value is NOT decided by the LLM; it's a hard AND of four conditions in code.
-  const selfRagPassed = (selfRag.overallConfidence ?? 1) >= 0.70 || selfRagHistory.length === 0;
+  const reflectionPassed = (reflection.overallConfidence ?? 1) >= 0.70 || reflectionHistory.length === 0;
   const regRefsFound  = (s.regulatoryRefs || []).length > 0;
   const gateChecks = [
     { label: 'Synthesis confidence ≥ 70%',        pass: confidence >= 0.70,  detail: `${Math.round(confidence*100)}%` },
-    { label: 'Self-RAG evidence check passed',     pass: selfRagPassed,       detail: selfRagHistory.length===0 ? 'no Self-RAG iterations recorded (treated as pass)' : `overall confidence ${Math.round((selfRag.overallConfidence??0)*100)}%` },
+    { label: 'Reflection evidence check passed',  pass: reflectionPassed,    detail: reflectionHistory.length===0 ? 'no Reflection iterations recorded (treated as pass)' : `overall confidence ${Math.round((reflection.overallConfidence??0)*100)}%` },
     { label: 'Regulatory references retrieved',    pass: regRefsFound,        detail: regRefsFound ? (s.regulatoryRefs||[]).join(', ') : 'none retrieved' },
     { label: 'Vector-search context available',    pass: true,                detail: 'no context-retrieval failure recorded for this run' },
   ];
@@ -461,7 +495,7 @@ function buildVerdictHtml(synth, riskRow, agentState) {
 
   return contextNote([
     'The <strong>Synthesis Agent</strong> (Agent 5/7 in the chain) is the consolidation point. It runs <strong>four targeted HANA vector searches</strong> against the APRA regulatory document store — one query built specifically from this customer\'s DTI ratio, one from the group exposure dollar amount, one from any conflicting signals Trajectory found, and a constant CPS 230 governance query — retrieves up to 5 chunks each, de-duplicates by document ID, and caps the final context at 7 chunks. This per-signal retrieval (rather than one generic query) is what keeps the citations grounded in <em>this</em> customer\'s actual numbers rather than generic APRA boilerplate.',
-    'The LLM then receives the full structured output of Pattern, Trajectory, Relationship and Self-RAG — as JSON, not prose — plus the retrieved regulatory chunks, and produces a risk brief: score, level, findings (max 5), recommendations (max 3), and uncertainties (max 3). A fixed rule maps score to level (≥76 CRITICAL, ≥51 HIGH, ≥26 MEDIUM, else LOW) and the agent is explicitly told the level <em>must</em> match the score band — this is enforced in the prompt, not left to the model\'s discretion.',
+    'The LLM then receives the full structured output of Pattern, Trajectory, Relationship and Reflection — as JSON, not prose — plus the retrieved regulatory chunks, and produces a risk brief: score, level, findings (max 5), recommendations (max 3), and uncertainties (max 3). A fixed rule maps score to level (≥76 CRITICAL, ≥51 HIGH, ≥26 MEDIUM, else LOW) and the agent is explicitly told the level <em>must</em> match the score band — this is enforced in the prompt, not left to the model\'s discretion.',
     '<strong>"APRA Ready" is deliberately not an LLM decision.</strong> It is computed in code as a hard logical AND of four conditions — shown below with this session\'s actual values. Even a perfectly-worded brief is held back from the regulator until every gate passes. A separate guardrail then cross-checks each finding\'s wording against the retrieved regulatory chunks (the "claim-source overlap" score) — low overlap adds an uncertainty flagging possible hallucination, satisfying CPS 230\'s requirement that AI claims be independently checkable, not just plausible-sounding.',
   ]) + `
     <div class="kv-grid">
@@ -668,6 +702,31 @@ Combination rule (computed in code, not by any one model):
 Write the four-bullet evidence analysis. In the Interpretation bullet, walk through what each of the three models computed (the formula for RPT-1, the isolation mechanism for PAL, the read for the LLM) and then how the combination rule turned three separate outputs into one riskLevel and one signal.`;
 }
 
+function buildReflectionPrompt(agentState, customerId) {
+  const reflection = agentState?.reflectionEvaluation || {};
+  const history = agentState?.reflectionHistory || [];
+  const requeryCount = agentState?.requeryCount ?? 0;
+  const reQueryHint = agentState?.reQueryHint || null;
+  const passed = (reflection.overallConfidence ?? 1) >= 0.70 || history.length === 0;
+
+  return `Analyse the Reflection (Reflexion-style critic) step for customer ${customerId}.
+
+This step is an LLM "evaluator" that reads the combined JSON output of the Pattern, Trajectory and
+Relationship agents (NOT prose) and scores it on four dimensions: graph completeness, signal
+consistency, resolution of conflicting signals, and evidence trail (every claim traced to a record).
+
+This session's result:
+- Overall confidence: ${reflection.overallConfidence != null ? Math.round(reflection.overallConfidence*100)+'%' : 'not recorded'}
+- Re-query count: ${requeryCount} / 2 max
+- Routing decision: ${passed ? 'proceed to Human Approval (confidence >= 70%)' : 're-query the Relationship Agent (confidence < 70%)'}
+${reQueryHint ? `- Re-query hint issued to the actor: "${reQueryHint}"` : '- No re-query hint was needed'}
+${(reflection.gaps||[]).length ? `- Evidence gaps identified: ${reflection.gaps.join('; ')}` : '- No evidence gaps identified'}
+${reflection.reasoning ? `- Evaluator's stated reasoning: ${reflection.reasoning}` : ''}
+${history.length > 1 ? `- This required ${history.length} iterations before reaching the confidence threshold:\n${history.map((it,i)=>`  Iteration ${i+1}: confidence ${it.overallConfidence!=null?Math.round(it.overallConfidence*100)+'%':'—'}, ${(it.gaps||[]).length} gap(s)`).join('\n')}` : '- A single evaluation pass was sufficient — no re-query loop was triggered'}
+
+Write the four-bullet evidence analysis (Input → Interpretation [explain the Reflexion actor/evaluator loop and which of the four dimensions drove the ${passed?'pass':'re-query'} decision for this customer] → Output → Significance — note for Significance that CPS 230 requires this kind of self-check before a risk brief reaches a human reviewer).`;
+}
+
 function buildVerdictPrompt(synth, riskRow, customerId, dtiLimit, groupLimit, agentState) {
   const s = synth||{};
   const row = riskRow||{};
@@ -676,14 +735,14 @@ function buildVerdictPrompt(synth, riskRow, customerId, dtiLimit, groupLimit, ag
     try { findings = JSON.parse(row.FINDINGS); } catch (_) {}
   }
 
-  const selfRag = agentState?.selfRagEvaluation || {};
-  const selfRagHistory = agentState?.selfRagHistory || [];
+  const reflection = agentState?.reflectionEvaluation || {};
+  const reflectionHistory = agentState?.reflectionHistory || [];
   const confidence = s.confidence ?? 0;
-  const selfRagPassed = (selfRag.overallConfidence ?? 1) >= 0.70 || selfRagHistory.length === 0;
+  const reflectionPassed = (reflection.overallConfidence ?? 1) >= 0.70 || reflectionHistory.length === 0;
   const regRefsFound  = (s.regulatoryRefs || []).length > 0;
   const gates = [
     ['confidence ≥ 70%', confidence >= 0.70, `${Math.round(confidence*100)}%`],
-    ['Self-RAG evidence check passed', selfRagPassed, selfRagHistory.length===0?'no iterations recorded':`${Math.round((selfRag.overallConfidence??0)*100)}% overall confidence`],
+    ['Reflection evidence check passed', reflectionPassed, reflectionHistory.length===0?'no iterations recorded':`${Math.round((reflection.overallConfidence??0)*100)}% overall confidence`],
     ['regulatory references retrieved', regRefsFound, (s.regulatoryRefs||[]).join(', ')||'none'],
     ['no context-retrieval failure', true, 'n/a'],
   ];
@@ -696,7 +755,7 @@ STAGE 1 — it ran four targeted HANA vector searches (one built from this custo
 the group exposure dollar figure, one triggered by any conflicting signals, one constant CPS 230 query),
 retrieved up to 5 chunks each, deduped, capped at 7 — giving it grounded regulatory citations rather than
 generic ones. Retrieved standards: ${(s.regulatoryRefs||[]).join(', ')||'none'}.
-STAGE 2 — the LLM combined Pattern + Trajectory + Relationship + Self-RAG JSON output plus those citations
+STAGE 2 — the LLM combined Pattern + Trajectory + Relationship + Reflection JSON output plus those citations
 into a structured brief, under a hard rule that riskLevel MUST match the riskScore band (≥76 CRITICAL,
 ≥51 HIGH, ≥26 MEDIUM, else LOW). Result: score ${s.riskScore||row.RISK_SCORE}/100 → level ${s.riskLevel||row.RISK_LEVEL}.
 
@@ -844,7 +903,14 @@ async function generateExplanation(sessionId, graph, pushFn) {
   }));
 
   generatedSections.push(await runSection(pushFn, client, {
-    sectionId: 'verdict', icon: '07', title: 'Final Verdict & Mandatory Actions',
+    sectionId: 'reflection', icon: '07', title: 'Reflection — Evidence Quality Check',
+    subtitle: 'Reflexion (Shinn et al., 2023) · Claude Haiku critic',
+    staticHtml: buildReflectionHtml(agentState),
+    prompt: buildReflectionPrompt(agentState, customerId),
+  }));
+
+  generatedSections.push(await runSection(pushFn, client, {
+    sectionId: 'verdict', icon: '08', title: 'Final Verdict & Mandatory Actions',
     subtitle: 'Consolidated from all agents · APRA obligations',
     staticHtml: buildVerdictHtml(synth, riskRow, agentState),
     prompt: buildVerdictPrompt(synth, riskRow, customerId, dtiLimit, groupLimit, agentState),

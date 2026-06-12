@@ -21,7 +21,7 @@ const { relationshipAgent } = require('../agents/relationship-agent');
 const { trajectoryAgent }   = require('../agents/trajectory-agent');
 const { synthesisAgent }    = require('../agents/synthesis-agent');
 const { humanApprovalNode } = require('../agents/human-approval');
-const { selfRagCheckNode, checkConfidence } = require('../agents/self-rag');
+const { reflectionNode, checkConfidence } = require('../agents/reflection');
 
 let graphInstance = null;
 
@@ -65,7 +65,7 @@ async function createBankingSentinelGraph() {
     .addNode('pattern',      patternAgent)
     .addNode('relationship', relationshipAgent)
     .addNode('trajectory',   trajectoryAgent)
-    .addNode('selfRagCheck', selfRagCheckNode)
+    .addNode('reflectionCheck', reflectionNode)
     .addNode('humanApproval',humanApprovalNode)
     .addNode('synthesis',    synthesisAgent);
 
@@ -84,23 +84,23 @@ async function createBankingSentinelGraph() {
   graph.addEdge('rejection',   END);
 
   // ── Risk pipeline — pattern runs first, then routes on score ──────────────
-  // AI: routeAfterPattern shortcut — score < 30 skips Relationship + Trajectory + Self-RAG
+  // AI: routeAfterPattern shortcut — score < 30 skips Relationship + Trajectory + Reflection
   // Banking: Performing borrower (score 5) gets a fast synthesis; high-risk gets full pipeline
   graph.addEdge('riskStart', 'pattern');
 
   graph.addConditionalEdges('pattern', routeAfterPattern, {
     'low_risk':  'synthesis',    // skip directly — no connected-party graph traversal needed
-    'high_risk': 'trajectory'   // full pipeline: trajectory → relationship → selfRagCheck
+    'high_risk': 'trajectory'   // full pipeline: trajectory → relationship → reflectionCheck
   });
 
-  // ── Sequential high-risk path: trajectory → relationship → selfRagCheck ──
+  // ── Sequential high-risk path: trajectory → relationship → reflectionCheck ──
   // AI: Sequential instead of fan-out — relationship reads patternAssessment + trajectoryAnalysis
   // Banking: Relationship Agent uses DTI context to judge whether group exposure is material
   graph.addEdge('trajectory',   'relationship');
-  graph.addEdge('relationship', 'selfRagCheck');
+  graph.addEdge('relationship', 'reflectionCheck');
 
-  // ── Self-RAG loop ──
-  graph.addConditionalEdges('selfRagCheck', checkConfidence, {
+  // ── Reflection loop ──
+  graph.addConditionalEdges('reflectionCheck', checkConfidence, {
     'requery': 'relationship',
     'proceed': 'humanApproval'
   });

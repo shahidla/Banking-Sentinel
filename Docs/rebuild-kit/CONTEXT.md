@@ -9,7 +9,7 @@
 ## Phase 5 complete (2026-05-24): Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt (interruptBefore: humanApproval). PostgresSaver checkpointer wired. Full pipeline LIVE end-to-end.
 ## Graph Engine decision (2026-05-24): KGE (Triple Store) NOT on BTP trial. GRAPH_TABLE SQL function NOT supported (preview feature only in this tier). Workspace BP_RELATIONSHIP_GRAPH deployed as HDI artifact — production upgrade path when GRAPH_TABLE goes GA.
 ## KGE equivalent (2026-05-24): GraphDB (Graphwise sandbox) — RDF triple store + SPARQL. Same SPARQL queries run on HANA KGE in production (one endpoint change). 4035 triples loaded: 1000 BusinessPartners + 12 BUT050 relationships. SPARQL traversal from 30100003 finds 7 connected parties including TrustCo Holdings (4 hops). Sandbox expires every 7 days — restore with: npx cds bind --exec node scripts/seed-graphdb.js --profile hybrid
-## Phase 6 complete (2026-05-25): Self-RAG — real LLM confidence evaluation (4 dimensions), targeted re-query loop (max 2), reQueryHint drives focused Relationship Agent re-traversal. Confidence threshold 0.70.
+## Phase 6 complete (2026-05-25): Reflection — real LLM confidence evaluation (4 dimensions), targeted re-query loop (max 2), reQueryHint drives focused Relationship Agent re-traversal. Confidence threshold 0.70.
 ## Phase 7 complete (2026-05-25): SSE + Solace dual-publish per node via graph.stream(). UI fully wired — anomaly strings, relationship finding, forward position, synthesis findings all live. Admin data browser: PostgreSQL sidebar with real COUNT(*) and Clear All. Security hardening: admin IP guard, APS 221 GROUP limit fix, orphaned-approve 404, real audit latency. Relationship Agent 45s timeout + SPARQL 8s AbortSignal. Logo added.
 ## Phase 8 — HDI Deploy + PAL Investigation (2026-05-25): BP_RELATIONSHIP_GRAPH.hdbgraphworkspace + 3 CDS views deployed to HANA Cloud HDI via hdi-deploy v5.6.1. PAL Isolation Forest CONFIRMED NOT AVAILABLE on HANA Cloud Free Tier — ScriptServer requires 3 vCPU minimum; Free Tier has 1 vCPU. PAL code preserved in pattern-agent.js (calls PAL_RUN_ISOLATION_FOREST procedure) — non-fatal on Free Tier (warns, continues). Deploy to paid 3vCPU HANA Cloud + grant AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user to enable PAL (see SAP KB 3655407). Key deploy fix: VCAP_SERVICES needs "tags": ["hana"] + "plan": "hdi-shared" for xsenv.filterServices to pick up the service. db/src/.hdiconfig added for hdbgraphworkspace + hdbprocedure plugins.
 ## HDI Deploy command (2026-05-25): npx cds build --for hana → Copy-Item default-env.json gen\db\default-env.json → cd gen\db; node node_modules\@sap\cds-dk\node_modules\@sap\hdi-deploy\deploy.js --exit
@@ -19,8 +19,8 @@
 ## - Security fix: manifest.yml with 8 live credentials was committed in previous session (Claude mistake). User rotated all keys. manifest.yml added to .gitignore. manifest.yml.template created with no credentials — all external API keys go via cf set-env only.
 ## - Implemented all code-review.md fixes: HANA native cosine SQL (ALL CAPS table name: BANKINGSENTINEL_REGULATORYDOCUMENTS), parseDtiLimit regex improved, sector concentration filter scoped, model set to cheapest (Haiku).
 ## - HANA data updates: BCA_DTI for 30100001 — INCOME_EXPIRY='2027-04-01', INCOME_SOURCE='CONTRACT'. BUT050 30100001→30910005 and 30100001→30910006 RELTYP='FAMILY_TRUST_MEMBER'. GraphDB re-seeded (4021 triples).
-## - Fixed LangGraph state: added selfRagHistory (append reducer), hitlEnabled (last reducer), totalLatencyMs (last reducer) — LangGraph silently drops undeclared state fields.
-## - Fixed Self-RAG: maxTokens 400→800 (was truncating JSON), return only [newItem] not full rebuilt array (append reducer was doubling history).
+## - Fixed LangGraph state: added reflectionHistory (append reducer), hitlEnabled (last reducer), totalLatencyMs (last reducer) — LangGraph silently drops undeclared state fields.
+## - Fixed Reflection: maxTokens 400→800 (was truncating JSON), return only [newItem] not full rebuilt array (append reducer was doubling history).
 ## - Fixed AuditLog: column is CREATED_AT not TIMESTAMP. Wrapped graph.updateState() in try-catch so AuditLog INSERT always runs.
 ## - Fixed admin sessions: joined AuditLog for COST_AUD/LATENCY_MS/TOKENS. Added delete button with confirm dialog.
 ## - Fixed report page: pal.totalScored, scikit findings format, relConfidence, currentDti/futureDti in SSE events, hitlEnabled in initialState.
@@ -29,9 +29,9 @@
 ## - UI fixes: graph height 240→320px, node font size, scikit unavailable state, graph wrap height.
 ## - Created comprehensive blog post: Docs/banking-sentinel-blog.md (710 lines, verified twice).
 ## - Primary demo customer changed: 30100001 (not 30100003) — DTI 5.80x, income expires 2027-04-01, connected to 30910005/30910006 via FAMILY_TRUST_MEMBER.
-## - Commits: multiple commits this session. Latest: 2f8dc88 (blog), 66d6b00 (pattern threshold fix), 6778e82 (selfRag/auditLog fixes).
+## - Commits: multiple commits this session. Latest: 2f8dc88 (blog), 66d6b00 (pattern threshold fix), 6778e82 (reflection/auditLog fixes).
 ## CONFIRMED WORKING (2026-06-05 test, session ui-1780635064618):
-##   selfRagHistory: 1 clean iteration (no duplicates) ✓
+##   reflectionHistory: 1 clean iteration (no duplicates) ✓
 ##   totalCostAUD: 0.0022 ✓, totalLatencyMs: 40655ms ✓, auditTrail: populated ✓
 ##   hitlEnabled: correctly stored/reflected ✓, currentDti/futureDti in View Details ✓
 ##   forwardPosition: MONITORING (correct for Demo 1 — threshold 8.0x, futureDti 7.05 < 8.0) ✓
@@ -64,12 +64,12 @@
 - Canvas height: 120px → 240px; graph-wrap now clickable → expand modal (92vw × 85vh)
 
 **Agent ordering bug discovered and fixed:**
-- ACTUAL backend execution order: pattern → trajectory (a4) → relationship (a3) → selfRagCheck → humanApproval → synthesis
+- ACTUAL backend execution order: pattern → trajectory (a4) → relationship (a3) → reflectionCheck → humanApproval → synthesis
 - UI labels showed a3=Relationship, a4=Trajectory — OPPOSITE of execution order (by intent: trajectory needs pattern output, relationship uses trajectory DTI context)
 - SSE nextMap was completely wrong — `{ relationship: 'a4', trajectory: 'a4' }` caused a4 to flash-complete and a3 to never show active
 - Fixed: `{ intake: 'a2', trajectory: 'a3' }` — now correctly activates a3 (relationship) after a4 (trajectory) completes
 - Pattern handler now activates a4 on HIGH/MEDIUM risk path
-- "7 / 5 complete" bug fixed: `data-counted` flag on DOM element prevents double-counting when a4 gets marked complete twice (trajectory + selfRagCheck both fire complete)
+- "7 / 5 complete" bug fixed: `data-counted` flag on DOM element prevents double-counting when a4 gets marked complete twice (trajectory + reflectionCheck both fire complete)
 
 **20 UI improvements (Banking-Sentinel-AustralianBank.html):**
 - WCAG AA contrast: `--light` changed from `#A0A0A0` (2.85:1) to `#767676` (4.54:1)
@@ -104,7 +104,7 @@
 
 **TOP-LEVEL (4):**
 1. **Twinkle 2 UI button** — "Sync Latest APRA Standards" button in top bar. Backend fully built (`/a2a/sync-apra`, `apra-embedder.js`, Solace event, SSE banner all wired). Button POSTs `{ docTitle, standard, pdfUrl }` to `/a2a/sync-apra`. Use hardcoded APRA PDF URLs for demo: APS 221 → `https://www.apra.gov.au/sites/default/files/2025-12/Prudential%20Standard%20APS%20221%20Large%20Exposures.pdf`; CPS 230 → `https://www.apra.gov.au/sites/default/files/2026-04/Prudential%20Standard%20-%20CPS%20230%20Operational%20Risk%20Management%20-%20clean.pdf`. SSE banner (`regulatory_update` event) shows strip: "Syncing APRA Standards... 47 chunks embedded" then dismisses. Button lives in top bar alongside HITL toggle.
-2. **Human Approval panel** — show one-line agent summary above Approve button + add Reject button. Currently risk officer approves blind. FIX: send agent summaries in Solace `banking/human/approval` SSE event payload: Pattern: `HIGH risk · RPT-1 82% · 5 anomalies` / Trajectory: `DTI 7.2 — in breach 116 days · DETERIORATING` / Relationship: `7 connected parties · APS 221 168% of limit` / Self-RAG: `confidence 0.82 · evidence sufficient`. Data already in LangGraph state at interrupt. Also add [Reject] button.
+2. **Human Approval panel** — show one-line agent summary above Approve button + add Reject button. Currently risk officer approves blind. FIX: send agent summaries in Solace `banking/human/approval` SSE event payload: Pattern: `HIGH risk · RPT-1 82% · 5 anomalies` / Trajectory: `DTI 7.2 — in breach 116 days · DETERIORATING` / Relationship: `7 connected parties · APS 221 168% of limit` / Reflection: `confidence 0.82 · evidence sufficient`. Data already in LangGraph state at interrupt. Also add [Reject] button.
 3. **HITL toggle** — `[Human Approval: OFF | ON]` in top bar. Default OFF. UI sends `hitlEnabled` in POST body → state. In `humanApproval` node: if `!state.hitlEnabled` → auto-approve, skip `interrupt()`. FILES: `srv/graph/state.js` (add `hitlEnabled: Boolean`), humanApproval node in `srv/graph/banking-sentinel.js`.
 4. **Education drawer removal + View Details popup build** — Remove all edu drawer code from `Banking-Sentinel-AustralianBank.html`. Each agent gets a "View Details" popup with two sections: (1) HOW IT WORKS — content written in CONTEXT.md below; (2) WHAT IT FOUND — raw agent output. Build for all 7 agents + Human Approval.
 
@@ -119,21 +119,21 @@
 12. aps221Pct fix: `exposure_calculator` must SUM(`Loans.AMOUNT`) WHERE PARTNER IN (all connected entity IDs from graph traversal). Currently wrong: SUM(`BCA_GUARANTOR.COVER_AMOUNT`) on start node only. FILE: `srv/tools/mcp-tools.js` line 223.
 13. Relationship "View Details" popup — connected parties table (name, BP ID, hop, relType), group exposure vs APS 221 limit, aps221Pct, finding sentence, ReAct steps, confidence. FILE: `Banking-Sentinel-AustralianBank.html`.
 14. Pass full relationship data to Synthesis: `finding`, `nodeDetails` (array of {id, name, hop, relType}), `confidence`, `steps`. Currently only `{ groupExposure, aps221Pct, nodeCount, edgeCount }` sent. FILE: `srv/agents/synthesis-agent.js` lines 72-76.
-15. Self-RAG: add dedicated UI badge between Relationship (a3) and Human Approval. FILE: `Banking-Sentinel-AustralianBank.html`.
-16. SSE wiring: wire `selfRagCheck` SSE event to new Self-RAG badge, not a4 (Trajectory). FILE: `Banking-Sentinel-AustralianBank.html` SSE handler.
-17. selfRagHistory array: change `selfRagEvaluation` (overwritten each iteration) to `selfRagHistory` array (append each iteration). FILES: `srv/graph/state.js` (add field), `srv/agents/self-rag.js` (change return value).
-18. Self-RAG badge shows re-query state live: "↻ Re-querying (1/2)" when confidence < 0.70, "✓ Complete — confidence 0.82" when passes. FILE: `Banking-Sentinel-AustralianBank.html`.
-19. Self-RAG "View Details" popup — one section per iteration. Each shows: iteration number, confidence, reasoning, gaps, reQueryHint, decision (RE-QUERIED / PASSED). Data from `selfRagHistory`. FILE: `Banking-Sentinel-AustralianBank.html`.
-20. Pass `selfRagHistory` to Synthesis agentContext. FILE: `srv/agents/synthesis-agent.js`.
-21. Synthesis agentContext: expand with full evidence — RPT-1 real confidence, Scikit-IF scored/flagged counts + reason codes, Relationship finding + nodeDetails + confidence + steps, Trajectory conflictingSignals, Self-RAG history + gaps + reQueryCount, collateral LTV. FILE: `srv/agents/synthesis-agent.js` lines 54-77.
-22. Synthesis prompt: add explicit instructions to use conflictingSignals, Scikit-IF reason codes, relationship node names, Self-RAG gaps. Define riskScore scale: LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100. Remove "Max 4 findings" limit (see item 25). FILE: `srv/agents/synthesis-agent.js` line 82+.
+15. Reflection: add dedicated UI badge between Relationship (a3) and Human Approval. FILE: `Banking-Sentinel-AustralianBank.html`.
+16. SSE wiring: wire `reflectionCheck` SSE event to new Reflection badge, not a4 (Trajectory). FILE: `Banking-Sentinel-AustralianBank.html` SSE handler.
+17. reflectionHistory array: change `reflectionEvaluation` (overwritten each iteration) to `reflectionHistory` array (append each iteration). FILES: `srv/graph/state.js` (add field), `srv/agents/reflection.js` (change return value).
+18. Reflection badge shows re-query state live: "↻ Re-querying (1/2)" when confidence < 0.70, "✓ Complete — confidence 0.82" when passes. FILE: `Banking-Sentinel-AustralianBank.html`.
+19. Reflection "View Details" popup — one section per iteration. Each shows: iteration number, confidence, reasoning, gaps, reQueryHint, decision (RE-QUERIED / PASSED). Data from `reflectionHistory`. FILE: `Banking-Sentinel-AustralianBank.html`.
+20. Pass `reflectionHistory` to Synthesis agentContext. FILE: `srv/agents/synthesis-agent.js`.
+21. Synthesis agentContext: expand with full evidence — RPT-1 real confidence, Scikit-IF scored/flagged counts + reason codes, Relationship finding + nodeDetails + confidence + steps, Trajectory conflictingSignals, Reflection history + gaps + reQueryCount, collateral LTV. FILE: `srv/agents/synthesis-agent.js` lines 54-77.
+22. Synthesis prompt: add explicit instructions to use conflictingSignals, Scikit-IF reason codes, relationship node names, Reflection gaps. Define riskScore scale: LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100. Remove "Max 4 findings" limit (see item 25). FILE: `srv/agents/synthesis-agent.js` line 82+.
 23. Synthesis "View Details" popup — full raw LLM output: riskScore, riskLevel, confidence, all findings, recommendations, regulatoryRefs, uncertainties, apraReady, retrievedDocs snippets, token counts. FILE: `Banking-Sentinel-AustralianBank.html`.
-24. apraReady: remove from LLM output schema. Calculate deterministically after LLM returns: `findings.length > 0 && findings.every(f => f.evidenceSource) && selfRagHistory?.at(-1)?.gaps?.length === 0 && regulatoryRefs.length > 0 && confidence > 0.70 && (!hitlEnabled || approvalStatus === 'approved')`. FILE: `srv/agents/synthesis-agent.js`.
+24. apraReady: remove from LLM output schema. Calculate deterministically after LLM returns: `findings.length > 0 && findings.every(f => f.evidenceSource) && reflectionHistory?.at(-1)?.gaps?.length === 0 && regulatoryRefs.length > 0 && confidence > 0.70 && (!hitlEnabled || approvalStatus === 'approved')`. FILE: `srv/agents/synthesis-agent.js`.
 25. Remove "Max 4 findings, 3 recommendations, 3 uncertainties" limits from Synthesis system prompt. LLM returns as many as evidence supports. Only constraint: each finding must have severity, standard, evidenceSource, confidence. FILE: `srv/agents/synthesis-agent.js` line 96.
 
 **OTHER FIXES (3):**
 26. NB-2 SPARQL multi-hop relType null — partners at hop 2+ show `relType: null`. Fix: build `Map<partnerId, relType>` from chain edges SPARQL (query 2) and use to enrich `traversalRows`. FILE: `srv/tools/mcp-tools.js` lines 127-145.
-27. validate.js: connect CPS 230 guardrails — import and call `validateAgentOutput(brief)` in `srv/agents/synthesis-agent.js` before returning risk brief; call `crossCheckClaimsAgainstSources(evaluation)` in `srv/agents/self-rag.js` after confidence check. FILE: `srv/guardrails/validate.js` already built, just not imported.
+27. validate.js: connect CPS 230 guardrails — import and call `validateAgentOutput(brief)` in `srv/agents/synthesis-agent.js` before returning risk brief; call `crossCheckClaimsAgainstSources(evaluation)` in `srv/agents/reflection.js` after confidence check. FILE: `srv/guardrails/validate.js` already built, just not imported.
 28. RAGAS faithfulness fix (0.25 → >0.85): (1) per-signal retrieval — separate `hana_vector_search` per active risk signal (DTI→APS221 DTI clauses, group exposure→APS221 connected party, income expiry→CPS230 risk mgmt); (2) topK 3→5-7; (3) `useHyDE: false` → `true` in synthesis-agent.js. After fix: re-run `node scripts/test-rag.js` then `python scripts/ragas-eval.py`. FILE: `srv/agents/synthesis-agent.js`.
 
 **EXPLAINABILITY REPORT (2):**
@@ -187,12 +187,12 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
 - Why no LLM: DTI projection is deterministic arithmetic. Forward DTI = totalDebt / (annualIncome × daysToExpiry/365). Conflicting signals are rule-based if/else. LLM adds no value here — adds latency and hallucination risk.
 - What it produces: currentDti, futureDti, daysToExpiry, timeToBreach (days in breach or days until breach), forwardPosition (DETERIORATING/STABLE/IMPROVING/MONITORING), conflictingSignals list
 
-**AGENT 5 — SELF-RAG (quality gate, not a data agent)**
+**AGENT 5 — REFLECTION (quality gate, not a data agent)**
 - AI Pattern: Epistemic self-evaluation — LLM reads ALL previous agent outputs and judges if evidence is complete enough to present to a human
 - Model: Claude Haiku — evaluates 4 dimensions: graph completeness, signal consistency, conflicting signals resolved, evidence trail
 - SAP Tech: LangGraph conditional edge (addConditionalEdges) — routes back to Relationship Agent with targeted hint if confidence < 0.70, forward to Human Approval if >= 0.70. Max 2 re-queries.
-- Why this agent: Prevents the pipeline from presenting incomplete findings to a risk officer. A graph that found 0 connected parties when RPT-1 scored HIGH is suspicious — Self-RAG catches this and re-queries with a targeted instruction.
-- What it produces: overallConfidence (0-1), gaps (list of specific missing evidence), reQueryHint (exact instruction to Relationship Agent if re-querying), reasoning (one sentence). Stored as selfRagHistory array — one entry per iteration.
+- Why this agent: Prevents the pipeline from presenting incomplete findings to a risk officer. A graph that found 0 connected parties when RPT-1 scored HIGH is suspicious — Reflection catches this and re-queries with a targeted instruction.
+- What it produces: overallConfidence (0-1), gaps (list of specific missing evidence), reQueryHint (exact instruction to Relationship Agent if re-querying), reasoning (one sentence). Stored as reflectionHistory array — one entry per iteration.
 
 **HUMAN APPROVAL (not an agent — a LangGraph interrupt)**
 - AI Pattern: Human-in-the-loop (HITL) — LangGraph interruptBefore pauses execution before Synthesis
@@ -244,11 +244,11 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
       - ReAct steps taken (e.g. "3 tool calls")
       - Confidence score
 
-  **SELF-RAG FIXES — FILES: `srv/agents/self-rag.js`, `srv/graph/state.js`, `srv/server.js`, `Banking-Sentinel-AustralianBank.html`:**
-  14. BUG: Self-RAG has no UI badge. Its SSE completion event is wired to update a4 (Trajectory) badge — wrong. This caused the "7/5 complete" double-count bug (fixed with data-counted workaround but root cause not fixed). FIX: Add a dedicated Self-RAG badge in the UI between Relationship (a3) and Human Approval. Renumber subsequent badges. Wire selfRagCheck SSE event to the new badge.
-  15. BUG: `selfRagEvaluation` in LangGraph state is overwritten each iteration — only the last evaluation survives. If Self-RAG re-queries twice, only the second evaluation is kept; the first is lost. FIX: Change state field from `selfRagEvaluation` (single object) to `selfRagHistory` (array). Each call to `selfRagCheckNode` appends to the array: `selfRagHistory: [...(state.selfRagHistory || []), evaluation]`. Update `checkConfidence()` to read from `selfRagHistory[selfRagHistory.length - 1]`.  FILE: `srv/graph/state.js` — add `selfRagHistory` field. FILE: `srv/agents/self-rag.js` — change return value from `selfRagEvaluation: evaluation` to `selfRagHistory: [...(state.selfRagHistory || []), evaluation]`.
+  **REFLECTION FIXES — FILES: `srv/agents/reflection.js`, `srv/graph/state.js`, `srv/server.js`, `Banking-Sentinel-AustralianBank.html`:**
+  14. BUG: Reflection has no UI badge. Its SSE completion event is wired to update a4 (Trajectory) badge — wrong. This caused the "7/5 complete" double-count bug (fixed with data-counted workaround but root cause not fixed). FIX: Add a dedicated Reflection badge in the UI between Relationship (a3) and Human Approval. Renumber subsequent badges. Wire reflectionCheck SSE event to the new badge.
+  15. BUG: `reflectionEvaluation` in LangGraph state is overwritten each iteration — only the last evaluation survives. If Reflection re-queries twice, only the second evaluation is kept; the first is lost. FIX: Change state field from `reflectionEvaluation` (single object) to `reflectionHistory` (array). Each call to `reflectionNode` appends to the array: `reflectionHistory: [...(state.reflectionHistory || []), evaluation]`. Update `checkConfidence()` to read from `reflectionHistory[reflectionHistory.length - 1]`.  FILE: `srv/graph/state.js` — add `reflectionHistory` field. FILE: `srv/agents/reflection.js` — change return value from `reflectionEvaluation: evaluation` to `reflectionHistory: [...(state.reflectionHistory || []), evaluation]`.
   16. NEW: Badge shows re-query state in real time. When confidence < 0.70 and re-query triggers: badge shows "↻ Re-querying (1/2)". When passes: "✓ Complete — confidence 0.82". Audience sees the system self-correcting live.
-  17. NEW: "View Details" popup on Self-RAG badge. Shows ALL iterations — one section per re-query run. If re-queried twice, shows two full sections. Each section contains:
+  17. NEW: "View Details" popup on Reflection badge. Shows ALL iterations — one section per re-query run. If re-queried twice, shows two full sections. Each section contains:
       - Iteration number (e.g. "Evaluation 1 of 2")
       - Overall confidence score (e.g. 0.62 → below threshold, triggered re-query)
       - Reasoning — one sentence why
@@ -256,7 +256,7 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
       - Re-query hint sent to Relationship Agent — exact instruction (e.g. "Start from 30910005, traverse deeper than 2 hops")
       - Decision: "RE-QUERIED" or "PASSED TO HUMAN APPROVAL"
       Final iteration also shows: total re-query count, final confidence, whether it passed or hit the max 2 re-query limit.
-      Data source: `selfRagHistory` array in LangGraph state (after fix 15).
+      Data source: `reflectionHistory` array in LangGraph state (after fix 15).
 
   **SYNTHESIS AGENT FIXES — FILE: `srv/agents/synthesis-agent.js`:**
   18. BUG: `agentContext` passed to Synthesis LLM (lines 54-77) is a thin summary. Specifically missing from what the LLM receives:
@@ -264,23 +264,23 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
       - Scikit-IF: scored count, flagged count, reason codes for flagged rows
       - Relationship: `finding` text, connected party names, ReAct step count, confidence
       - Trajectory: `conflictingSignals` array IS passed (line 68) but not referenced in the system prompt
-      - Self-RAG: `selfRagHistory` (all iterations), final confidence, gaps, reQueryCount — not in agentContext at all
+      - Reflection: `reflectionHistory` (all iterations), final confidence, gaps, reQueryCount — not in agentContext at all
       - Collateral: `collateralCount`, LTV ratio — not passed
       - Days in breach: `timeToBreach` IS passed but means 0 (hardcoded bug — fix item 6 first)
-      FIX: Expand `agentContext` to include all of the above. Add `selfRag: { history: state.selfRagHistory, finalConfidence, reQueryCount }` block.
-  19. BUG: Synthesis system prompt (line 82) does not instruct the LLM to use `conflictingSignals`, Scikit-IF reason codes, relationship node names, or Self-RAG gaps in findings. LLM ignores them even though they are in the context. FIX: Add explicit instructions: "Use conflictingSignals from trajectory to identify early warning vs confirmed breach. Use Scikit-IF reason codes as evidence for payment anomaly findings. Name specific connected parties from relationship nodeDetails in APS 221 findings. Surface unresolved Self-RAG gaps in the uncertainties field." Also define riskScore scale explicitly in prompt: "riskScore 0-100 where LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100. Must be consistent with riskLevel." This ensures consistent scoring across runs.
+      FIX: Expand `agentContext` to include all of the above. Add `reflection: { history: state.reflectionHistory, finalConfidence, reQueryCount }` block.
+  19. BUG: Synthesis system prompt (line 82) does not instruct the LLM to use `conflictingSignals`, Scikit-IF reason codes, relationship node names, or Reflection gaps in findings. LLM ignores them even though they are in the context. FIX: Add explicit instructions: "Use conflictingSignals from trajectory to identify early warning vs confirmed breach. Use Scikit-IF reason codes as evidence for payment anomaly findings. Name specific connected parties from relationship nodeDetails in APS 221 findings. Surface unresolved Reflection gaps in the uncertainties field." Also define riskScore scale explicitly in prompt: "riskScore 0-100 where LOW=0-25, MEDIUM=26-50, HIGH=51-75, CRITICAL=76-100. Must be consistent with riskLevel." This ensures consistent scoring across runs.
   22. BUG: Synthesis system prompt (line 96) hardcodes "Max 4 findings, 3 recommendations, 3 uncertainties." If 5 CRITICAL findings exist, one is silently dropped — compliance gap. FIX: Remove all count limits from the system prompt. Let the LLM return as many findings, recommendations, and uncertainties as the evidence supports. Only constraint: each finding must have severity, standard, evidenceSource, and confidence fields.
   21. BUG: `apraReady` is decided by the LLM (system prompt just says `"apraReady": <true|false>`) — non-deterministic, not a compliance flag. In banking, apraReady means the brief meets minimum standard for board notification or APRA submission. FIX: Remove apraReady from LLM output schema. Calculate deterministically in synthesis-agent.js AFTER LLM returns, overriding whatever the LLM said:
       ```javascript
       brief.apraReady =
         brief.findings.length > 0 &&
         brief.findings.every(f => f.evidenceSource) &&
-        (state.selfRagHistory?.at(-1)?.gaps?.length === 0) &&
+        (state.reflectionHistory?.at(-1)?.gaps?.length === 0) &&
         brief.regulatoryRefs.length > 0 &&
         brief.confidence > 0.70 &&
         (!state.hitlEnabled || state.approvalStatus === 'approved');
       ```
-      Rules: (1) findings exist and every finding has an evidenceSource, (2) no unresolved Self-RAG gaps, (3) at least one APRA standard cited, (4) confidence > 0.70, (5) if HITL is ON then human must have approved. All 5 must pass. Any failure → apraReady = false.
+      Rules: (1) findings exist and every finding has an evidenceSource, (2) no unresolved Reflection gaps, (3) at least one APRA standard cited, (4) confidence > 0.70, (5) if HITL is ON then human must have approved. All 5 must pass. Any failure → apraReady = false.
   20. NEW: "View Details" popup on Synthesis Agent badge. Shows full raw LLM output — no reformatting:
       - riskScore (final integer 0-100)
       - riskLevel (LOW / MEDIUM / HIGH / CRITICAL)
@@ -288,7 +288,7 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
       - findings — full list, each with: finding text, severity (CRITICAL/HIGH/MEDIUM/LOW), standard (APS221/CPS230/DTI_NOTICE), evidenceSource (which agent), confidence per finding
       - recommendations — all action items as numbered list
       - regulatoryRefs — APRA standards cited (e.g. APS221, CPS230)
-      - uncertainties — data gaps + any unresolved Self-RAG gaps
+      - uncertainties — data gaps + any unresolved Reflection gaps
       - apraReady — true/false — whether brief is ready for board notification
       - retrievedDocs — APRA regulatory chunks retrieved from HANA Vector: title, standard, content snippet for each
       - tokens — input token count + output token count (shows LLM work done)
@@ -301,7 +301,7 @@ Each agent popup has two sections. "How it works" content is below. "What it fou
   3. Enable HyDE: change `useHyDE: false` to `useHyDE: true` — HyDE generates a hypothetical APRA clause first, embeds that, finds chunks that look like the real clause rather than matching keywords. Already built in `mcp-tools.js` hana_vector_search, just disabled.
   After fixing: re-run `node scripts/test-rag.js` to regenerate `Data/ragas-dataset.json`, then `python scripts/ragas-eval.py` to confirm faithfulness > 0.85.
 - **NB-2: SPARQL multi-hop relType null** — Partners at hop 2+ show `relType: null` in the Relationship popup table. Root cause: reachability SPARQL OPTIONAL clause only walks one step from startNode. Fix: build `Map<partnerId, relType>` from the chain edges SPARQL (query 2, which already has correct relType for all pairs) and use it to enrich `traversalRows` before returning from `hana_graph_traverse`. FILE: `srv/tools/mcp-tools.js` lines 127–145.
-- **validate.js** — CPS 230 compliance guardrails disconnected. `validateAgentOutput()` and `crossCheckClaimsAgainstSources()` exist in `srv/guardrails/validate.js` but nothing imports them. CPS 230 requires AI outputs used in credit decisions to be validated against source data. FIX: (1) In `srv/agents/synthesis-agent.js` — import validate.js and call `validateAgentOutput(brief)` before returning the risk brief. If validation fails, add failure reason to `uncertainties`. (2) In `srv/agents/self-rag.js` — call `crossCheckClaimsAgainstSources(evaluation)` after the confidence check. These two call sites cover the two AI output boundaries that APRA CPS 230 requires to be validated.
+- **validate.js** — CPS 230 compliance guardrails disconnected. `validateAgentOutput()` and `crossCheckClaimsAgainstSources()` exist in `srv/guardrails/validate.js` but nothing imports them. CPS 230 requires AI outputs used in credit decisions to be validated against source data. FIX: (1) In `srv/agents/synthesis-agent.js` — import validate.js and call `validateAgentOutput(brief)` before returning the risk brief. If validation fails, add failure reason to `uncertainties`. (2) In `srv/agents/reflection.js` — call `crossCheckClaimsAgainstSources(evaluation)` after the confidence check. These two call sites cover the two AI output boundaries that APRA CPS 230 requires to be validated.
 - **Phase 10** — CF deployment, architecture diagram, blog post
 
 ### KEY ARCHITECTURAL DECISION (confirmed this session):
@@ -312,7 +312,7 @@ Trajectory (a4) runs BEFORE Relationship (a3) in the backend. This is intentiona
 
 ### LangGraph graph edge order (ACTUAL — banking-sentinel.js):
 ```
-pattern → trajectory → relationship → selfRagCheck → humanApproval → synthesis
+pattern → trajectory → relationship → reflectionCheck → humanApproval → synthesis
 ```
 (NOT: pattern → relationship → trajectory as the UI numbering implies)
 
@@ -530,7 +530,7 @@ LangGraph StateGraph — starts execution
 │   MCP Tool: apra_threshold_check(exposure, limit)   │
 │   Resolve conflicting signals → forward position    │
 │        ↓                                            │
-│  [Self-RAG Check] ← conditional edge               │
+│  [Reflection Check] ← conditional edge               │
 │   confidence < 0.70 → loop back to Relationship     │
 │   confidence ≥ 0.70 → continue to Synthesis         │
 │        ↓                                            │
@@ -633,7 +633,7 @@ const graph = new StateGraph(BankingSentinelState)
 .addNode('pattern',      patternAgent)     // LIVE — RPT-1 + PAL + LLM simultaneously
 .addNode('relationship', relationshipAgent) // LIVE — ReAct loop, BFS graph traversal
 .addNode('trajectory',   trajectoryAgent)  // LIVE — forward DTI, conflicting signals
-.addNode('selfRagCheck', selfRagCheckNode) // Phase 6 stub
+.addNode('reflectionCheck', reflectionNode) // Phase 6 stub
 .addNode('humanApproval',humanApprovalNode) // LIVE — interruptBefore fires here
 .addNode('synthesis',    synthesisAgent)   // LIVE — HANA Vector + APRA risk brief
 
@@ -658,10 +658,10 @@ graph.addConditionalEdges('pattern', routeAfterPattern, {
 })
 
 graph.addEdge('relationship', 'trajectory')
-graph.addEdge('trajectory',   'selfRagCheck')
+graph.addEdge('trajectory',   'reflectionCheck')
 
-// Self-RAG loop — max 2 re-queries
-graph.addConditionalEdges('selfRagCheck', checkConfidence, {
+// Reflection loop — max 2 re-queries
+graph.addConditionalEdges('reflectionCheck', checkConfidence, {
   'requery': 'relationship',
   'proceed': 'humanApproval'
 })
@@ -683,7 +683,7 @@ graphInstance = graph.compile({
 
 **Critical: Not all five agents always run:**
 - **Low risk (score < 30):** Skip Relationship and Trajectory. Route directly to Synthesis. UI shows greyed-out Relationship + Trajectory nodes.
-- **High risk (score >= 30):** Full pipeline — Relationship → Trajectory → Self-RAG → Human Approval → Synthesis.
+- **High risk (score >= 30):** Full pipeline — Relationship → Trajectory → Reflection → Human Approval → Synthesis.
 
 ### Pattern Agent — All Three Methods (Phase 4 LIVE)
 
@@ -813,7 +813,7 @@ await langfuseHandler.flushAsync()
 - Below 40%: Refuse to generate finding. State what data is missing.
 - 40-70%: Generate finding with explicit uncertainty statement.
 - Above 70%: Generate finding normally.
-- Self-RAG triggers at below 70% — re-queries before proceeding. Max 2 re-queries.
+- Reflection triggers at below 70% — re-queries before proceeding. Max 2 re-queries.
 
 **Human-in-the-loop:**
 LangGraph `interrupt()` fires before Synthesis executes. `banking/human/approval` event published to Solace. HTML UI shows pending findings + approval button. On approval — resume event fires, LangGraph resumes, Synthesis executes.
@@ -1000,7 +1000,7 @@ Output: "I am a risk intelligence system. I surface findings and recommendations
 
 ### Requirement 4 — Definition of Success
 
-**Technical:** System runs end to end. Self-RAG re-query fires genuinely. Human approval pause works. Regulatory update applies without code change.
+**Technical:** System runs end to end. Reflection re-query fires genuinely. Human approval pause works. Regulatory update applies without code change.
 
 **Demo:** A banking professional watches and says "I understand what this does and I want it."
 
@@ -1066,7 +1066,7 @@ For every pattern: AI meaning, banking meaning, SAP meaning.
 
 **6. Multi-Agent** — Five specialised agents, one job each. LangGraph StateGraph with five nodes, state carries all findings between nodes.
 
-**7. Self-RAG** — Agent evaluates its own retrieval quality, re-queries if confidence below threshold. LangGraph conditional edge after trajectory node — if confidence < 0.70, loop back to relationship.
+**7. Reflection** — Agent evaluates its own retrieval quality, re-queries if confidence below threshold. LangGraph conditional edge after trajectory node — if confidence < 0.70, loop back to relationship.
 
 **8. Temporal Memory** — State accumulates across agent steps. LangGraph typed BankingSentinelState passed through all nodes, persisted via PostgresSaver.
 
@@ -1140,7 +1140,7 @@ For every pattern: AI meaning, banking meaning, SAP meaning.
 | 4 | Pattern Agent — RPT-1 + PAL Isolation Forest + LLM simultaneously | ✅ COMPLETE (2026-05-24) |
 | 4b | Relationship Agent — ReAct loop, BFS graph traversal, exposure + APS 221 check | ✅ COMPLETE (2026-05-24) |
 | 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop interrupt | ✅ COMPLETE (2026-05-24) |
-| 6 | Self-RAG — real confidence evaluation + re-query loop | ✅ COMPLETE (2026-05-25) |
+| 6 | Reflection — real confidence evaluation + re-query loop | ✅ COMPLETE (2026-05-25) |
 | 7 | Solace events + SSE dual-publish + UI fully wired + admin security | ✅ COMPLETE (2026-05-25) |
 | 8 | HDI deploy + PAL investigation + observability + RAGAS baseline | ✅ COMPLETE (2026-05-25) |
 | 9 | UI polish: graph chain, agent ordering, severity badges, admin redesign, graph modal | 🔄 IN PROGRESS (2026-05-27) |
@@ -1245,7 +1245,7 @@ Official partnership announced May 2026. Claude is SAP's primary AI partner for 
 **Input:** "Analyse borrower 30100003 for all risk dimensions"
 - Pattern Agent: RPT-1 scores HIGH, PAL detects payment anomaly, LLM provides narrative
 - Relationship Agent: finds TrustCo Holdings at hop 6 (nobody asked about this)
-- Self-RAG fires: confidence 64% → re-queries → 89% (Twinkle 1)
+- Reflection fires: confidence 64% → re-queries → 89% (Twinkle 1)
 - Trajectory Agent: future DTI 9.2, time-to-breach 12 days
 - Human-in-the-loop interrupt → risk officer approves
 - Synthesis Agent: APRA-ready risk brief

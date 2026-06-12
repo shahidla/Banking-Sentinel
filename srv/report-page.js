@@ -82,9 +82,9 @@ function renderReportPage(sessionId) {
   .gap-item:last-child { border-bottom: none; }
   /* APRA refs */
   .ref-item { font-family: var(--mono); font-size: 11px; background: rgba(26,86,219,0.06); color: var(--blue); padding: 3px 8px; border-radius: 2px; display: inline-block; margin: 2px; }
-  /* Self-RAG iteration */
-  .rag-iter { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 10px 12px; margin-bottom: 8px; }
-  .rag-iter-hdr { font-family: var(--mono); font-size: 10px; color: var(--light); margin-bottom:6px; }
+  /* Reflection iteration */
+  .reflect-iter { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 10px 12px; margin-bottom: 8px; }
+  .reflect-iter-hdr { font-family: var(--mono); font-size: 10px; color: var(--light); margin-bottom:6px; }
   /* Print */
   @media print {
     header { background: #0f1117 !important; -webkit-print-color-adjust: exact; }
@@ -103,7 +103,10 @@ function renderReportPage(sessionId) {
     <div><h1>Banking Sentinel &nbsp;·&nbsp; Risk Analysis Report</h1></div>
     <div class="sub">APS 221 · CPS 230 · AI Decision Trail</div>
   </div>
-  <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  <div style="display:flex;gap:8px">
+    <button class="print-btn" onclick="window.open('/explain/${sessionId}','_blank')">Evidence Trail ↗</button>
+    <button class="print-btn" onclick="window.print()">⎙ Print / PDF</button>
+  </div>
 </header>
 <main id="root"><div class="loading">Loading report…</div></main>
 
@@ -150,13 +153,13 @@ const AGENT_HOW = {
       { k: 'SAP Technology',    v: 'GraphDB RDF triple store (sandbox = HANA Knowledge Graph Engine in production) · SPARQL 1.1 property paths · BUT050 + BCA_GUARANTOR graph edges' }
     ]
   },
-  selfRag: {
+  reflection: {
     how: [
       { k: 'AI Pattern',       v: 'LLM reads ALL previous agent outputs and evaluates evidence quality — not a threshold check. Returns structured evaluation with gaps and a targeted re-query hint.' },
       { k: 'Four dimensions',  v: '(1) Graph completeness — did traversal reach parent entities? (2) Signal consistency — HIGH RPT-1 + zero APS 221 = inconsistency. (3) Conflicting signals resolved? (4) Evidence trail — every risk claim backed by specific data.' },
       { k: 'Routing logic',    v: 'confidence < 0.70 → re-queries Relationship Agent with targeted reQueryHint. Max 2 re-queries. ≥ 0.70 → proceeds to Human Approval.' },
       { k: 'Why needed',       v: 'Prevents presenting incomplete findings to a risk officer. Catches cases where the graph found 0 connected parties despite an RPT-1 HIGH score — a suspicious inconsistency.' },
-      { k: 'SAP Technology',   v: 'LangGraph addConditionalEdges · Claude Haiku · Langfuse quality scoring · selfRagHistory array — one entry per iteration preserved in state' }
+      { k: 'SAP Technology',   v: 'LangGraph addConditionalEdges · Claude Haiku · Langfuse quality scoring · reflectionHistory array — one entry per iteration preserved in state' }
     ]
   },
   humanApproval: {
@@ -173,7 +176,7 @@ const AGENT_HOW = {
       { k: 'AI Pattern',       v: 'Retrieval-Augmented Generation — one targeted HANA Vector search per active risk signal, then Claude Haiku generates the APRA-ready brief from the retrieved regulatory chunks.' },
       { k: 'Per-signal retrieval', v: 'Four separate searches: DTI → APS 220 DTI clauses, group exposure → APS 221 connected party limits, income expiry → CPS 230 risk management, governance → CPS 230 AI oversight. Deduped, capped at 7 chunks.' },
       { k: 'Why RAG',          v: 'Brief must cite specific APRA standards, not training data. APRA standards change — Vector store is updated via the APRA Notice button. Without RAG, LLM cites outdated training-data versions.' },
-      { k: 'apraReady flag',   v: 'Deterministic — not LLM-decided. All must pass: synthesis confidence ≥ 0.70, regulatory refs retrieved, no unresolved Self-RAG gaps, no embedding service failure.' },
+      { k: 'apraReady flag',   v: 'Deterministic — not LLM-decided. All must pass: synthesis confidence ≥ 0.70, regulatory refs retrieved, no unresolved Reflection gaps, no embedding service failure.' },
       { k: 'SAP Technology',   v: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity · Langfuse RAGAS evaluation' }
     ]
   }
@@ -232,8 +235,8 @@ function render(d) {
   const pat   = d.patternAssessment  || {};
   const traj  = d.trajectoryAnalysis || {};
   const rel   = d.relationshipMap    || {};
-  const rag   = d.selfRagEvaluation  || {};
-  const ragHist = d.selfRagHistory   || [];
+  const reflection     = d.reflectionEvaluation || {};
+  const reflectionHist = d.reflectionHistory    || [];
   const int_  = d.intent             || {};
   const synth_finds = d.findings     || [];
   const refs   = d.regulatoryRefs    || [];
@@ -340,21 +343,21 @@ function render(d) {
         redges.map(e => '→ ' + e.from + ' → ' + e.to + (e.type ? ' [' + e.type + ']' : '') + (e.hop ? ' · hop ' + e.hop : '')).join('<br>') +
       '</div>' : ''));
 
-  // ── 05 Self-RAG ─────────────────────────────────────────────────────────────
-  html += section(5, 'Self-RAG', 'Epistemic Self-Evaluation', 'selfRag',
+  // ── 05 Reflection ────────────────────────────────────────────────────────────
+  html += section(5, 'Reflection', 'Epistemic Self-Evaluation', 'reflection',
     '<div class="kv-grid">' +
-      kv('Overall Confidence', pct(rag.overallConfidence)) +
+      kv('Overall Confidence', pct(reflection.overallConfidence)) +
       kv('Re-query Count', d.requeryCount != null ? d.requeryCount + ' / 2 max' : '—') +
       kv('Re-query Hint', d.reQueryHint || 'None') +
-      kv('Reasoning', rag.reasoning || '—') +
+      kv('Reasoning', reflection.reasoning || '—') +
     '</div>' +
-    ((rag.gaps || []).length ?
+    ((reflection.gaps || []).length ?
       '<div class="sub-hdr">Evidence Gaps</div>' +
-      (rag.gaps || []).map(g => '<div class="gap-item">⚠ ' + g + '</div>').join('') : '') +
-    (ragHist.length > 1 ?
-      '<div class="sub-hdr">Re-query History (' + ragHist.length + ' iterations)</div>' +
-      ragHist.map((iter, i) => '<div class="rag-iter">' +
-        '<div class="rag-iter-hdr">Iteration ' + (i+1) + ' · confidence: ' + pct(iter.overallConfidence) + '</div>' +
+      (reflection.gaps || []).map(g => '<div class="gap-item">⚠ ' + g + '</div>').join('') : '') +
+    (reflectionHist.length > 1 ?
+      '<div class="sub-hdr">Re-query History (' + reflectionHist.length + ' iterations)</div>' +
+      reflectionHist.map((iter, i) => '<div class="reflect-iter">' +
+        '<div class="reflect-iter-hdr">Iteration ' + (i+1) + ' · confidence: ' + pct(iter.overallConfidence) + '</div>' +
         '<div style="font-size:12px;color:var(--mid)">' + (iter.reasoning || '—') + '</div>' +
         ((iter.gaps || []).length ? '<div style="margin-top:6px">' + iter.gaps.map(g => '<div class="gap-item">⚠ ' + g + '</div>').join('') + '</div>' : '') +
       '</div>').join('') : ''));

@@ -44,14 +44,14 @@ All 13 items from the prior review confirmed fixed, plus 4 new bugs and 1 regres
 | 5 | `riskStart` node missing | `banking-sentinel.js` | ✅ Fixed |
 | 6 | VCAP_APPLICATION guard missing | `banking-sentinel.js` | ✅ Fixed |
 | 7 | Langfuse double-instance | `server.js` | ✅ Fixed |
-| 8 | Self-RAG parse failure silent proceed | `self-rag.js` | ✅ Fixed |
+| 8 | Reflection parse failure silent proceed | `reflection.js` | ✅ Fixed |
 | 9 | OpenAI embedding silent failure | `synthesis-agent.js` | ✅ Fixed |
 | 10 | Solace session not persistent | `solace-publisher.js` | ✅ Fixed |
 | 11 | Star-graph bug (SPARQL) | `mcp-tools.js` | ✅ Fixed |
 | 12 | BCA_COLLATERAL not seeded | `scripts/seed.js` | ✅ Fixed |
 | 13 | Graph canvas static placeholder | `Banking-Sentinel-AustralianBank.html` | ✅ Fixed |
 | NB-1 | WCAG `--light` CSS contrast | HTML | ✅ Fixed — `#767676` in report page; still `#A0A0A0` in main HTML (see Section 3) |
-| NB-3 | Self-RAG requery cap was 3 | `self-rag.js` | ✅ Fixed — comment says cap=2, but code still shows `reqCount < 3` (see Section 3) |
+| NB-3 | Reflection requery cap was 3 | `reflection.js` | ✅ Fixed — comment says cap=2, but code still shows `reqCount < 3` (see Section 3) |
 | NB-4 | RAGAS null on approve path | `server.js` | ✅ Fixed — `finalState.retrievedDocs` now populated from synthesis checkpoint |
 | REG-1 | Relationship Agent timeout gone | `relationship-agent.js` | ⚠ Still missing — see Section 3 |
 | validate.js | Guardrails disconnected | multiple | ✅ Fixed — `validateAgentOutput` and `crossCheckClaimsAgainstSources` now called in `synthesis-agent.js` |
@@ -65,8 +65,8 @@ All 13 items from the prior review confirmed fixed, plus 4 new bugs and 1 regres
 - **Issue:** `--light: #A0A0A0` (2.85:1 contrast ratio) still present in the main UI file. The new `report-page.js` correctly uses `#767676`, but the main HTML was not updated.
 - **Fix:** Change `--light: #A0A0A0` to `--light: #767676` in the main HTML `:root` block.
 
-### NB-3 (STILL OPEN) — Self-RAG Requery Cap Is Still 3, Not 2
-- **File:** `srv/agents/self-rag.js` line 156
+### NB-3 (STILL OPEN) — Reflection Requery Cap Is Still 3, Not 2
+- **File:** `srv/agents/reflection.js` line 156
 - **Issue:** `if (confidence < 0.70 && reqCount < 3)` — allows 3 re-queries (4 total attempts). The comment on line 144 says "cap at 2 re-queries" but the code says `< 3`. Design intent is max 2 re-queries (3 total attempts).
 - **Fix:** Change `reqCount < 3` to `reqCount < 2`.
 
@@ -129,18 +129,18 @@ All 13 items from the prior review confirmed fixed, plus 4 new bugs and 1 regres
 - **REG-1:** No timeout guard — hung GraphDB freezes pipeline (see Section 3).
 - **NB-2 (still open):** Multi-hop `relType` is null for hop 2+ nodes — SPARQL OPTIONAL only matches direct edges from startNode. Edge labels beyond first hop are missing.
 
-### Self-RAG Agent
+### Reflection Agent
 - LLM-as-judge (Claude Haiku) scores synthesis quality on coherence, evidence, regulatory alignment.
 - Parse failure defaults to `0.60` — triggers requery rather than silent proceed.
 - Emits `requeryCount` and `reQueryHint` — hint is passed back to relationship agent on requery to focus the next traversal.
 - **NB-3 (still open):** Requery cap is `reqCount < 3` (3 re-queries), should be `< 2` (2 re-queries).
-- RAGAS scores (faithfulness + answer relevance) computed after selfRagCheck and pushed via SSE.
+- RAGAS scores (faithfulness + answer relevance) computed after reflectionCheck and pushed via SSE.
 
 ### Synthesis Agent
 - **New this pull:** Per-signal vector retrieval — one targeted `hana_vector_search` query per risk signal (DTI, group exposure, conflicting signals, CPS 230). Deduped, capped at 7 chunks. This is the root-cause fix for low RAGAS faithfulness.
 - `validateAgentOutput()` called — checks confidence threshold, finding completeness.
 - `crossCheckClaimsAgainstSources()` called — measures claim-source overlap. Logs warning if overlap < 30%.
-- `apraReady` determined deterministically (4 conditions: confidence >= 0.70, Self-RAG passed, reg docs retrieved, no context failure). Not LLM-decided.
+- `apraReady` determined deterministically (4 conditions: confidence >= 0.70, Reflection passed, reg docs retrieved, no context failure). Not LLM-decided.
 - Persists to `RiskAssessments` HANA table (fire-and-forget).
 - Still using `claude-haiku-4-5-20251001` — upgrade to `claude-opus-4-7` planned for demo quality.
 - `retrievedDocs` returned with EMBEDDING field stripped — safe for PostgresSaver.
@@ -178,7 +178,7 @@ Banking Sentinel monitors SAP TRBK data for a major Australian bank and detects 
 ### Human-in-the-Loop (HITL) — Business Significance
 
 The `humanApproval` checkpoint in LangGraph is not just a UX feature — it is a regulatory control. Under CPS 230, AI-assisted credit decisions must have a human sign-off before they are acted on. The LangGraph interrupt-before pattern ensures:
-- The pipeline pauses after Self-RAG, before synthesis produces the final brief.
+- The pipeline pauses after Reflection, before synthesis produces the final brief.
 - The risk officer sees all intermediate agent findings before approving.
 - The approval action (who approved, when) is logged to `RiskAssessments` and `AuditLog`.
 - Rejection is also captured — `APPROVED_BY: REJECTED:risk_officer`.
@@ -193,7 +193,7 @@ The designed demo scenario (from CONTEXT.md) is:
 2. Pattern Agent flags payment irregularities (RPT-1 score ~65, MEDIUM-HIGH category).
 3. Trajectory Agent calculates: current DTI 5.8x, future DTI ~7.2x after income expiry → `DETERIORATING`, breach in ~45 days.
 4. Relationship Agent traverses the graph: finds connected party group with $42M combined guaranteed exposure → APS 221 utilisation ~94%.
-5. Self-RAG evaluates the findings, confidence ~0.78 → proceeds to human approval.
+5. Reflection evaluates the findings, confidence ~0.78 → proceeds to human approval.
 6. Risk Officer approves → Synthesis generates APRA-ready brief with APS 221 + DTI findings, regulatory citations from HANA Vector, recommendations.
 7. Demo 2: Risk Officer then runs "Apply APRA Notice" — uploads the Feb 2026 DTI PDF, threshold updates from 8.0x to 6.0x in HANA. Re-run shows the same borrower now in active breach.
 
@@ -211,7 +211,7 @@ The designed demo scenario (from CONTEXT.md) is:
 
 ### LangGraph StateGraph
 
-- 10 nodes: `intake → riskStart → pattern → trajectory (a4) → relationship (a3) → selfRagCheck → humanApproval → synthesis`. Plus `simple_query` and `rejection` as terminal branches.
+- 10 nodes: `intake → riskStart → pattern → trajectory (a4) → relationship (a3) → reflectionCheck → humanApproval → synthesis`. Plus `simple_query` and `rejection` as terminal branches.
 - `riskStart` is a pass-through node — exists to give the graph a named entry after routing, not for logic.
 - **Execution order is intentional:** trajectory runs before relationship so the relationship agent has DTI context when reasoning about group exposure risk. The UI labels (a3/a4) are cosmetic and do not match execution order by design.
 - `interruptBefore: ['humanApproval']` — LangGraph pauses here, state persisted to PostgresSaver. Resume via `graph.updateState()` + `graph.stream(null, config)`.
@@ -270,7 +270,7 @@ All three are exercised in every high-risk pipeline run:
 **Agent Status Timeline**
 
 - Badges: `● Thinking`, `↻ Re-querying`, `✓ Complete`, `○ Waiting`.
-- `data-counted` flag prevents double-count on a4 — both trajectory and selfRagCheck fire `complete` events, only one increments the counter.
+- `data-counted` flag prevents double-count on a4 — both trajectory and reflectionCheck fire `complete` events, only one increments the counter.
 - Low-risk path correctly greys out a3/a4 when synthesis arrives directly from pattern.
 - `nextMap = { intake: 'a2', trajectory: 'a3' }` — correct UI routing for execution order.
 
@@ -303,7 +303,7 @@ All three are exercised in every high-risk pipeline run:
 
 - Served at `/report/:sessionId` — fully self-contained HTML, fetches and renders.
 - KPI row: risk score (colour-coded), customer ID, APRA status (✓ Ready / ⚠ Review), token counts.
-- Per-agent sections: Intake, Pattern, Trajectory, Relationship, Self-RAG, Synthesis — each shows the actual data and decisions made.
+- Per-agent sections: Intake, Pattern, Trajectory, Relationship, Reflection, Synthesis — each shows the actual data and decisions made.
 - Audit trail section: every agent call with model, tokens, cost AUD, latency ms.
 - Print/PDF button (`window.print()`).
 - `--light: #767676` — WCAG AA compliant. Correctly fixed here.
@@ -339,7 +339,7 @@ POST /a2a/analyze
   → routeAfterPattern: score >= 30 → trajectory
   → trajectory (DTI calc, forward position, conflicting signals)
   → relationship (ReAct: up to 5 tool calls via SPARQL + HANA)
-  → selfRagCheck (LLM-as-judge, RAGAS scores via SSE)
+  → reflectionCheck (LLM-as-judge, RAGAS scores via SSE)
     → confidence >= 0.70 → humanApproval (INTERRUPT)
     → confidence < 0.70 && reqCount < 3 → back to relationship
   [PAUSE — PostgresSaver checkpoint written]
@@ -391,7 +391,7 @@ All SSE events are pushed via `pushSSE(sessionId, type, data)`. The browser conn
 - **GraphDB unreachable:** No timeout guard (REG-1) — pipeline hangs until CF 60s hard timeout.
 - **OpenAI unreachable:** `regulatoryContextUnavailable = true` — synthesis uses general APRA knowledge, `apraReady: false`.
 - **LLM parse failure (synthesis):** Pattern fallback brief returned, `apraReady: false`.
-- **LLM parse failure (self-RAG):** Defaults to confidence 0.60 — triggers requery.
+- **LLM parse failure (Reflection):** Defaults to confidence 0.60 — triggers requery.
 - **PostgresSaver unavailable on CF:** Graph not initialised — all endpoints return 503.
 
 ### Concurrency
@@ -419,7 +419,7 @@ Items from CONTEXT.md confirmed not yet implemented as of this pull.
 | Task 2 | `seed-regulatory.js` rewrite | Blocked | JSON source files deleted — script reads live APRA URLs instead. NB-6. |
 | 40 | Demo 1 regulatory knowledge base | Partial | 2,002 chunks in HANA already (from CSV). Script to re-seed from scratch is broken. |
 | NB-1 | WCAG contrast in main HTML | Open | `--light: #A0A0A0` → `#767676`. 2 min fix. |
-| NB-3 | Self-RAG requery cap | Open | `reqCount < 3` → `< 2`. 2 min fix. |
+| NB-3 | Reflection requery cap | Open | `reqCount < 3` → `< 2`. 2 min fix. |
 | NB-2 | SPARQL multi-hop relType null | Open | Edge labels missing beyond hop 1. 30 min fix. |
 | REG-1 | Relationship Agent timeout | Open | No `Promise.race` guard. 15 min fix. |
 | NB-5 | Duplicate `/api/report/` route | Open | Dead second handler. 5 min fix. |
@@ -445,7 +445,7 @@ Ranked by impact on demo readiness and regulatory risk.
 | P0 | REG-1 | Relationship Agent timeout regression | `relationship-agent.js` | 15 min |
 | P0 | NB-5 | Duplicate `/api/report/` route | `server.js` | 5 min |
 | P1 | NB-6 | `seed-regulatory.js` broken (JSON deleted) | `scripts/seed-regulatory.js` | 1 hr |
-| P1 | NB-3 | Self-RAG requery cap 3 → 2 | `self-rag.js` | 2 min |
+| P1 | NB-3 | Reflection requery cap 3 → 2 | `reflection.js` | 2 min |
 | P1 | SEC-1 | `NODE_ENV: development` in manifest | `manifest.yml` | 2 min |
 | P1 | Model | Synthesis Haiku → Opus 4.7 | `manifest.yml` env var | 5 min |
 | P2 | NB-1 | WCAG `--light` contrast main HTML | HTML `:root` | 2 min |

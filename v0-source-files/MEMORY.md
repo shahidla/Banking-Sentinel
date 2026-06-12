@@ -75,7 +75,7 @@ Banking Sentinel extends MJ Live patterns. Full MJ knowledge is saved at:
 | Agent 1 — Intake | Router | Parses NL query, identifies customer, routes to specialists |
 | Agent 2 — Graph Traversal | ReAct loop | Multi-hop TRBK graph traversal via HANA (BP2000, BCA_GUARANTOR, DFKKOP) |
 | Agent 3 — Policy | Hybrid RAG + HyDE | APRA standards retrieval from HANA Vector |
-| Agent 4 — Risk Scoring | Self-RAG | Scores 4 risk dimensions, re-queries if confidence < 75% |
+| Agent 4 — Risk Scoring | Reflection | Scores 4 risk dimensions, re-queries if confidence < 75% |
 | Agent 5 — Recommendation | Synthesis | Generates APRA-ready risk brief with evidence trail |
 
 ---
@@ -156,7 +156,7 @@ Header: `apikey: <SAP_BTP_API_KEY from .env>`
 | 4 | Pattern Agent — RPT-1 (rpt.cloud.sap) + PAL Isolation Forest EXPLAIN + LLM simultaneously | ✅ DONE (2026-05-24) |
 | 4b | Relationship Agent — ReAct loop (max 6 steps), GraphDB SPARQL graph traversal, APS 221 check | ✅ DONE (2026-05-24) |
 | 5 | Trajectory Agent + Synthesis Agent + Human-in-the-loop (interruptBefore humanApproval) | ✅ DONE (2026-05-24) |
-| 6 | Self-RAG — real LLM confidence evaluation (4 dimensions) + targeted re-query loop | ✅ DONE (2026-05-25) |
+| 6 | Reflection — real LLM confidence evaluation (4 dimensions) + targeted re-query loop | ✅ DONE (2026-05-25) |
 | 7 | Solace events (graph.stream) + Twinkle 2 (APRA sync) + UI wired + security hardening | ✅ DONE (2026-05-25) |
 | 8 | HDI deploy + PAL investigation + Langfuse + RAGAS baseline | ✅ DONE (2026-05-25) |
 | 9 | UI polish sprint — graph chain, agent ordering, severity badges, admin redesign, graph modal | 🔄 IN PROGRESS (2026-05-27) |
@@ -344,7 +344,7 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 - Intake Agent: classifies SIMPLE_DATA_QUERY | RISK_ANALYSIS | INAPPROPRIATE_REQUEST (claude-sonnet-4-6, 300 tokens)
 - Simple Query Node: fetches 6 HANA stat packages, Claude answers from portfolioContext — no agent pipeline overhead
 - Rejection Node: APRA CPS 230 refusal logged to AuditLog. REFUSAL = "I am a risk intelligence system..."
-- 5 stubs: patternAgentStub, relationshipAgentStub, trajectoryAgentStub, selfRagCheckNode, humanApprovalNode, synthesisAgentStub
+- 5 stubs: patternAgentStub, relationshipAgentStub, trajectoryAgentStub, reflectionNode, humanApprovalNode, synthesisAgentStub
 - 5 MCP tools: hana_relational_query, hana_vector_search (with HyDE), hana_graph_traverse, apra_threshold_check, exposure_calculator
 - validateAgentOutput(): 0.40 threshold = REFUSE, missing evidenceSource = FLAG, 0.70 threshold = REQUERY
 - A2A endpoint: POST /a2a/agent (JSON-RPC 2.0), GET /a2a/health — mounted before CDS OData routes
@@ -355,11 +355,11 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 - `GET /a2a/health` → `{ status: 'ok', graph: 'ready', langfuse: 'connected' }` ✅
 - Simple query: "What is the total loan amount?" → AUD 31,773,000 across 30 loans (responseType: simple_query) ✅
 - Deliberate rejection: "Approve the loan for B-001" → APRA refusal message (responseType: rejection) ✅
-- Risk analysis: "Analyse credit risk for B-001" → full pipeline, Self-RAG ran 2 loops, synthesisResult returned (responseType: risk_analysis) ✅
+- Risk analysis: "Analyse credit risk for B-001" → full pipeline, Reflection ran 2 loops, synthesisResult returned (responseType: risk_analysis) ✅
 
 **Key bugs fixed in Phase 3:**
 - Supabase free-tier PostgreSQL pauses after 1 week of inactivity → MemorySaver fallback (local dev only; PostgresSaver for prod)
-- Self-RAG infinite loop: selfRagCheckNode returned `{}` so requeryCount stayed 0 → fixed to increment requeryCount each pass
+- Reflection infinite loop: reflectionNode returned `{}` so requeryCount stayed 0 → fixed to increment requeryCount each pass
 - `cds watch` without `--profile hybrid` drops HANA binding → must use `cds watch --profile hybrid` for local dev
 
 **Key decisions Phase 3:**
@@ -369,7 +369,7 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 | PostgreSQL fallback | MemorySaver for local dev | Hard fail if Supabase paused | Supabase free tier pauses. Local dev shouldn't require live PostgreSQL. Production always uses PostgresSaver. |
 | Langfuse integration | langfuse package (manual trace) | langfuse-langchain | Already confirmed in Phase 2 session. langfuse-langchain locked to @langchain/core v0.3.x, incompatible with LangGraph v1.x. |
 | MCP tools location | srv/tools/mcp-tools.js (plain functions) | Real MCP server (stdio) | Phase 3 wires tools as functions called by agents. Real MCP server protocol in Phase 7 when Solace events added. |
-| Self-RAG loop cap | requeryCount incremented in selfRagCheckNode | Separate counter in checkConfidence | Cleanest state update. selfRagCheckNode returns `{ requeryCount: (state.requeryCount + 1) }`. checkConfidence reads it. Cap at 2 re-queries before forcing proceed. |
+| Reflection loop cap | requeryCount incremented in reflectionNode | Separate counter in checkConfidence | Cleanest state update. reflectionNode returns `{ requeryCount: (state.requeryCount + 1) }`. checkConfidence reads it. Cap at 2 re-queries before forcing proceed. |
 
 **Files created in Phase 3:**
 - srv/banking-sentinel-service.cds — CAP service: analyseRisk, approveRiskBrief, uploadRegulatoryDocument, resetSession
@@ -378,7 +378,7 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 - srv/agents/intake-agent.js — Intake Agent + routeFromIntake()
 - srv/agents/simple-query.js — Simple Query Node: 6 HANA queries + Claude answer
 - srv/agents/rejection.js — Rejection Node: APRA refusal + AuditLog insert
-- srv/agents/stubs.js — 6 stubs for Phases 4–6 (pattern, relationship, trajectory, selfRagCheck, humanApproval, synthesis)
+- srv/agents/stubs.js — 6 stubs for Phases 4–6 (pattern, relationship, trajectory, reflectionCheck, humanApproval, synthesis)
 - srv/tools/mcp-tools.js — 5 MCP tools (functions, not real MCP server yet)
 - srv/guardrails/validate.js — validateAgentOutput() guardrails
 - srv/server.js — CAP server: bootstrap A2A endpoint, LangGraph graph init, Langfuse, AuditLog
@@ -462,20 +462,20 @@ This is pattern 3 (HyDE) in the v6 10 AI patterns. Blog content: "Banking regula
 | HyDE in synthesis | useHyDE: false | HyDE enabled | Synthesis builds its own rich query from all agent signals — HyDE adds latency without enough benefit here |
 
 **Full pipeline confirmed LIVE (2026-05-24):**
-intake → pattern → relationship → trajectory → selfRagCheck → [interrupt] → humanApproval → synthesis → END
+intake → pattern → relationship → trajectory → reflectionCheck → [interrupt] → humanApproval → synthesis → END
 
 ---
 
 ## PHASE 6 DECISIONS LOG (2026-05-25)
 
 **What was built:**
-- Real Self-RAG: `srv/agents/self-rag.js` — LLM (claude-haiku-4-5-20251001) evaluates its own output across 4 dimensions
+- Real Reflection: `srv/agents/reflection.js` — LLM (claude-haiku-4-5-20251001) evaluates its own output across 4 dimensions
 - 4 dimensions: graph completeness, signal consistency, conflicting signals, evidence trail
 - Output: `{ overallConfidence: 0.0-1.0, gaps: [], reQueryHint: "...", reasoning: "..." }`
-- `checkConfidence()` reads `selfRagEvaluation.overallConfidence` — threshold 0.70, max 2 re-queries
+- `checkConfidence()` reads `reflectionEvaluation.overallConfidence` — threshold 0.70, max 2 re-queries
 - Relationship Agent: detects re-query run via `requeryCount > 0`, uses targeted prompt with `reQueryHint`
 - Re-query prompt: "Previous traversal incomplete. Focus: [reQueryHint]. Previous nodes found: [...]"
-- `state.js` updated: added `selfRagEvaluation` and `reQueryHint` Annotation fields
+- `state.js` updated: added `reflectionEvaluation` and `reQueryHint` Annotation fields
 - `stubs.js` cleaned: all stubs promoted to real implementations. File exports empty object.
 - `scripts/enrich-synthetic-data.js`: 80 DFKKOP rows for PAL baseline + 15 BCA_DTI rows for RPT-1 diversity
 - PostgresSaver: `connectionTimeoutMillis: 5000` to fail fast when Supabase is paused (local dev safety)
@@ -484,7 +484,7 @@ intake → pattern → relationship → trajectory → selfRagCheck → [interru
 
 | Decision | Chosen | Rejected | Why |
 |---|---|---|---|
-| Self-RAG LLM | claude-haiku-4-5-20251001 (400 tokens max) | claude-sonnet | Low cost — this is a meta-evaluation call, not primary reasoning |
+| Reflection LLM | claude-haiku-4-5-20251001 (400 tokens max) | claude-sonnet | Low cost — this is a meta-evaluation call, not primary reasoning |
 | Confidence threshold | 0.70 | 0.75, 0.80 | Matches v6 architecture spec. Not too tight, not too loose. |
 | Re-query max | 2 | 3, unlimited | Prevents infinite loop. After 2 re-queries, proceed regardless. |
 | reQueryHint format | Natural language instruction | Structured JSON | Relationship Agent receives it as part of system prompt — natural language is cleaner |
@@ -537,7 +537,7 @@ graph.stream() → yields after each node
 **Additional Phase 7 deliverables (Session 6 — 2026-05-25):**
 - HTML UI fully wired: SSE per-agent events update all 3 panels live
 - Anomaly strings as bullet list in Pattern row; relationship finding + APS 221% in Relationship row
-- Forward position, daysToExpiry, re-query count in Trajectory/Self-RAG row
+- Forward position, daysToExpiry, re-query count in Trajectory/Reflection row
 - Synthesis: findings count + APRA Ready ✓ in agent row; full brief + recommendations in Panel 3
 - Removed all hardcoded content (B-4471, fake customer names, fake alerts)
 - Real logo added: `Docs/logo.png` served via `/logo.png` route

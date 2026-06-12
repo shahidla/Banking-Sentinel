@@ -22,8 +22,8 @@ async function synthesisAgent(state) {
 
   // ── HANA Vector search — per-signal retrieval for higher RAGAS faithfulness ──
   // One targeted query per risk signal → more precise chunks, less generic content
-  const selfRag    = state.selfRagEvaluation || {};
-  const selfRagHistory = state.selfRagHistory || [];
+  const reflection    = state.reflectionEvaluation || {};
+  const reflectionHistory = state.reflectionHistory || [];
 
   const signalQueries = [
     trajectory.currentDti > 0
@@ -97,11 +97,11 @@ async function synthesisAgent(state) {
       finding:       relationship.finding,
       confidence:    relationship.confidence
     },
-    selfRag: {
-      overallConfidence: selfRag.overallConfidence,
-      iterations:        selfRagHistory.length,
-      gaps:              selfRag.gaps || [],
-      reasoning:         selfRag.reasoning
+    reflection: {
+      overallConfidence: reflection.overallConfidence,
+      iterations:        reflectionHistory.length,
+      gaps:              reflection.gaps || [],
+      reasoning:         reflection.reasoning
     }
   });
 
@@ -116,7 +116,7 @@ riskLevel must match riskScore: score 51 = HIGH, score 76 = CRITICAL, score 25 =
 Reference the conflictingSignals array — each unresolved conflict reduces confidence and must appear as a finding or uncertainty.
 Pattern confidence (rpt1Conf) is the real RPT-1 confidence from the tabular model — cite it in findings.
 palFlagged shows anomaly count as "X/N payment rows" — use this exact format in findings.
-Self-RAG reasoning explains the evidence quality decision — cite it if relevant.
+Reflection reasoning explains the evidence quality decision — cite it if relevant.
 
 Return ONLY valid JSON. Keep each finding under 20 words. Max 5 findings, 3 recommendations, 3 uncertainties.
 {
@@ -175,11 +175,11 @@ Return ONLY the JSON object. No markdown, no explanation, no code fences.`
   }
 
   // Deterministic apraReady — not LLM-decided (item 24)
-  // All four conditions must hold: sufficient confidence, Self-RAG passed, reg docs retrieved, no context failure
-  const selfRagPassed  = (selfRag.overallConfidence ?? 1) >= 0.70 || selfRagHistory.length === 0;
+  // All four conditions must hold: sufficient confidence, Reflection passed, reg docs retrieved, no context failure
+  const reflectionPassed = (reflection.overallConfidence ?? 1) >= 0.70 || reflectionHistory.length === 0;
   brief.apraReady = (
     (brief.confidence || 0) >= 0.70 &&
-    selfRagPassed &&
+    reflectionPassed &&
     regulatoryRefs.length > 0 &&
     !regulatoryContextUnavailable
   );

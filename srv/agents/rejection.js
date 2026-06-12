@@ -13,8 +13,6 @@ const { v4: uuid } = require('uuid');
 const REFUSAL = 'I am a risk intelligence system. I surface findings and recommendations. Loan approval decisions require human authorisation.';
 
 async function rejectionNode(state) {
-  const customerId = state.intent?.customerId || state.customerId;
-
   // Log the inappropriate request attempt for CPS 230 audit trail
   try {
     await cds.run(INSERT.into('bankingsentinel.AuditLog').entries({
@@ -34,13 +32,9 @@ async function rejectionNode(state) {
     console.error('[Rejection] AuditLog insert failed:', e.message);
   }
 
-  const message = customerId
-    ? `${REFUSAL} Here is the risk profile for ${customerId} to inform your decision.`
-    : REFUSAL;
-
   console.log(`  [Rejection] Inappropriate request detected. Query: "${state.query.substring(0, 60)}"`);
 
-  return { rejectionMessage: message };
+  return { rejectionMessage: REFUSAL };
 }
 
 module.exports = { rejectionNode };

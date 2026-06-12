@@ -104,7 +104,7 @@ const BankingSentinelState = Annotation.Root({
     {
       riskScore:      number
       riskLevel:      string
-      confidence:     number             — overall confidence (below 0.70 triggers Self-RAG)
+      confidence:     number             — overall confidence (below 0.70 triggers Reflection)
       findings:       object[]           — each finding with evidenceSource + confidence
       recommendations: string[]
       regulatoryRefs:  string[]          — APS 221, CPS 230, DTI Notice etc.
@@ -113,18 +113,18 @@ const BankingSentinelState = Annotation.Root({
     }
   */
 
-  // ── Self-RAG loop control ──────────────────────────────────────────────────
-  // AI: Epistemic re-query — agent evaluates its own confidence and loops if below threshold
+  // ── Reflection loop control ──────────────────────────────────────────────────
+  // AI: Reflexion-style re-query — a critic evaluates agent confidence and loops if below threshold
   // Banking: Risk officer double-checks before signing off. Below 0.70 = get more data first.
-  // SAP: LangGraph conditional edge after selfRagCheck node; max 2 re-queries to avoid infinite loop
+  // SAP: LangGraph conditional edge after reflectionCheck node; max 2 re-queries to avoid infinite loop
   requeryCount: Annotation({ reducer: (x, y) => (y !== undefined ? y : (x ?? 0)), default: () => 0 }),
 
-  // AI: Self-RAG evaluation output — real LLM quality assessment of all agent outputs
+  // AI: Reflection evaluation output — real LLM quality assessment of all agent outputs
   // Banking: "Graph traversal found 3 nodes but zero exposure — traversal stopped early"
-  // SAP: Written by self-rag.js selfRagCheckNode; read by checkConfidence routing function
-  selfRagEvaluation: Annotation({ reducer: last }),
+  // SAP: Written by reflection.js reflectionNode; read by checkConfidence routing function
+  reflectionEvaluation: Annotation({ reducer: last }),
   /*
-    selfRagEvaluation shape:
+    reflectionEvaluation shape:
     {
       overallConfidence: number      — LLM-evaluated confidence (0.0-1.0), authoritative for routing
       gaps:              string[]    — specific evidence gaps identified
@@ -133,15 +133,15 @@ const BankingSentinelState = Annotation.Root({
     }
   */
 
-  // AI: Targeted re-query instruction — Self-RAG tells Relationship Agent what to look for deeper
+  // AI: Targeted re-query instruction — Reflection tells Relationship Agent what to look for deeper
   // Banking: "Start from TrustCo Group (30910009) — previous traversal didn't reach parent entities"
-  // SAP: Written by selfRagCheckNode; read by relationshipAgent on re-query runs
+  // SAP: Written by reflectionNode; read by relationshipAgent on re-query runs
   reQueryHint: Annotation({ reducer: last }),
 
-  // AI: Full iteration log — one entry per Self-RAG evaluation, preserved across re-queries
+  // AI: Full iteration log — one entry per Reflection evaluation, preserved across re-queries
   // Banking: Audit trail showing how confidence evolved — iteration 1: 0.65 → re-query → iteration 2: 0.82
-  // SAP: Appended by selfRagCheckNode; read by Synthesis agentContext and report page
-  selfRagHistory: Annotation({ reducer: append, default: () => [] }),
+  // SAP: Appended by reflectionNode; read by Synthesis agentContext and report page
+  reflectionHistory: Annotation({ reducer: append, default: () => [] }),
 
   // ── Pipeline config ────────────────────────────────────────────────────────
   // AI: HITL toggle — persisted so /api/report can read the mode for a given session

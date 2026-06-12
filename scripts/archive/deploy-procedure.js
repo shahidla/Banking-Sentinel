@@ -20,22 +20,33 @@ conn.connect({
   if (err) { console.error('Connection failed:', err.message); process.exit(1); }
   console.log('Connected as DT user to HDI schema');
 
+  // AI: Feature set mirrors ml/anomaly-service.py exactly — [payment_delay_days, dunning_level (MAHNS)],
+  //     trained on DFKKOP (open items) + DFKKOPK (cleared history) portfolio-wide, scored for one customer.
+  //     NUM_TREES=100/SEED=42 mirror scikit's n_estimators=100/random_state=42. PAL has no 'auto'
+  //     contamination equivalent — CONTAMINATION=0.1 is the closest fixed approximation.
   const sql = `CREATE OR REPLACE PROCEDURE "PAL_RUN_ISOLATION_FOREST" (IN customer_id NVARCHAR(20))
 LANGUAGE SQLSCRIPT
 SQL SECURITY INVOKER
 AS
 BEGIN
-    DECLARE lt_train TABLE ("DAYS_OVERDUE" DOUBLE, "AMOUNT" DOUBLE);
+    DECLARE lt_train TABLE ("PAYMENT_DELAY_DAYS" DOUBLE, "DUNNING_LEVEL" DOUBLE);
     DECLARE lt_train_param TABLE ("PARAM_NAME" NVARCHAR(256), "INT_VALUE" INTEGER, "DOUBLE_VALUE" DOUBLE, "STRING_VALUE" NVARCHAR(100));
     DECLARE lt_model TABLE ("TREE_INDEX" INTEGER, "MODEL_CONTENT" NCLOB);
-    DECLARE lt_score TABLE ("ID" NVARCHAR(20), "DAYS_OVERDUE" DOUBLE, "AMOUNT" DOUBLE);
+    DECLARE lt_score TABLE ("ID" NVARCHAR(20), "PAYMENT_DELAY_DAYS" DOUBLE, "DUNNING_LEVEL" DOUBLE);
     DECLARE lt_explain_param TABLE ("PARAM_NAME" NVARCHAR(256), "INT_VALUE" INTEGER, "DOUBLE_VALUE" DOUBLE, "STRING_VALUE" NVARCHAR(100));
     DECLARE lt_result TABLE ("ID" NVARCHAR(20), "SCORE" DOUBLE, "LABEL" INTEGER, "REASON_CODE" NCLOB);
 
-    lt_train = SELECT TOP 500
-        CAST("DAYS_OVERDUE" AS DOUBLE) AS "DAYS_OVERDUE",
-        CAST("BETRW" AS DOUBLE) AS "AMOUNT"
-    FROM "BANKINGSENTINEL_DFKKOP";
+    -- Training — portfolio-wide: DFKKOP open items + DFKKOPK cleared history (mirrors scikit X_train)
+    lt_train =
+        SELECT TOP 500
+            CAST("DAYS_OVERDUE" AS DOUBLE) AS "PAYMENT_DELAY_DAYS",
+            CAST("MAHNS" AS DOUBLE) AS "DUNNING_LEVEL"
+        FROM "BANKINGSENTINEL_DFKKOP"
+        UNION ALL
+        SELECT TOP 500
+            CAST(DAYS_BETWEEN("FAEDN", "AUGDT") AS DOUBLE) AS "PAYMENT_DELAY_DAYS",
+            CAST("MAHNS" AS DOUBLE) AS "DUNNING_LEVEL"
+        FROM "BANKINGSENTINEL_DFKKOPK";
 
     lt_train_param =
         SELECT CAST('SEED' AS NVARCHAR(256)) AS "PARAM_NAME", CAST(42 AS INTEGER) AS "INT_VALUE", CAST(NULL AS DOUBLE) AS "DOUBLE_VALUE", CAST(NULL AS NVARCHAR(100)) AS "STRING_VALUE" FROM DUMMY
@@ -44,12 +55,21 @@ BEGIN
 
     CALL _SYS_AFL.PAL_ISOLATION_FOREST(:lt_train, :lt_train_param, lt_model);
 
-    lt_score = SELECT
-        'P' || TO_NVARCHAR(ROW_NUMBER() OVER(ORDER BY "OPBEL")) AS "ID",
-        CAST("DAYS_OVERDUE" AS DOUBLE) AS "DAYS_OVERDUE",
-        CAST("BETRW" AS DOUBLE) AS "AMOUNT"
-    FROM "BANKINGSENTINEL_DFKKOP"
-    WHERE "GPART" = :customer_id;
+    -- Scoring — this customer's rows: DFKKOP open items (P-prefix) + DFKKOPK history (H-prefix), same features (mirrors scikit X_score)
+    lt_score =
+        SELECT
+            'P' || TO_NVARCHAR(ROW_NUMBER() OVER(ORDER BY "OPBEL")) AS "ID",
+            CAST("DAYS_OVERDUE" AS DOUBLE) AS "PAYMENT_DELAY_DAYS",
+            CAST("MAHNS" AS DOUBLE) AS "DUNNING_LEVEL"
+        FROM "BANKINGSENTINEL_DFKKOP"
+        WHERE "GPART" = :customer_id
+        UNION ALL
+        SELECT
+            'H' || TO_NVARCHAR(ROW_NUMBER() OVER(ORDER BY "OPBEL")) AS "ID",
+            CAST(DAYS_BETWEEN("FAEDN", "AUGDT") AS DOUBLE) AS "PAYMENT_DELAY_DAYS",
+            CAST("MAHNS" AS DOUBLE) AS "DUNNING_LEVEL"
+        FROM "BANKINGSENTINEL_DFKKOPK"
+        WHERE "GPART" = :customer_id;
 
     lt_explain_param =
         SELECT CAST('CONTAMINATION' AS NVARCHAR(256)) AS "PARAM_NAME", CAST(NULL AS INTEGER) AS "INT_VALUE", CAST(0.1 AS DOUBLE) AS "DOUBLE_VALUE", CAST(NULL AS NVARCHAR(100)) AS "STRING_VALUE" FROM DUMMY

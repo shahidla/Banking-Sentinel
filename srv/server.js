@@ -220,11 +220,11 @@ cds.on('bootstrap', async (app) => {
             daysToExpiry:   finalState.trajectoryAnalysis?.daysToExpiry,
             timeToBreach:   finalState.trajectoryAnalysis?.timeToBreach,
             conflictingSignals: finalState.trajectoryAnalysis?.conflictingSignals,
-            selfRagConf:    finalState.selfRagEvaluation?.overallConfidence,
-            selfRagHistory: finalState.selfRagHistory,
-            selfRagIteration: finalState.requeryCount,
-            selfRagReasoning: finalState.selfRagEvaluation?.reasoning,
-            selfRagGaps:    finalState.selfRagEvaluation?.gaps,
+            reflectionConf:    finalState.reflectionEvaluation?.overallConfidence,
+            reflectionHistory: finalState.reflectionHistory,
+            reflectionIteration: finalState.requeryCount,
+            reflectionReasoning: finalState.reflectionEvaluation?.reasoning,
+            reflectionGaps:    finalState.reflectionEvaluation?.gaps,
             reQueryHint:    finalState.reQueryHint,
             requeryCount:   finalState.requeryCount,
             findingsCount:  finalState.synthesisResult?.findings?.length,
@@ -272,8 +272,8 @@ cds.on('bootstrap', async (app) => {
           groupExposure:finalState.relationshipMap?.groupExposure,
           forwardPosition: finalState.trajectoryAnalysis?.forwardPosition,
           daysToExpiry: finalState.trajectoryAnalysis?.daysToExpiry,
-          selfRagConf:  finalState.selfRagEvaluation?.overallConfidence,
-          selfRagIteration: finalState.requeryCount,
+          reflectionConf:  finalState.reflectionEvaluation?.overallConfidence,
+          reflectionIteration: finalState.requeryCount,
           message:      'Risk officer approval required'
         });
         await publishHumanApproval(sessionId, {
@@ -612,9 +612,9 @@ cds.on('bootstrap', async (app) => {
           finding:       s.relationshipMap.finding || null,
           hops:          s.relationshipMap.hops || null
         } : null,
-        // Self-RAG
-        selfRagEvaluation: s.selfRagEvaluation || null,
-        selfRagHistory:    s.selfRagHistory    || [],
+        // Reflection
+        reflectionEvaluation: s.reflectionEvaluation || null,
+        reflectionHistory:    s.reflectionHistory    || [],
         requeryCount:  s.requeryCount || 0,
         reQueryHint:   s.reQueryHint || null,
         // Human Approval

@@ -492,16 +492,16 @@
       </div>
 
       <div class="agent-item" id="a4b">
-        <div class="an" style="font-size:9px;letter-spacing:0">↻ SR</div>
+        <div class="an" style="font-size:9px;letter-spacing:0">↻ RF</div>
         <div>
-          <div class="anr">Self-RAG <span class="ab ab-waiting">Waiting</span></div>
+          <div class="anr">Reflection <span class="ab ab-waiting">Waiting</span></div>
           <div class="ao">Evidence quality evaluation · Re-queries Relationship Agent if confidence &lt; 0.70 · Max 2 re-queries</div>
           <div class="conf-wrap" id="cw">
             <span class="cl">Confidence</span>
             <div class="cb"><div class="cf" id="cf" style="width:0%"></div></div>
             <span class="cv" id="cv">0%</span>
           </div>
-          <button class="vd-link" onclick="openAgentDetail('selfRagCheck')">View Details</button>
+          <button class="vd-link" onclick="openAgentDetail('reflectionCheck')">View Details</button>
         </div>
       </div>
 
@@ -582,7 +582,7 @@
   <div class="sb-item">Synth Conf <span id="rag">—</span></div>
   <div class="sb-item">RAGAS <span id="ragScore">—</span></div>
   <div class="sb-item">Connected Entities <span id="gh">0</span></div>
-  <div class="sb-item">Self-RAG Re-queries <span id="rq">0</span></div>
+  <div class="sb-item">Reflection Re-queries <span id="rq">0</span></div>
   <div class="sb-item">Cost <span id="costAud">—</span></div>
   <div class="sb-item">TRBK Tables <span id="tbl">—</span></div>
 </div>
@@ -635,7 +635,7 @@ const AGENT_MAP = {
   pattern: 'a2',
   relationship: 'a3',
   trajectory: 'a4',
-  selfRagCheck: 'a4b',
+  reflectionCheck: 'a4b',
   humanApproval: null,
   synthesis: 'a5'
 };
@@ -717,7 +717,7 @@ function setAgent(id, state, html) {
   else                           { badge.className = 'ab ab-waiting';  badge.textContent = '○ Waiting'; }
   if (html) el.querySelector('.ao').innerHTML = html;
   if (state === 'complete') {
-    // Only count the first time this agent reaches complete — prevents double-count on a4 (trajectory + selfRagCheck both mark it complete)
+    // Only count the first time this agent reaches complete — prevents double-count on a4 (trajectory + reflectionCheck both mark it complete)
     if (!el.dataset.counted) {
       el.dataset.counted = '1';
       agentsDone++;
@@ -743,21 +743,21 @@ function handleEvent(evt) {
   if (startTime) document.getElementById('lat').textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
 
   if (e.type === 'pipeline_status') {
-    // selfRagCheck — update dedicated Self-RAG badge + confidence bar
-    if (e.agent === 'selfRagCheck') {
-      const pct = Math.round((e.selfRagConf || 0) * 100);
+    // reflectionCheck — update dedicated Reflection badge + confidence bar
+    if (e.agent === 'reflectionCheck') {
+      const pct = Math.round((e.reflectionConf || 0) * 100);
       document.getElementById('cf').style.width = pct + '%';
       document.getElementById('cv').textContent = pct + '%';
       document.getElementById('cw').style.display = 'flex';
       document.getElementById('rq').textContent = e.requeryCount || '0';
-      const iters  = e.selfRagIteration || 0;
+      const iters  = e.reflectionIteration || 0;
       const rqTxt  = iters > 1 ? ` · ${iters - 1} re-quer${iters - 1 === 1 ? 'y' : 'ies'}` : '';
-      const gapTxt = (e.selfRagGaps || []).length > 0 ? ` · ${e.selfRagGaps.length} gap${e.selfRagGaps.length === 1 ? '' : 's'} resolved` : '';
-      agentData.selfRagCheck = e;
-      if ((e.selfRagConf || 0) < 0.70) {
+      const gapTxt = (e.reflectionGaps || []).length > 0 ? ` · ${e.reflectionGaps.length} gap${e.reflectionGaps.length === 1 ? '' : 's'} resolved` : '';
+      agentData.reflectionCheck = e;
+      if ((e.reflectionConf || 0) < 0.70) {
         setAgent('a4b', 'requery', `Confidence <span class="w">${pct}%</span> — below 70% · Re-querying: <span class="h">${e.reQueryHint || 'expanding graph traversal...'}</span>`);
       } else {
-        setAgent('a4b', 'complete', `Confidence <span class="h">${pct}%</span>${rqTxt}${gapTxt} · ${e.selfRagReasoning || 'Evidence quality confirmed'}`);
+        setAgent('a4b', 'complete', `Confidence <span class="h">${pct}%</span>${rqTxt}${gapTxt} · ${e.reflectionReasoning || 'Evidence quality confirmed'}`);
         setAgent('a5', 'active', 'HANA Vector RAG retrieving APRA standards · Building risk brief...');
       }
       return;
@@ -778,7 +778,7 @@ function handleEvent(evt) {
     const agentId = AGENT_MAP[e.agent];
     if (!agentId) return;
 
-    // Pipeline execution order hint: intake→pattern, trajectory→relationship, relationship→selfRag
+    // Pipeline execution order hint: intake→pattern, trajectory→relationship, relationship→reflection
     // Note: trajectory(a4) runs BEFORE relationship(a3) — labels do not match execution order (intentional)
     const nextMap = { intake: 'a2', trajectory: 'a3', relationship: 'a4b' };
     if (nextMap[e.agent]) setAgent(nextMap[e.agent], 'active', null);
@@ -807,7 +807,7 @@ function handleEvent(evt) {
 
     // Low-risk path skips agents 3+4+4b — mark them so they don't show stale state
     if (e.agent === 'synthesis') {
-      [['a3','Connected party check not required'],['a4','Trajectory assessment not required'],['a4b','Self-RAG check not required']].forEach(([id, reason]) => {
+      [['a3','Connected party check not required'],['a4','Trajectory assessment not required'],['a4b','Reflection check not required']].forEach(([id, reason]) => {
         const badge = document.querySelector(`#${id} .ab`);
         if (badge && (badge.textContent === '● Thinking' || badge.textContent === '○ Waiting')) {
           setAgent(id, 'idle', `Skipped — risk score below threshold · ${reason}`);
@@ -851,7 +851,7 @@ function handleEvent(evt) {
     if (e.riskScore != null)    lines.push(`Pattern Agent — ${e.riskLevel || '?'} risk · score ${e.riskScore} · ${e.signal || '?'} signal`);
     if (e.groupExposure != null) lines.push(`Relationship Agent — ${e.nodes || '?'} entities · group exposure AUD ${((e.groupExposure||0)/1e6).toFixed(2)}M`);
     if (e.forwardPosition)      lines.push(`Trajectory Agent — forward position: ${e.forwardPosition}${e.daysToExpiry != null ? ` · income expiry ${e.daysToExpiry}d` : ''}`);
-    if (e.selfRagConf != null)  lines.push(`Self-RAG — evidence confidence ${Math.round((e.selfRagConf||0)*100)}%${e.selfRagIteration > 1 ? ` · ${e.selfRagIteration-1} re-quer${e.selfRagIteration-1===1?'y':'ies'}` : ''}`);
+    if (e.reflectionConf != null)  lines.push(`Reflection — evidence confidence ${Math.round((e.reflectionConf||0)*100)}%${e.reflectionIteration > 1 ? ` · ${e.reflectionIteration-1} re-quer${e.reflectionIteration-1===1?'y':'ies'}` : ''}`);
     summary.innerHTML = lines.map(l => `<div>· ${l}</div>`).join('');
     agentData.humanApproval = e;
     document.getElementById('approveBar').style.display = 'flex';
@@ -1234,14 +1234,14 @@ const AGENT_HOW = {
       { label: 'SAP Technology', val: 'BCA_DTI.INCOME_EXPIRY + BREACH_DATE + LoanSchedule via HANA CAP CDS · No external ML call' }
     ]
   },
-  selfRagCheck: {
-    name: 'Self-RAG', pattern: 'Epistemic Self-Evaluation',
+  reflectionCheck: {
+    name: 'Reflection', pattern: 'Epistemic Self-Evaluation',
     how: [
       { label: 'AI Pattern', val: 'LLM reads ALL previous agent outputs and evaluates evidence quality — not a threshold check. Returns structured evaluation with gaps and a targeted re-query hint.' },
       { label: 'Four dimensions', val: '(1) Graph completeness — did traversal reach parent entities? (2) Signal consistency — HIGH RPT-1 + zero APS 221 = inconsistency. (3) Conflicting signals resolved? (4) Evidence trail — every risk claim backed by specific data.' },
       { label: 'Routing logic', val: 'confidence &lt; 0.70 → re-queries Relationship Agent with targeted reQueryHint. Max 2 re-queries. ≥ 0.70 → proceeds to Human Approval.' },
       { label: 'Why needed', val: 'Prevents presenting incomplete findings to a risk officer. Catches cases where the graph found 0 connected parties despite an RPT-1 HIGH score — a suspicious inconsistency.' },
-      { label: 'SAP Technology', val: 'LangGraph addConditionalEdges · Claude Haiku · Langfuse quality scoring · selfRagHistory array — one entry per iteration preserved in state' }
+      { label: 'SAP Technology', val: 'LangGraph addConditionalEdges · Claude Haiku · Langfuse quality scoring · reflectionHistory array — one entry per iteration preserved in state' }
     ]
   },
   humanApproval: {
@@ -1260,7 +1260,7 @@ const AGENT_HOW = {
       { label: 'AI Pattern', val: 'Retrieval-Augmented Generation — one targeted HANA Vector search per active risk signal, then Claude Haiku generates the APRA-ready brief from the retrieved regulatory chunks.' },
       { label: 'Per-signal retrieval', val: 'Four separate searches: DTI → APS 220 DTI clauses, group exposure → APS 221 connected party limits, income expiry → CPS 230 risk management, governance → CPS 230 AI oversight. Deduped, capped at 7 chunks.' },
       { label: 'Why RAG', val: 'Brief must cite specific APRA standards, not training data. APRA standards change — Vector store is updated via the APRA Notice button. Without RAG, LLM cites outdated training-data versions.' },
-      { label: 'apraReady flag', val: 'Deterministic — not LLM-decided. All must pass: synthesis confidence ≥ 0.70, regulatory refs retrieved, no unresolved Self-RAG gaps, no embedding service failure.' },
+      { label: 'apraReady flag', val: 'Deterministic — not LLM-decided. All must pass: synthesis confidence ≥ 0.70, regulatory refs retrieved, no unresolved Reflection gaps, no embedding service failure.' },
       { label: 'SAP Technology', val: 'HANA Vector Engine cosine similarity · OpenAI text-embedding-3-small · Claude Haiku · RiskAssessments HANA entity · Langfuse RAGAS evaluation' }
     ]
   }
@@ -1350,9 +1350,9 @@ function buildFoundContent(agentKey, d) {
       return html;
     }
 
-    case 'selfRagCheck': {
-      const hist = d.selfRagHistory || (d.selfRagConf != null ? [{ iteration: 1, overallConfidence: d.selfRagConf, reasoning: d.selfRagReasoning, gaps: d.selfRagGaps || [], reQueryHint: d.reQueryHint }] : []);
-      if (hist.length === 0) return '<div style="color:var(--light);font-size:11px">No Self-RAG iterations recorded</div>';
+    case 'reflectionCheck': {
+      const hist = d.reflectionHistory || (d.reflectionConf != null ? [{ iteration: 1, overallConfidence: d.reflectionConf, reasoning: d.reflectionReasoning, gaps: d.reflectionGaps || [], reQueryHint: d.reQueryHint }] : []);
+      if (hist.length === 0) return '<div style="color:var(--light);font-size:11px">No Reflection iterations recorded</div>';
       return hist.map((it, i) => {
         const conf   = it.overallConfidence ?? 0;
         const passed = conf >= 0.70;
@@ -1376,7 +1376,7 @@ function buildFoundContent(agentKey, d) {
         ${d.riskScore != null ? admRow('Pattern Agent', (d.riskLevel||'?') + ' risk · score ' + d.riskScore) : ''}
         ${d.groupExposure != null ? admRow('Relationship Agent', (d.nodes||'?') + ' entities · AUD ' + ((d.groupExposure||0)/1e6).toFixed(2) + 'M') : ''}
         ${d.forwardPosition ? admRow('Trajectory Agent', d.forwardPosition + (d.daysToExpiry != null ? ' · expiry ' + d.daysToExpiry + 'd' : '')) : ''}
-        ${d.selfRagConf != null ? admRow('Self-RAG confidence', Math.round((d.selfRagConf||0)*100) + '%') : ''}
+        ${d.reflectionConf != null ? admRow('Reflection confidence', Math.round((d.reflectionConf||0)*100) + '%') : ''}
       </div>`;
 
     case 'synthesis': {

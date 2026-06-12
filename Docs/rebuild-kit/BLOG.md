@@ -16,7 +16,7 @@
    - Agent 1: Pattern Agent
    - Agent 2: Trajectory Agent
    - Agent 3: Relationship Agent
-   - Agent 4: Self-RAG Check
+   - Agent 4: Reflection Check
    - Agent 5: Human-in-the-Loop Approval
    - Agent 6: Synthesis Agent
 7. [A Real Example — Customer 30100001](#7-a-real-example)
@@ -56,7 +56,7 @@ Risk is not one-dimensional. A borrower's risk lives across four dimensions simu
 Banking Sentinel runs entirely on SAP BTP — SAP HANA Cloud for data and vectors, SAP CAP for the service layer, SAP RPT-1 for tabular AI scoring, and SAP's graph engine for connected-party traversal. It proves that SAP's native AI stack can power production-grade, regulation-compliant risk intelligence — without leaving the SAP ecosystem.
 
 ### For AI Practitioners
-Banking Sentinel is a production implementation of a LangGraph multi-agent pipeline. It demonstrates four critical AI patterns: ReAct tool-use loops for graph traversal, Self-RAG (Retrieval-Augmented Generation with self-evaluation) for evidence quality control, Human-in-the-Loop interrupts for CPS 230 co-pilot compliance, and RAGAS-style claim-source faithfulness checking to detect hallucination. Every AI pattern has a named purpose. Nothing is added for its own sake.
+Banking Sentinel is a production implementation of a LangGraph multi-agent pipeline. It demonstrates four critical AI patterns: ReAct tool-use loops for graph traversal, Reflection (a Reflexion-style critic) for evidence quality control, Human-in-the-Loop interrupts for CPS 230 co-pilot compliance, and RAGAS-style claim-source faithfulness checking to detect hallucination. Every AI pattern has a named purpose. Nothing is added for its own sake.
 
 ### For a General Audience
 Imagine a bank has thousands of customers. Each one has loans, payments, and income. Each one is also connected to other people — through guarantees, family trusts, and business relationships. Banking Sentinel is like a very thorough analyst who simultaneously checks your payment behaviour, calculates what your finances look like in a year, maps everyone you are financially connected to, double-checks its own work, and then writes a clear report — all in the time it takes to make a cup of coffee.
@@ -108,7 +108,7 @@ RPT-1 is SAP's tabular foundation model — available via a public consumer API 
 
 ### Why LangGraph?
 
-LangGraph is a graph-based agent orchestration framework. Each agent is a node. Data flows between nodes via a typed state object. Conditional edges allow the pipeline to branch: a low-risk customer skips the graph traversal and jumps straight to synthesis. A high-risk customer goes through all four specialist agents. A re-query loop allows the Self-RAG agent to send the Relationship Agent back for a deeper traversal if the first pass was incomplete. This is impossible to express cleanly in a simple chain — it needs a state machine.
+LangGraph is a graph-based agent orchestration framework. Each agent is a node. Data flows between nodes via a typed state object. Conditional edges allow the pipeline to branch: a low-risk customer skips the graph traversal and jumps straight to synthesis. A high-risk customer goes through all four specialist agents. A re-query loop allows the Reflection agent to send the Relationship Agent back for a deeper traversal if the first pass was incomplete. This is impossible to express cleanly in a simple chain — it needs a state machine.
 
 ### Why HANA Vector Engine?
 
@@ -137,7 +137,7 @@ User query → [Intake Agent]
                     ReAct loop: traverse graph,
                     calculate exposure, check APRA
                               │
-                    [Self-RAG Check]
+                    [Reflection Check]
                     LLM evaluates evidence quality
                               │
               Confidence < 0.70 ──→ [Relationship] (re-query)
@@ -155,7 +155,7 @@ User query → [Intake Agent]
                                     to HANA + AuditLog
 ```
 
-**State flows through the pipeline in one typed object.** Every agent reads everything every previous agent produced. The Synthesis Agent sees Pattern's anomalies, Trajectory's DTI projections, Relationship's graph findings, and Self-RAG's quality gaps — all at once. Nothing is lost between agents.
+**State flows through the pipeline in one typed object.** Every agent reads everything every previous agent produced. The Synthesis Agent sees Pattern's anomalies, Trajectory's DTI projections, Relationship's graph findings, and Reflection's quality gaps — all at once. Nothing is lost between agents.
 
 ---
 
@@ -396,11 +396,11 @@ Step 4: LLM reasons → "Complete. I have enough to summarise."
 }
 ```
 
-**What happens next:** Self-RAG Check evaluates whether this evidence is complete enough to proceed.
+**What happens next:** Reflection Check evaluates whether this evidence is complete enough to proceed.
 
 ---
 
-### Agent 4: Self-RAG Check
+### Agent 4: Reflection Check
 
 **Purpose:** The pipeline's quality control layer. Evaluate its own work. Ask: "Do I have enough evidence to stand behind these findings?"
 
@@ -410,7 +410,7 @@ A risk brief built on incomplete evidence is worse than no risk brief — becaus
 
 **How it works:**
 
-Self-RAG (Self-Retrieval Augmented Generation) means the LLM evaluates its own outputs for quality. Claude Haiku is given a summary of all four agent findings and asked to assess four dimensions:
+Reflection — a Reflexion-style critic step — means the LLM evaluates the prior agents' outputs for quality rather than generating new findings. Claude Haiku is given a summary of all four agent findings and asked to assess four dimensions:
 
 1. **Graph Completeness** — Is the 3-node traversal complete, or did it stop early?
 2. **Signal Consistency** — Do Pattern and Relationship findings agree? High risk score + zero APS 221 exposure = inconsistency.
@@ -439,7 +439,7 @@ The LLM returns a confidence score (0.0-1.0) and, if confidence is below 0.70, a
 - If confidence had been 0.65 → **requery** → Relationship Agent re-runs with the specific hint, goes deeper, returns an improved graph
 - Maximum 2 re-queries to prevent infinite loops
 
-**Why this matters:** Self-RAG is the only agent that looks at the entire pipeline's output holistically. It catches cases where each individual agent did its job correctly, but the combined picture is still incomplete. It is the AI equivalent of a senior analyst reviewing a junior analyst's work before it goes to the risk committee.
+**Why this matters:** Reflection is the only agent that looks at the entire pipeline's output holistically. It catches cases where each individual agent did its job correctly, but the combined picture is still incomplete. It is the AI equivalent of a senior analyst reviewing a junior analyst's work before it goes to the risk committee.
 
 ---
 
@@ -451,13 +451,13 @@ The LLM returns a confidence score (0.0-1.0) and, if confidence is below 0.70, a
 
 **How it works:**
 
-When Self-RAG says "proceed", LangGraph halts the pipeline using `interruptBefore: ['humanApproval']`. The pipeline is paused. The state is persisted to PostgreSQL — which means the pause survives a server restart. The risk officer is notified in the UI that the pipeline is waiting for their review.
+When Reflection says "proceed", LangGraph halts the pipeline using `interruptBefore: ['humanApproval']`. The pipeline is paused. The state is persisted to PostgreSQL — which means the pause survives a server restart. The risk officer is notified in the UI that the pipeline is waiting for their review.
 
 The risk officer sees:
 - Pattern findings: RPT-1 score, PAL anomaly counts, LLM anomalies
 - Trajectory: Current DTI, Forward DTI, Days to income expiry
 - Relationship: The visual graph of connected entities with exposure amounts
-- Self-RAG gaps: Explicitly what the AI was uncertain about
+- Reflection gaps: Explicitly what the AI was uncertain about
 
 They click **Approve**. The pipeline resumes. Synthesis runs. The brief is sealed with `approvedBy: "risk.officer@bank.com.au"`.
 
@@ -486,7 +486,7 @@ The retrieved chunks are deduplicated and capped at 7 to stay within the token b
 All four agents' outputs, plus the retrieved APRA regulatory text, are sent to Claude Haiku with a structured system prompt. The LLM produces a JSON risk brief — findings are constrained to 20 words each (precision over prose), with one regulatory standard and one evidence source per finding.
 
 **Step 3 — Deterministic Guardrails**
-The `apraReady` flag is NOT decided by the LLM. It is calculated deterministically from four conditions: confidence ≥ 0.70, Self-RAG passed, regulatory docs retrieved, no regulatory context failure. This prevents the LLM from deciding its own work is ready.
+The `apraReady` flag is NOT decided by the LLM. It is calculated deterministically from four conditions: confidence ≥ 0.70, Reflection passed, regulatory docs retrieved, no regulatory context failure. This prevents the LLM from deciding its own work is ready.
 
 **Step 4 — RAGAS Claim-Source Overlap Check**
 A cosine-similarity check measures how much the LLM's findings overlap with the retrieved regulatory text. Low overlap (<30%) means the LLM may be relying on training data rather than the retrieved documents. This is flagged in the uncertainty section.
@@ -527,7 +527,7 @@ The risk assessment is written to `bankingsentinel.RiskAssessments`. Token count
       "finding": "5 statistical anomalies flagged but graph traversal incomplete; only 3 nodes detected.",
       "standard": "APS221",
       "severity": "MEDIUM",
-      "evidenceSource": "selfRag",
+      "evidenceSource": "reflection",
       "confidence": 0.72
     },
     {
@@ -581,8 +581,8 @@ A retail customer at an Australian bank. They have loans totalling AUD 1.05 mill
 | 25s | Graph traversal: 30100001 → 30910005 → 30910006 (FAMILY_TRUST_MEMBER) |
 | 28s | Exposure calculator: group total AUD 3,080,000 |
 | 30s | APS 221 check: 41.07% of limit — within threshold |
-| 32s | Relationship complete. Self-RAG Check starts. |
-| 35s | Self-RAG evaluates: confidence 0.72 (≥ 0.70) — gaps identified, evidence trail incomplete but sufficient |
+| 32s | Relationship complete. Reflection Check starts. |
+| 35s | Reflection evaluates: confidence 0.72 (≥ 0.70) — gaps identified, evidence trail incomplete but sufficient |
 | 36s | Routes to Human Approval → pipeline pauses |
 | 38s | Risk officer clicks Approve. Pipeline resumes. |
 | 38s | Synthesis Agent starts. Four HANA Vector queries fire. |
@@ -600,7 +600,7 @@ A retail customer at an Australian bank. They have loans totalling AUD 1.05 mill
 1. The income contract expires in 299 days — DTI will jump to 7.05x when it does
 2. Two family trust entities (30910005, 30910006) are co-exposed — AUD 3.08M combined
 3. Three payment records have no settlement date — unreconciled
-4. The graph traversal is suspiciously shallow — Self-RAG flagged parent entities may be missing
+4. The graph traversal is suspiciously shallow — Reflection flagged parent entities may be missing
 5. The risk brief explicitly says what it does not know — not just what it found
 
 ---
@@ -639,7 +639,7 @@ The Banking Sentinel UI displays the pipeline running in real time via Server-Se
 - **Relationship Graph** — interactive canvas with 3 nodes, edges labelled by relationship type
 - **Group Exposure** — AUD 3,080,000 (41.07% of APS 221 limit)
 - **Trajectory** — Current DTI 5.80x → Forward DTI 7.05x (in 299 days)
-- **Self-RAG** — Confidence 0.72, 4 gaps identified
+- **Reflection** — Confidence 0.72, 4 gaps identified
 - **HITL Status** — Approved by risk officer / Pending / Auto-approved (HITL off)
 - **Synthesis** — Full risk brief with findings, recommendations, regulatory refs, uncertainties
 - **Audit** — Cost AUD 0.0022, Latency 40.6s, Tokens 11,440
@@ -652,7 +652,7 @@ The report page merges all of this into a single printable brief: every View Det
 
 ### 1. Every AI call has a named pattern
 
-There are no generic LLM calls. Every call is one of: intent classification (Intake), narrative anomaly detection (Pattern), quality self-evaluation (Self-RAG), ReAct tool-use loop (Relationship), or regulatory synthesis (Synthesis). When something breaks, you know exactly which pattern broke and why.
+There are no generic LLM calls. Every call is one of: intent classification (Intake), narrative anomaly detection (Pattern), quality self-evaluation (Reflection), ReAct tool-use loop (Relationship), or regulatory synthesis (Synthesis). When something breaks, you know exactly which pattern broke and why.
 
 ### 2. The APRA threshold is never hardcoded
 
@@ -660,11 +660,11 @@ Every agent that needs the DTI threshold reads it from `RegulatoryThresholds` at
 
 ### 3. LangGraph state fields must be declared
 
-LangGraph silently drops state fields that are not declared in `Annotation.Root`. This caused three bugs: `selfRagHistory`, `hitlEnabled`, and `totalLatencyMs` were all silently lost until each was explicitly declared with its reducer type.
+LangGraph silently drops state fields that are not declared in `Annotation.Root`. This caused three bugs: `reflectionHistory`, `hitlEnabled`, and `totalLatencyMs` were all silently lost until each was explicitly declared with its reducer type.
 
-### 4. Self-RAG must return one new item, not rebuild the full history
+### 4. Reflection must return one new item, not rebuild the full history
 
-The `selfRagHistory` field uses an `append` reducer — each time the node runs, its return value is appended to the existing array. If the node returns `[...existingHistory, newItem]`, the reducer appends the full rebuilt array again — producing duplicates. The fix: return only `[newItem]` and let the reducer do the accumulation.
+The `reflectionHistory` field uses an `append` reducer — each time the node runs, its return value is appended to the existing array. If the node returns `[...existingHistory, newItem]`, the reducer appends the full rebuilt array again — producing duplicates. The fix: return only `[newItem]` and let the reducer do the accumulation.
 
 ### 5. The Relationship Agent must not re-traverse from arbitrary nodes
 

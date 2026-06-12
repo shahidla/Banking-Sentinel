@@ -2,7 +2,7 @@
 // AI: Validation layer between every LangGraph agent node. Not behavioural — structural.
 //     Every agent output passes through before being added to state.
 // Banking: APRA CPS 230 requires every AI decision to be auditable and evidence-backed.
-//          Below 40% confidence = refuse to output. Below 70% = Self-RAG re-query.
+//          Below 40% confidence = refuse to output. Below 70% = Reflection re-query.
 // SAP: Called as an intermediate node in the LangGraph StateGraph between each specialist agent
 
 'use strict';
@@ -30,7 +30,7 @@ function validateAgentOutput(output, agentName) {
     }
   }
 
-  // 4. Self-RAG trigger — below 70% triggers re-query (not refusal)
+  // 4. Reflection trigger — below 70% triggers re-query (not refusal)
   const needsRequery = confidence !== undefined && confidence < 0.70;
 
   return {

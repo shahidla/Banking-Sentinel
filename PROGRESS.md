@@ -9,7 +9,7 @@
   audit-demo-customers.js clean for all 11 customers.
 - DFKKOP fix row for L-004/30100003 (was missing all DFKKOP rows).
 - LLM JSON hardening: `extractJson()` (`srv/utils/llm-json.js`) wired into
-  pattern-agent, relationship-agent, self-rag, synthesis-agent, ragas-evaluator.
+  pattern-agent, relationship-agent, reflection, synthesis-agent, ragas-evaluator.
   `intake-agent.js` (~line 60) still uses the old greedy regex — not migrated.
 - Created `CLAUDE.md` (architecture, schema, conventions, HANA recovery
   runbook, context management rules).

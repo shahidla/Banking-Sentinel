@@ -55,9 +55,9 @@ metadata:
 ---
 
 ### L8 — Double-completion counter bug from dual SSE events
-**What happened:** Agent 4 (Trajectory + Self-RAG) received two `setAgent('a4', 'complete')` calls — one from the trajectory node completing, one from selfRagCheck. Each incremented `agentsDone`, causing "7 / 5 complete".
+**What happened:** Agent 4 (Trajectory + Reflection) received two `setAgent('a4', 'complete')` calls — one from the trajectory node completing, one from reflectionCheck. Each incremented `agentsDone`, causing "7 / 5 complete".
 **Fix:** `data-counted` attribute on the DOM element — only count first `complete` transition, reset on non-idle state change.
-**Rule:** Any counter that tracks "how many X have completed" must be idempotent per entity. If the same entity can complete multiple times (e.g. selfRagCheck updates a4), use a set or flag, not a raw counter.
+**Rule:** Any counter that tracks "how many X have completed" must be idempotent per entity. If the same entity can complete multiple times (e.g. reflectionCheck updates a4), use a set or flag, not a raw counter.
 
 ---
 
@@ -86,7 +86,7 @@ metadata:
 ---
 
 ### L13 — Model outputs must be traced end-to-end before claiming they are used
-**What happened:** Full agent output review (2026-05-27) revealed: RPT-1 real confidence discarded, Scikit-IF scored count not displayed, timeToBreach hardcoded to 0, Self-RAG output never reaches Synthesis, conflictingSignals computed but never displayed or used in Synthesis prompt. Data was computed but not consumed anywhere meaningful.
+**What happened:** Full agent output review (2026-05-27) revealed: RPT-1 real confidence discarded, Scikit-IF scored count not displayed, timeToBreach hardcoded to 0, Reflection output never reaches Synthesis, conflictingSignals computed but never displayed or used in Synthesis prompt. Data was computed but not consumed anywhere meaningful.
 **Rule:** For every model/agent output field, explicitly verify: (1) is it displayed in the UI? (2) does it reach Synthesis? (3) does the Synthesis prompt reference it? If any answer is no, the field is dead weight.
 
 ---
@@ -140,14 +140,14 @@ metadata:
 ---
 
 ### L22 — LangGraph silently drops state fields not declared in Annotation.Root
-**What happened:** selfRagHistory, hitlEnabled, and totalLatencyMs were all computed and returned by agents but vanished from the checkpoint. LangGraph does not warn — it silently ignores fields not in the Annotation.Root declaration.
+**What happened:** reflectionHistory, hitlEnabled, and totalLatencyMs were all computed and returned by agents but vanished from the checkpoint. LangGraph does not warn — it silently ignores fields not in the Annotation.Root declaration.
 **Fix:** Add every field the pipeline uses to state.js with the correct reducer (last, sum, append). If a field is missing from state.js it effectively does not exist.
 **Rule:** After adding any new field to an agent's return value, immediately add it to state.js. Run a test pipeline and verify the field appears in the checkpoint before moving on.
 
 ---
 
-### L23 — Self-RAG append reducer + manual history rebuild = duplicates
-**What happened:** self-rag.js was returning `selfRagHistory: [...prevHistory, newItem]` (manually rebuilding the full array). The append reducer then appended this full array to the existing state — doubling every entry after the first iteration.
+### L23 — Reflection append reducer + manual history rebuild = duplicates
+**What happened:** reflection.js was returning `reflectionHistory: [...prevHistory, newItem]` (manually rebuilding the full array). The append reducer then appended this full array to the existing state — doubling every entry after the first iteration.
 **Fix:** Return only `[newItem]` from the node. The append reducer accumulates automatically.
 **Rule:** When a state field uses an append reducer, nodes must return only the NEW items to add — never the full rebuilt array. The reducer is the accumulator, not the node.
 

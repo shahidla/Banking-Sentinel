@@ -1,9 +1,10 @@
-// Banking Sentinel — Self-RAG Node (Phase 6)
-// AI: Epistemic quality evaluation — agent reads its own outputs and judges if confidence is earned.
-//     Not a counter. Not a threshold check. The LLM reasons about whether evidence is complete.
+// Banking Sentinel — Reflection Node (Phase 6)
+// AI: Reflexion-style critic (Shinn et al., 2023) — a separate LLM pass reads the other agents'
+//     outputs and judges whether confidence is earned, then writes targeted feedback for the
+//     next attempt. Not a counter. Not a threshold check. The LLM reasons about evidence quality.
 // Banking: Risk officer pauses before signing: "Do I have enough data to stand behind this finding?"
 //          If relationship traversal found 3 nodes but zero exposure, that's incomplete — get more.
-// SAP: LangGraph conditional edge — selfRagCheck routes back to 'relationship' with a targeted hint,
+// SAP: LangGraph conditional edge — reflectionCheck routes back to 'relationship' with a targeted hint,
 //      or forward to 'humanApproval' if confidence is genuinely earned.
 
 'use strict';
@@ -12,16 +13,16 @@ const { getLangchainHandler } = require('../observability/langfuse-client');
 const { validateAgentOutput } = require('../guardrails/validate');
 const { extractJson } = require('../utils/llm-json');
 
-async function selfRagCheckNode(state) {
+async function reflectionNode(state) {
   const customerId = state.intent?.customerId || state.customerId;
   const pattern    = state.patternAssessment  || {};
   const rel        = state.relationshipMap    || {};
   const traj       = state.trajectoryAnalysis || {};
   const reqCount   = state.requeryCount ?? 0;
 
-  console.log(`  [SelfRAG] Evaluating evidence quality — attempt ${reqCount + 1} for ${customerId}`);
+  console.log(`  [Reflection] Evaluating evidence quality — attempt ${reqCount + 1} for ${customerId}`);
 
-  const lfHandler = getLangchainHandler(state.traceId, 'self-rag');
+  const lfHandler = getLangchainHandler(state.traceId, 'reflection');
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
@@ -103,28 +104,28 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
   if (!evaluation || typeof evaluation.overallConfidence !== 'number') {
     // Default below re-query threshold (0.70) so a parse failure triggers re-query, not proceed.
     // 0.75 would silently route to approval — masking a real LLM/format failure.
-    console.warn('  [SelfRAG] LLM response malformed — defaulting confidence to 0.60 (requery)');
-    evaluation = { overallConfidence: 0.60, gaps: ['Self-RAG evaluation unavailable — response malformed'], reQueryHint: '', reasoning: 'Self-RAG parse failure — routing to requery rather than proceeding blindly' };
+    console.warn('  [Reflection] LLM response malformed — defaulting confidence to 0.60 (requery)');
+    evaluation = { overallConfidence: 0.60, gaps: ['Reflection evaluation unavailable — response malformed'], reQueryHint: '', reasoning: 'Reflection parse failure — routing to requery rather than proceeding blindly' };
   }
 
-  // CPS 230 guardrail — log validation result (non-blocking: Self-RAG routing is not blocked by this)
-  const validation = validateAgentOutput({ confidence: evaluation.overallConfidence }, 'self-rag');
+  // CPS 230 guardrail — log validation result (non-blocking: reflection routing is not blocked by this)
+  const validation = validateAgentOutput({ confidence: evaluation.overallConfidence }, 'reflection');
   if (!validation.valid) {
-    console.warn(`  [SelfRAG] CPS 230 guardrail: ${validation.issues.join('; ')}`);
+    console.warn(`  [Reflection] CPS 230 guardrail: ${validation.issues.join('; ')}`);
   }
 
   const tokensIn  = response.usage_metadata?.input_tokens  || 0;
   const tokensOut = response.usage_metadata?.output_tokens || 0;
 
-  console.log(`  [SelfRAG] confidence:${evaluation.overallConfidence.toFixed(2)} gaps:${evaluation.gaps?.length || 0}`);
-  console.log(`  [SelfRAG] reasoning: ${evaluation.reasoning}`);
-  console.log(`  [SelfRAG] reQueryHint: ${evaluation.reQueryHint || '(none)'}`);
-  (evaluation.gaps || []).forEach((g, i) => console.log(`  [SelfRAG] Gap ${i+1}: ${g}`));
+  console.log(`  [Reflection] confidence:${evaluation.overallConfidence.toFixed(2)} gaps:${evaluation.gaps?.length || 0}`);
+  console.log(`  [Reflection] reasoning: ${evaluation.reasoning}`);
+  console.log(`  [Reflection] reQueryHint: ${evaluation.reQueryHint || '(none)'}`);
+  (evaluation.gaps || []).forEach((g, i) => console.log(`  [Reflection] Gap ${i+1}: ${g}`));
 
   return {
-    selfRagEvaluation: evaluation,
+    reflectionEvaluation: evaluation,
     // Return only the NEW entry — state.js append reducer accumulates across iterations
-    selfRagHistory: [{ iteration: reqCount + 1, ...evaluation }],
+    reflectionHistory: [{ iteration: reqCount + 1, ...evaluation }],
     reQueryHint:       evaluation.reQueryHint,
     requeryCount:      reqCount + 1,
     totalInputTokens:  tokensIn,
@@ -132,27 +133,27 @@ If graph traversal clearly stopped early or exposure is zero despite HIGH risk, 
   };
 }
 
-// ── Routing function — reads real Self-RAG confidence, not raw agent scores ──
+// ── Routing function — reads real reflection confidence, not raw agent scores ──
 // AI: Conditional edge — below 0.70 triggers re-query; cap at 2 re-queries to avoid infinite loop
 // Banking: Two re-queries max — same as a risk officer asking for more data twice before deciding
 // SAP: LangGraph addConditionalEdges — 'requery' → relationship, 'proceed' → humanApproval
 function checkConfidence(state) {
-  const evaluation = state.selfRagEvaluation;
+  const evaluation = state.reflectionEvaluation;
   const reqCount   = state.requeryCount ?? 0;
 
-  // Self-RAG evaluated confidence is authoritative. Fall back to min of agent scores only if unavailable.
+  // Reflection-evaluated confidence is authoritative. Fall back to min of agent scores only if unavailable.
   const confidence = (evaluation?.overallConfidence !== undefined)
     ? evaluation.overallConfidence
     : Math.min(state.patternAssessment?.confidence ?? 1, state.relationshipMap?.confidence ?? 1);
 
   if (confidence < 0.70 && reqCount < 2) {
-    console.log(`  [SelfRAG→Route] confidence:${confidence.toFixed(2)} below 0.70 — re-querying (attempt ${reqCount})`);
+    console.log(`  [Reflection→Route] confidence:${confidence.toFixed(2)} below 0.70 — re-querying (attempt ${reqCount})`);
     return 'requery';
   }
 
   const reason = confidence >= 0.70 ? 'sufficient' : 'max re-queries reached — proceeding';
-  console.log(`  [SelfRAG→Route] confidence:${confidence.toFixed(2)} ${reason} → humanApproval`);
+  console.log(`  [Reflection→Route] confidence:${confidence.toFixed(2)} ${reason} → humanApproval`);
   return 'proceed';
 }
 
-module.exports = { selfRagCheckNode, checkConfidence };
+module.exports = { reflectionNode, checkConfidence };

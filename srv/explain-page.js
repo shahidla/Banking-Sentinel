@@ -170,7 +170,7 @@ const statusText = document.getElementById('status-text');
 const statusDone = document.getElementById('status-done');
 
 let sectionCount  = 0;
-const TOTAL_SECTIONS = 7;
+const TOTAL_SECTIONS = 8;
 let sectionCursors = {};  // sectionId → cursor element
 
 const levelColors = { CRITICAL:'critical', HIGH:'high', MEDIUM:'medium', LOW:'low' };
