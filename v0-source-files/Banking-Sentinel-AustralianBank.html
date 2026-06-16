@@ -683,8 +683,6 @@ function resetUI() {
   Object.keys(agentData).forEach(k => delete agentData[k]);
   closeAgentDetail();
   document.getElementById('rag').textContent = '—';
-  document.getElementById('ragScore').textContent = '—';
-  document.getElementById('ragScore').style.color = '';
   document.getElementById('costAud').textContent = '—';
   document.getElementById('rsn').textContent = '—';
   document.getElementById('rdl').textContent = 'Awaiting Analysis';
@@ -1007,6 +1005,9 @@ async function runAnalysis() {
     }
     if (r.responseType === 'simple_query' || r.responseType === 'rejection') {
       showDirectAnswer(r.answer || '—', r.responseType);
+    } else if (r.responseType === 'risk_analysis' && r.answer) {
+      // Fallback: SSE risk_findings may have been dropped — render from HTTP response
+      try { renderRiskBrief(JSON.parse(r.answer)); } catch (_) {}
     }
   } catch (err) {
     showError(err.message || 'Network error');

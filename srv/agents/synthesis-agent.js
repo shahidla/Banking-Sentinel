@@ -72,7 +72,6 @@ async function synthesisAgent(state) {
   const agentContext = JSON.stringify({
     customerId,
     pattern: {
-      riskScore:    pattern.riskScore,
       riskLevel:    pattern.riskLevel,
       confidence:   pattern.confidence,
       signal:       pattern.signal,
