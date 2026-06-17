@@ -1,0 +1,139 @@
+{
+  "records": [
+    {
+      "PARTNER": "30100001",
+      "BU_SORT1": "Domestic Customer AU 1",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "DTI_RATIO": 5.8,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100002",
+      "BU_SORT1": "Domestic Customer AU 2",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "DTI_RATIO": 4.2,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100003",
+      "BU_SORT1": "Domestic Customer AU 3",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "DTI_RATIO": 7.2,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": "2026-09-15"
+    },
+    {
+      "PARTNER": "30100004",
+      "BU_SORT1": "Domestic Customer AU 4",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "DTI_RATIO": 5.4,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100005",
+      "BU_SORT1": "Domestic Customer AU 5",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "CONSTRUCTION",
+      "DTI_RATIO": 3.1,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100006",
+      "BU_SORT1": "Domestic Customer AU 6",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "AGRICULTURE",
+      "DTI_RATIO": 1.5,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100008",
+      "BU_SORT1": "Domestic Customer AU 8",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "DTI_RATIO": 4.9,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100009",
+      "BU_SORT1": "Domestic Customer AU 9",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "MINING",
+      "DTI_RATIO": 2.8,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100010",
+      "BU_SORT1": "Domestic Customer AU 10",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "HEALTHCARE",
+      "DTI_RATIO": 3.6,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100012",
+      "BU_SORT1": "Domestic Customer AU 12",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "TECHNOLOGY",
+      "DTI_RATIO": 0.19,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30100013",
+      "BU_SORT1": "Domestic Customer AU 13",
+      "BU_TYPE": "2",
+      "SECTOR_CODE": "RETAIL_PROP",
+      "DTI_RATIO": 4.4,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30910005",
+      "BU_SORT1": "Rose Courtney",
+      "BU_TYPE": "1",
+      "SECTOR_CODE": null,
+      "DTI_RATIO": null,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30910006",
+      "BU_SORT1": "Eric Miller",
+      "BU_TYPE": "1",
+      "SECTOR_CODE": null,
+      "DTI_RATIO": null,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30910007",
+      "BU_SORT1": "George Clark",
+      "BU_TYPE": "1",
+      "SECTOR_CODE": null,
+      "DTI_RATIO": null,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    },
+    {
+      "PARTNER": "30910008",
+      "BU_SORT1": "Alex Baker",
+      "BU_TYPE": "1",
+      "SECTOR_CODE": null,
+      "DTI_RATIO": null,
+      "INCOME_SOURCE": null,
+      "INCOME_EXPIRY": null
+    }
+  ]
+}

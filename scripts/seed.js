@@ -182,6 +182,13 @@ const SECTOR_LIMITS = [
   { SECTOR_CODE: 'MINING',       LIMIT_AUD: 25000000, LIMIT_PCT: 15, ALERT_PCT: 12 },
 ];
 
+// Value-help check table for Loans.STATUS (@Common.Text pattern) — adding a new
+// status is an INSERT here, not a schema/code change.
+const LOAN_STATUS_CODES = [
+  { CODE: 'A', TEXT: 'Active' },
+  { CODE: 'C', TEXT: 'Closed' },
+];
+
 // ─── MAIN SEED FUNCTION ───────────────────────────────────────────────────────
 
 async function loadFile(filename) {
@@ -211,6 +218,7 @@ async function seed() {
     RegulatoryThresholds:'bankingsentinel.RegulatoryThresholds',
     ExposureLimits:      'bankingsentinel.ExposureLimits',
     SectorExposureLimits:'bankingsentinel.SectorExposureLimits',
+    LoanStatusCodes:     'bankingsentinel.LoanStatusCodes',
   };
 
   async function insert(entity, records, label) {
@@ -227,10 +235,16 @@ async function seed() {
     }
   }
 
-  // BusinessPartners from raw SAP sandbox data
+  // BusinessPartners — SAP sandbox data first, then overlay demo customers with 301xxxx IDs.
+  // Demo customers are NOT in the SAP sandbox dataset (different ID range), so they must be
+  // inserted separately. Without this, all joins from BCA_DTI/DFKKOP/Loans to BusinessPartners
+  // return 0 matches because PARTNER IDs never overlap.
   const rawBPs = JSON.parse(fs.readFileSync(path.join(RAW, 'ABusinessPartner.json')));
   const bpArr = rawBPs.d?.results || rawBPs.value || rawBPs;
-  await insert(E.BusinessPartners, mapBusinessPartners(bpArr), 'BusinessPartners');
+  await insert(E.BusinessPartners, mapBusinessPartners(bpArr), 'BusinessPartners (SAP sandbox)');
+
+  const demoBPs = await loadFile('DemoBusinessPartners.json');
+  await insert(E.BusinessPartners, demoBPs, 'BusinessPartners (demo customers)');
 
   // Connected party relationships (BUT050)
   await insert(E.BUT050, mapBUT050(await loadFile('BUT050.json')), 'BUT050');
@@ -270,6 +284,9 @@ async function seed() {
 
   // Sector exposure limits (synthetic reference data)
   await insert(E.SectorExposureLimits, SECTOR_LIMITS, 'SectorExposureLimits');
+
+  // Loan status value-help check table (@Common.Text pattern — synthetic reference data)
+  await insert(E.LoanStatusCodes, LOAN_STATUS_CODES, 'LoanStatusCodes');
 
   console.log('\n Seed complete.\n');
   process.exit(0);

@@ -15,14 +15,29 @@ Your job: parse the user's query and classify it precisely.
 
 CLASSIFICATION RULES:
 
-SIMPLE_DATA_QUERY — A request for factual data that can be answered with a single database lookup:
-  Examples: "What is the total loan amount?", "How many borrowers do we have?",
-  "Show me all overdue payments", "What is B-001's DTI ratio?", "List all loans"
+SIMPLE_DATA_QUERY vs RISK_ANALYSIS — the deciding question is not whether a specific
+customer is named, but whether the request can be answered by RETRIEVING existing
+stored data as-is, or whether it requires the system to SYNTHESIZE a judgment that
+does not already exist as a stored fact.
 
-RISK_ANALYSIS — A request for risk assessment, investigation, or analysis:
-  Examples: "Analyse borrower B-001", "What is the connected party exposure for G-001?",
-  "Check B-001 for all risk dimensions", "Is there an APS 221 breach in the portfolio?",
-  "Assess the guarantor network risk"
+SIMPLE_DATA_QUERY — retrieving, listing, or displaying records or facts that already
+exist in the data, however the request is scoped (portfolio-wide OR a single named
+customer). Histories, lists, counts, and individual field lookups are all retrieval,
+even when narrowed to one customer.
+  Examples:
+  - "What is the total loan amount?", "How many borrowers do we have?", "List all loans"
+  - "What is B-001's DTI ratio?", "Show me customer 30100001's repayment history"
+  - "Which customers have a DTI above 5?", "Which guarantors are also borrowers?"
+
+RISK_ANALYSIS — the system must reason across multiple signals to produce a
+conclusion, score, or assessment that is not itself a stored value — i.e. the answer
+requires judgment, not lookup. Always scoped to a specific customer (deep-dive
+analysis needs a subject), but the customer being named is not by itself the signal —
+the signal is that the request asks for an assessment.
+  Examples:
+  - "Analyse borrower 30100001", "What is the risk profile of 30100003?"
+  - "Check 30100001 for all risk dimensions", "Run a full analysis on 30100002"
+  - "Is there an APS 221 breach for customer 30100001?"
 
 INAPPROPRIATE_REQUEST — Any request to take an action the system must not take:
   Action keywords: approve, reject, delete, modify, override, grant, create, update, authorise, sign off
@@ -89,6 +104,8 @@ async function intakeAgent(state) {
 function routeFromIntake(state) {
   if (state.intent?.isInappropriateRequest) return 'inappropriate_request';
   if (state.intent?.isSimpleDataQuery)      return 'simple_query';
+  // Safety: if RISK_ANALYSIS was chosen but no customerId, treat as data query to avoid pipeline crash
+  if (!state.customerId && !state.intent?.customerId) return 'simple_query';
   return 'risk_analysis';
 }
 

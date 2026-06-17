@@ -2,7 +2,7 @@
 const cds = require('@sap/cds');
 
 const HANA_ENTITIES = [
-  'BusinessPartners', 'BUT050', 'Loans', 'LoanSchedule',
+  'BusinessPartners', 'BUT050', 'Loans', 'LoanSchedule', 'LoanStatusCodes',
   'BCA_GUARANTOR', 'BCA_COLLATERAL', 'BCA_DTI', 'BCA_CREDIT_HISTORY', 'DFKKOP', 'DFKKOPK',
   'BCA_SECTOR', 'SectorExposureLimits', 'RegulatoryThresholds', 'ExposureLimits',
   'RegulatoryDocuments', 'RiskAssessments', 'AuditLog'

@@ -7,235 +7,269 @@ namespace bankingsentinel;
 
 // ─── BUSINESS PARTNER ───────────────────────────────────────────────────────
 
-// AI: Primary node in the borrower relationship graph
-// Banking: Customer master — every borrower, guarantor, and corporate entity
-// SAP: BUT000 — Business Partner master table in SAP TRBK
+@NLP.label: 'Customers and business partners — demo borrowers: 301xxxx, guarantors: 309xxxx'
 entity BusinessPartners {
-  key PARTNER       : String(10);
-  BU_TYPE           : String(2);    // 1=person, 2=organisation
-  BU_SORT1          : String(50);   // name
-  SECTOR_CODE       : String(20);   // RETAIL_PROP, COMMERCIAL etc
+  key PARTNER       : String(10);    // SAP BP number
+  @title: 'Partner Type Code'
+  @NLP.label: 'Partner type code: 1=person, 2=organisation — NOT a name, never use for name lookups'
+  BU_TYPE           : String(2);
+  @title: 'Customer / Business Partner Name'
+  BU_SORT1          : String(50);
+  SECTOR_CODE       : String(20);    // RETAIL_PROP, COMMERCIAL, CONSTRUCTION, AGRICULTURE, MINING
   DTI_RATIO         : Decimal(5,2);
-  INCOME_SOURCE     : String(100);  // contract employer name
-  INCOME_EXPIRY     : Date;         // contract end date — trajectory signal
+  INCOME_SOURCE     : String(100);   // contract employer name
+  INCOME_EXPIRY     : Date;          // contract end date — trajectory signal
+
+  // Unmanaged associations — FK already exists as PARTNER in this entity
+  @NLP.joinType: 'LEFT'
+  dti           : Association to BCA_DTI        on dti.PARTNER     = PARTNER;
+  loans         : Association to many Loans     on loans.PARTNER   = PARTNER;
+  payments      : Association to many DFKKOP    on payments.GPART  = PARTNER;
+  history       : Association to many DFKKOPK   on history.GPART   = PARTNER;
 }
 
 // AI: Graph edge table 1 — connected party relationships
 // Banking: Family trust, guarantor network, subsidiary structures — APS 221 exposure chains
-// SAP: BUT050 (NOT BP2000 — confirmed by bank architects, BP2000 does not exist in TRBK)
+// SAP: BUT050
+@NLP.label: 'Business partner relationships — connected parties, family trusts, subsidiaries'
 entity BUT050 {
   key PARTNER1      : String(10);
   key PARTNER2      : String(10);
-  key RELTYP        : String(30);   // FAMILY_TRUST_MEMBER, CONTACT_PERSON, SUBSIDIARY
+  key RELTYP        : String(30);    // FAMILY_TRUST_MEMBER, CONTACT_PERSON, SUBSIDIARY
   VALID_FROM        : Date;
   VALID_TO          : Date;
+
+  partner1 : Association to BusinessPartners on partner1.PARTNER = PARTNER1;
+  partner2 : Association to BusinessPartners on partner2.PARTNER = PARTNER2;
 }
 
 // ─── LOANS ───────────────────────────────────────────────────────────────────
 
-// AI: Loan node — primary financial exposure unit
-// Banking: The loan record — amount, currency, status, approval date
-// SAP: BCA_LOAN_HDR — Loan header
+@NLP.label: 'Loan accounts — borrower, amount, status, maturity'
 entity Loans {
   key LOAN_ID       : String(15);
-  PARTNER           : String(10);
+  PARTNER           : String(10);    // borrower BP number
+  @title: 'Contract Account'
   VKONT             : String(20);
-  AMOUNT            : Decimal(15,2);
-  CURRENCY          : String(3);    // AUD
-  STATUS            : String(1);    // A=active, C=closed
+  AMOUNT            : Decimal(15,2); // AUD
+  CURRENCY          : String(3);
+  @title: 'Loan Status'
+  @Common.Text: status.TEXT
+  STATUS            : String(1);
   SECTOR_CODE       : String(20);
-  LOAN_TYPE         : String(10);   // HOME, INVEST, PERSONAL, BUSINESS, TERM_DEP
+  LOAN_TYPE         : String(10);    // HOME, INVEST, PERSONAL, BUSINESS, TERM_DEP
   APPROVED_DATE     : Date;
   MATURITY_DATE     : Date;
+
+  customer   : Association to BusinessPartners on customer.PARTNER   = PARTNER;
+  schedule   : Association to many LoanSchedule on schedule.LOAN_ID  = LOAN_ID;
+  guarantors : Association to many BCA_GUARANTOR on guarantors.LOAN_ID = LOAN_ID;
+  payments   : Association to many DFKKOP       on payments.LOAN_ID  = LOAN_ID;
+  // Value help (SAP-standard pattern): adding a new status is an INSERT into
+  // LoanStatusCodes, never a schema change/redeploy — unlike a hardcoded enum.
+  status     : Association to LoanStatusCodes  on status.CODE       = STATUS;
 }
 
-// AI: Repayment schedule node — expected cash flow pattern
-// Banking: When payments are due — baseline for identifying missed payments
-// SAP: BCA_LOAN_SCHED — Repayment schedule
+// SAP-standard value-help check table — adding a new loan status is a data INSERT here,
+// never a schema/code change. Demonstrates @Common.Text vs the hardcoded-enum approach.
+@NLP.label: 'Loan status code lookup — value-help check table for Loans.STATUS'
+entity LoanStatusCodes {
+  key CODE : String(1);
+  TEXT     : String(20);
+}
+
+@NLP.label: 'Repayment schedule — the contractual due dates/amounts per loan. No status column here. For "missed", "overdue", or "unpaid scheduled payment" questions, do NOT query this entity — query DFKKOP instead and filter STATUS=OPEN (an open DFKKOP item IS the missed/overdue scheduled payment). This entity is only useful for due dates and instalment amounts, not payment status'
 entity LoanSchedule {
   key LOAN_ID       : String(15);
   key DUE_DATE      : Date;
-  AMOUNT_DUE        : Decimal(15,2);
+  AMOUNT_DUE        : Decimal(15,2); // AUD
   PRINCIPAL         : Decimal(15,2);
   INTEREST          : Decimal(15,2);
+
+  loan : Association to Loans on loan.LOAN_ID = LOAN_ID;
 }
 
-// AI: Graph edge table 2 — guarantor assignments
-// Banking: Who guarantees which loan — creates exposure consolidation obligation under APS 221
-// SAP: BCA_GUARANTOR — Guarantor assignment
+@NLP.label: 'Loan guarantors — who guarantees which loan, cover amount'
 entity BCA_GUARANTOR {
   key LOAN_ID           : String(15);
   key GUARANTOR_PARTNER : String(10);   // guarantor BP number
   GUARANTOR_NAME        : String(80);
-  COVER_AMOUNT          : Decimal(15,2);
+  COVER_AMOUNT          : Decimal(15,2); // AUD
   CURRENCY              : String(3);
   VALID_FROM            : Date;
   VALID_TO              : Date;
-  STATUS                : String(10);   // ACTIVE, EXPIRED
+  @NLP.label: 'Guarantee status: "ACTIVE" or "EXPIRED"'
+  STATUS                : String(10);
+
+  loan     : Association to Loans            on loan.LOAN_ID         = LOAN_ID;
+  guarantor: Association to BusinessPartners on guarantor.PARTNER    = GUARANTOR_PARTNER;
+  // "guarantors who are also borrowers" — check if guarantor BP is also a loan borrower
+  asLoan   : Association to Loans            on asLoan.PARTNER       = GUARANTOR_PARTNER;
 }
 
-// AI: Collateral node — security value offsetting exposure
-// Banking: Property or asset pledged against the loan
-// SAP: BCA_COLLATERAL — Collateral
+@NLP.label: 'Collateral assets pledged against a loan — property, vehicle, cash'
 entity BCA_COLLATERAL {
   key LOAN_ID       : String(15);
   key COLLAT_ID     : String(15);
-  COLLAT_TYPE       : String(10);   // PROPERTY, VEHICLE, CASH
-  VALUE             : Decimal(15,2);
+  @NLP.label: 'Collateral type: PROPERTY, VEHICLE, or CASH — always include this when describing what collateral is held, not just the value'
+  COLLAT_TYPE       : String(10);
+  VALUE             : Decimal(15,2); // AUD
   CURRENCY          : String(3);
+
+  loan : Association to Loans on loan.LOAN_ID = LOAN_ID;
 }
 
 // ─── TRANSACTIONS AND RISK SIGNALS ───────────────────────────────────────────
 
-// AI: Primary risk signal node — overdue payment detection
-// Banking: Open items = missed or partial payments. Absence of DFKKZP match = confirmed missed payment
-// SAP: DFKKOP — Open items (financial accounting)
+@NLP.label: 'Open payment items — current ledger; STATUS=OPEN means unpaid or overdue, CLEARED means paid'
 entity DFKKOP {
-  key OPBEL         : String(20);   // document number
-  VKONT             : String(20);   // contract account
-  GPART             : String(10);   // business partner (SAP FI-CA field name)
+  key OPBEL         : String(20);    // document number
+  @NLP.label: 'Contract account number (SAP FI-CA field) — an account identifier, not a customer or loan ID'
+  VKONT             : String(20);
+  @NLP.label: 'Business partner / customer ID (SAP FI-CA field name for partner) — join to BusinessPartners.PARTNER for customer details'
+  GPART             : String(10);
   LOAN_ID           : String(15);
-  BETRW             : Decimal(15,2); // amount
+  @NLP.label: 'Payment amount in AUD (SAP FI-CA field, German "Betrag" = amount)'
+  BETRW             : Decimal(15,2);
   FAEDN             : Date;          // due date
-  BUDAT             : Date;          // posting date (null if not cleared)
+  BUDAT             : Date;          // posting date
   DAYS_OVERDUE      : Integer;
-  STATUS            : String(10);    // OPEN, CLEARED
+  @NLP.label: 'Item status: "OPEN" (unpaid/overdue) or "CLEARED" (paid)'
+  STATUS            : String(10);
   CURRENCY          : String(3);
-  MAHNS             : Integer;       // Dunning Level (SAP FKKMAKO.MAHNS, 0-4; this demo uses 0-3)
+  @NLP.label: 'Dunning (payment reminder) level, 0-3. Higher = more overdue reminders sent'
+  MAHNS             : Integer;
+
+  customer : Association to BusinessPartners on customer.PARTNER = GPART;
+  loan     : Association to Loans            on loan.LOAN_ID     = LOAN_ID;
+  @NLP.joinType: 'LEFT'
+  dti      : Association to BCA_DTI          on dti.PARTNER      = GPART;
 }
 
-// AI: Payment-history node — settled repayment track record per loan
-// Banking: Cleared items = payments actually made. Combined with DFKKOP open
-//          items, gives the full ledger: history + current standing
-// SAP: DFKKOPK — Items in contract account document (cleared items)
+@NLP.label: 'Cleared payment history — settled instalments, track record before current schedule window'
 entity DFKKOPK {
-  key OPBEL         : String(20);   // document number (history): OP-Lxxx-Hnn
-  VKONT             : String(20);   // contract account
-  GPART             : String(10);   // business partner (SAP FI-CA field name)
+  key OPBEL         : String(20);    // history document number: OP-Lxxx-Hnn
+  @NLP.label: 'Contract account number (SAP FI-CA field) — an account identifier, not a customer or loan ID'
+  VKONT             : String(20);
+  @NLP.label: 'Business partner / customer ID (SAP FI-CA field name for partner) — join to BusinessPartners.PARTNER for customer details'
+  GPART             : String(10);
   LOAN_ID           : String(15);
-  BETRW             : Decimal(15,2); // amount cleared
+  @NLP.label: 'Payment amount cleared, in AUD (SAP FI-CA field, German "Betrag" = amount)'
+  BETRW             : Decimal(15,2);
   FAEDN             : Date;          // original due date
-  AUGDT             : Date;          // clearing date (date payment was applied)
-  AUGBL             : String(20);    // clearing document number
+  @NLP.label: 'Clearing date — the date this payment was actually applied/settled'
+  AUGDT             : Date;
+  @NLP.label: 'Clearing document number — reference ID for the settlement transaction'
+  AUGBL             : String(20);
   CURRENCY          : String(3);
-  MAHNS             : Integer;       // Dunning Level (SAP FKKMAKO.MAHNS, 0-4; this demo uses 0-3)
+  @NLP.label: 'Dunning (payment reminder) level, 0-3. Higher = more overdue reminders sent before this was cleared'
+  MAHNS             : Integer;
+
+  customer : Association to BusinessPartners on customer.PARTNER = GPART;
+  loan     : Association to Loans            on loan.LOAN_ID     = LOAN_ID;
 }
 
-// AI: Sector classification node — concentration risk grouping
-// Banking: Industry sector of borrower — used to calculate portfolio concentration against internal limits
-// SAP: BCA_SECTOR — Industry sector classification
+@NLP.label: 'Customer sector classification — industry grouping for concentration risk'
 entity BCA_SECTOR {
   key PARTNER       : String(10);
   SECTOR_CODE       : String(20);
   SECTOR_NAME       : String(50);
+
+  customer : Association to BusinessPartners on customer.PARTNER = PARTNER;
 }
 
-// AI: DTI ratio node — regulatory breach detection input
-// Banking: Debt-to-income ratio — APRA February 2026 limit is 6.0. Income expiry creates trajectory signal
-// SAP: BCA_DTI — Debt to income ratio
+@NLP.label: 'Debt-to-income ratios — BREACH_FLAG=true means DTI exceeds APRA 6.0 limit'
 entity BCA_DTI {
   key PARTNER       : String(10);
-  DTI_RATIO         : Decimal(5,2);
-  TOTAL_DEBT        : Decimal(15,2);
-  ANNUAL_INCOME     : Decimal(15,2);
+  DTI_RATIO         : Decimal(5,2);  // e.g. 7.2 = 720% of annual income
+  TOTAL_DEBT        : Decimal(15,2); // AUD
+  ANNUAL_INCOME     : Decimal(15,2); // AUD
   CURRENCY          : String(3);
   APRA_LIMIT        : Decimal(5,2);  // 6.0 as of Feb 2026
-  BREACH_FLAG       : Boolean;
-  BREACH_DATE       : Date;          // date limit was activated / breach detected
-  INCOME_SOURCE     : String(100);   // contract employer — trajectory signal
-  INCOME_EXPIRY     : Date;          // contract end — future DTI signal for Trajectory Agent
+  BREACH_FLAG       : Boolean;       // true if DTI > APRA limit
+  BREACH_DATE       : Date;
+  INCOME_SOURCE     : String(100);
+  INCOME_EXPIRY     : Date;          // income contract end — forward DTI signal
+
+  customer : Association to BusinessPartners on customer.PARTNER = PARTNER;
+  payments : Association to many DFKKOP      on payments.GPART   = PARTNER;
+  loans    : Association to many Loans       on loans.PARTNER    = PARTNER;
 }
 
-// AI: RPT-1 in-context learning corpus — historical loan profiles with
-//     known repayment outcomes, used as labeled examples for the query row
-// Banking: Closed historical loan book sample — DTI/debt/income profile at
-//          origination + the arrears outcome that was actually observed
-// SAP: BCA_CREDIT_HISTORY — bank-built analytics table (BCA_* convention)
+@NLP.label: 'Historical credit outcomes — closed loan book with observed arrears results (RPT-1 training corpus)'
 entity BCA_CREDIT_HISTORY {
-  key CASE_ID        : String(10);   // HIST-0001 .. HIST-0200
+  key CASE_ID        : String(10);   // HIST-0001..HIST-0200
   DTI_RATIO          : Decimal(5,2);
   TOTAL_DEBT         : Decimal(15,2);
   ANNUAL_INCOME      : Decimal(15,2);
   BREACH_FLAG        : Boolean;
-  ARREARS_OUTCOME    : String(10);   // LOW/MEDIUM/HIGH/CRITICAL — observed outcome (RPT-1 target)
+  ARREARS_OUTCOME    : String(10);   // LOW / MEDIUM / HIGH / CRITICAL
 }
 
 // ─── REGULATORY REFERENCE DATA ───────────────────────────────────────────────
 
-// AI: Policy threshold node — regulatory limit lookup for threshold breach detection
-// Banking: APRA prudential limits — APS 221 large exposure, DTI limit (Feb 2026)
-// SAP: RISK_THRESHOLD — synthetic regulatory thresholds table
+@NLP.label: 'APRA regulatory thresholds — APS 221 large exposure, DTI limit, sector limits'
 entity RegulatoryThresholds {
   key THRESHOLD_TYPE  : String(30);  // APS221_LARGE_EXPOSURE, DTI_LIMIT, SECTOR_LIMIT
   LIMIT_VALUE         : Decimal(15,2);
-  LIMIT_PCT           : Decimal(5,2); // percentage limit where applicable
-  REGULATOR           : String(10);   // APRA
+  LIMIT_PCT           : Decimal(5,2);
+  REGULATOR           : String(10);  // APRA
   EFFECTIVE_DATE      : Date;
   DESCRIPTION         : String(200);
 }
 
-// AI: Exposure limit node — single and group borrower limits
-// Banking: APS 221 single counterparty and connected group limits
-// SAP: EXPOSURE_LIMIT — synthetic exposure limits table
+@NLP.label: 'Per-customer credit exposure limits — APS 221 single and group counterparty caps'
 entity ExposureLimits {
   key LIMIT_TYPE    : String(20);    // SINGLE, GROUP
   LIMIT_AUD         : Decimal(15,2);
-  NOTIFICATION_PCT  : Decimal(5,2);  // board notification threshold (e.g. 90%)
+  NOTIFICATION_PCT  : Decimal(5,2); // board notification threshold e.g. 90%
   REGULATOR         : String(10);
 }
 
-// AI: Sector concentration limit node
-// Banking: Internal portfolio limits by sector — concentration risk management
-// SAP: SECTOR_EXPOSURE — synthetic sector exposure limits table
+@NLP.label: 'Sector concentration limits — maximum portfolio exposure per industry sector'
 entity SectorExposureLimits {
   key SECTOR_CODE       : String(20);
   LIMIT_AUD         : Decimal(15,2);
-  LIMIT_PCT         : Decimal(5,2);  // % of total portfolio
-  ALERT_PCT         : Decimal(5,2);  // alert threshold
+  LIMIT_PCT         : Decimal(5,2); // % of total portfolio
+  ALERT_PCT         : Decimal(5,2);
 }
 
 // ─── AI SYSTEM TABLES ─────────────────────────────────────────────────────────
 
-// AI: Risk assessment output — persisted LangGraph synthesis result
-// Banking: The APRA-ready risk brief — audit trail for CPS 230 compliance
-// SAP: RiskAssessments — Banking Sentinel output table
+@NLP.label: 'Risk assessment outputs — persisted LangGraph synthesis results, APRA audit trail'
 entity RiskAssessments {
-  key SESSION_ID    : String(36);    // UUID — LangGraph thread_id
+  key SESSION_ID    : String(36);    // UUID
   PARTNER           : String(10);
   RISK_SCORE        : Integer;       // 0-100
-  RISK_LEVEL        : String(10);    // LOW/MEDIUM/HIGH/CRITICAL
-  FINDINGS          : LargeString;   // JSON array of findings
-  CONFIDENCE        : Decimal(3,2);  // 0.00-1.00
-  APPROVED_BY       : String(50);    // human-in-the-loop approver
+  RISK_LEVEL        : String(10);    // LOW / MEDIUM / HIGH / CRITICAL
+  FINDINGS          : LargeString;   // JSON array
+  CONFIDENCE        : Decimal(3,2);
+  APPROVED_BY       : String(50);
   APPROVED_AT       : DateTime;
   CREATED_AT        : DateTime;
 }
 
-// AI: Vector store — APRA regulatory documents embedded for semantic search
-// Banking: Live regulatory knowledge base — upload new APRA doc, system applies immediately (Twinkle 2)
-// SAP: RegulatoryDocuments — HANA Vector Engine table (switch EMBEDDING to Vector(1536) with CDS 10)
+@NLP.label: 'APRA regulatory documents — chunked and embedded for vector RAG search'
 entity RegulatoryDocuments {
   key DOC_ID        : String(36);    // UUID
   TITLE             : String(200);
-  STANDARD          : String(20);    // APS221, CPS230, DTI_NOTICE etc
+  STANDARD          : String(20);    // APS221, CPS230, DTI_NOTICE
   CONTENT           : LargeString;
-  EMBEDDING         : LargeString;   // JSON array — switch to Vector(1536) when CDS 10 available
+  EMBEDDING         : LargeString;   // JSON float array — switch to Vector(1536) in CDS 10
   UPLOADED_AT       : DateTime;
 }
 
-// AI: Audit log — every LLM call traced for LLMOps and regulatory compliance
-// Banking: CPS 230 requires every AI decision to be auditable — who asked, what was reasoned, what was recommended
-// SAP: AuditLog — cost tracking + compliance trail
+@NLP.label: 'Audit log — every LLM call traced for CPS 230 compliance and LLMOps'
 entity AuditLog {
   key LOG_ID        : String(36);    // UUID
   SESSION_ID        : String(36);
   ACTION            : String(100);   // risk_analysis, simple_query, rejection, approval
   QUERY             : LargeString;
   RESPONSE          : LargeString;
-  MODEL             : String(50);    // claude-sonnet-4-6, claude-opus-4-7
+  MODEL             : String(50);
   TOKENS_IN         : Integer;
   TOKENS_OUT        : Integer;
-  COST_AUD          : Decimal(8,4);  // calculated per analysis
+  COST_AUD          : Decimal(8,4);
   LATENCY_MS        : Integer;
   CREATED_AT        : DateTime;
 }

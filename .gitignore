@@ -12,3 +12,6 @@ default-env.json
 
 # CF deployment — contains live credentials, never commit real values
 manifest.yml
+
+# MCP server config — contains LLM provider API key
+.mcp.json
