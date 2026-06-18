@@ -43,7 +43,11 @@ function mapBUT050(records) {
   }));
 }
 
-function mapLoans(records) {
+// sectorByPartner: PARTNER -> SECTOR_CODE lookup built from BusinessPartners.
+// The raw BCA_LOAN_HDR.json never carries its own SECTOR_CODE, so without this
+// every Loans.SECTOR_CODE row is null — a dead column that silently breaks any
+// "loans in sector X" query even though the data clearly exists (on the borrower).
+function mapLoans(records, sectorByPartner = {}) {
   return records.map(r => ({
     LOAN_ID:       r.LOAN_ID,
     PARTNER:       r.PARTNER,
@@ -51,7 +55,7 @@ function mapLoans(records) {
     AMOUNT:        r.AMOUNT,
     CURRENCY:      r.CURRENCY || 'AUD',
     STATUS:        r.STATUS === 'ACTIVE' ? 'A' : 'C',
-    SECTOR_CODE:   r.SECTOR_CODE || null,
+    SECTOR_CODE:   r.SECTOR_CODE || sectorByPartner[r.PARTNER] || null,
     LOAN_TYPE:     r.PRODUCT_ID || r.LOAN_TYPE || 'LOAN',
     APPROVED_DATE: r.START_DATE || r.APPROVED_DATE,
     MATURITY_DATE: r.MATURITY_DATE,
@@ -241,16 +245,22 @@ async function seed() {
   // return 0 matches because PARTNER IDs never overlap.
   const rawBPs = JSON.parse(fs.readFileSync(path.join(RAW, 'ABusinessPartner.json')));
   const bpArr = rawBPs.d?.results || rawBPs.value || rawBPs;
-  await insert(E.BusinessPartners, mapBusinessPartners(bpArr), 'BusinessPartners (SAP sandbox)');
+  const sandboxBPs = mapBusinessPartners(bpArr);
+  await insert(E.BusinessPartners, sandboxBPs, 'BusinessPartners (SAP sandbox)');
 
   const demoBPs = await loadFile('DemoBusinessPartners.json');
   await insert(E.BusinessPartners, demoBPs, 'BusinessPartners (demo customers)');
+
+  const sectorByPartner = {};
+  for (const bp of [...sandboxBPs, ...demoBPs]) {
+    if (bp.SECTOR_CODE) sectorByPartner[bp.PARTNER] = bp.SECTOR_CODE;
+  }
 
   // Connected party relationships (BUT050)
   await insert(E.BUT050, mapBUT050(await loadFile('BUT050.json')), 'BUT050');
 
   // Loans
-  await insert(E.Loans, mapLoans(await loadFile('BCA_LOAN_HDR.json')), 'Loans');
+  await insert(E.Loans, mapLoans(await loadFile('BCA_LOAN_HDR.json'), sectorByPartner), 'Loans');
 
   // Loan repayment schedules
   await insert(E.LoanSchedule, mapLoanSchedule(await loadFile('BCA_LOAN_SCHED.json')), 'LoanSchedule');
