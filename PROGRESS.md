@@ -354,12 +354,51 @@ rows normally.
 - Auth-related fixes (C-3/C-4/C-5/H-1/M-5) and `.cdsrc.json` (C-1) — "not
   required" for this PoC per user, deferred indefinitely.
 
+## Completed — simple-query migrated to published cds-db-nlquery-mcp (this session)
+`srv/agents/simple-query.js` rewritten to delegate to the published
+`@shahid.la/cds-db-nlquery-mcp` MCP server (npm `^0.5.2`) instead of the
+hand-rolled query planner (JSON descriptor + `query-schema.js` join/condition
+logic, ~327 lines, deleted). The app no longer owns schema introspection,
+query planning, or SQL JOIN execution for simple data questions — the MCP
+package does, via its `natural_language_query` tool over stdio
+(`npx -y @shahid.la/cds-db-nlquery-mcp`, config in `.mcp.json`, gitignored —
+contains the Anthropic API key for that child process).
+
+`.mcp.json`'s `MCP_ALLOWED_ENTITIES` intentionally restricts the queryable
+set to 11 of 18 schema entities (BusinessPartners, Loans, LoanSchedule,
+LoanStatusCodes, BCA_DTI, DFKKOP, DFKKOPK, BCA_GUARANTOR, BCA_COLLATERAL,
+BCA_SECTOR, RiskAssessments) — user confirmed this is fine as-is.
+`AuditLog` deliberately excluded (package bypasses CAP service-layer
+`@requires`/`@restrict`, so the audit trail itself shouldn't be NL-queryable).
+
+Verified live via the Sentinel UI: "Show me all active loans with their
+customer name, loan amount, and status text — include only loans that have
+overdue payments" → MCP returned 5 raw rows (L-001 has 2 open DFKKOP rows,
+L-002/L-003/L-005 have 1 each), answer-generation LLM collapsed L-001's two
+identical-looking rows (DAYS_OVERDUE wasn't in the selected columns) into one
+entry → UI showed 4 loans. Cross-checked against seed data
+(`Data/processed/BCA_LOAN_HDR.json`, `DFKKOP.json`): amounts and overdue-loan
+set both correct (L-001 $1.85M, L-002 $980K, L-003 $1.25M, L-005 $1.65M — the
+4 known distressed loans from the AGREED DESIGN narrative). No code-level
+dedup exists; the 4-vs-5 collapse is incidental LLM summarization behavior,
+not a deliberate check — worth knowing if a future query selects
+`DAYS_OVERDUE` and the same loan appears twice.
+
+Also pushed 3 previously-local commits on the `cds-db-nlquery-mcp` repo
+itself (`a3dbaec` 0.5.1, `4a248cc` NLQ planner rule tightening, `5b9b167`
+0.5.2) to `origin/main` — that repo was 3 commits ahead, now in sync.
+
+Committed + pushed to Banking-Sentinel `origin/main` as `d960f75`.
+
 ## Next
-- All 6 AGREED DESIGN steps + the Pattern Agent LLM enhancement, plus this
-  session's 6 batch fixes (#5, #9, #10, #12-ack, #17, #18, #19), are done,
-  verified end-to-end, and ready to commit + push.
+- All 6 AGREED DESIGN steps + the Pattern Agent LLM enhancement, the earlier
+  session's 6 batch fixes (#5, #9, #10, #12-ack, #17, #18, #19), and the
+  simple-query MCP migration above are all done, verified end-to-end, and
+  pushed.
 - Resume RAGAS discussion (#15) if the user wants to revisit — no
   implementation pending.
+- Remaining open items (H-2, H-3, H-5, H-6, L-1, L-6, C-2) still untriaged —
+  see "Remaining open items" section above.
 
 ## Completed — git history scrub of leaked HDI credentials (this session)
 User flagged a SECOND leaked credential beyond C-1: `scripts/archive/deploy-procedure.js`
