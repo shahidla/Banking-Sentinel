@@ -9,8 +9,8 @@
 // Use Banking-Sentinel's @sap/cds (has @sap/hana-client).
 // query-executor.js resolves cds from process.cwd() which is Banking-Sentinel — same instance.
 const cds = require('@sap/cds');
-const { buildSchema, buildSchemaPrompt } = require('C:/Dev/cds-db-nlquery-mcp/src/schema-reader');
-const { executeDescriptor }              = require('C:/Dev/cds-db-nlquery-mcp/src/query-executor');
+const { buildSchema, buildSchemaPrompt } = require('@shahid.la/cds-db-nlquery-mcp/src/schema-reader');
+const { executeDescriptor }              = require('@shahid.la/cds-db-nlquery-mcp/src/query-executor');
 
 const PASS = '✅';
 const FAIL = '❌';

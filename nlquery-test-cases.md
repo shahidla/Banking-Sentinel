@@ -1,6 +1,6 @@
 # NL Query Test Cases — cds-db-nlquery-mcp
 
-Tests for `@shahid/cds-db-nlquery-mcp` against Banking Sentinel HANA schema.
+Tests for `@shahid.la/cds-db-nlquery-mcp` against Banking Sentinel HANA schema.
 Run via: MCP tool `natural_language_query` with question as input.
 
 ---
