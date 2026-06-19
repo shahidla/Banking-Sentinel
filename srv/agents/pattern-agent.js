@@ -76,7 +76,7 @@ async function callRpt1(data, customerId) {
   const apiKey = process.env.SAP_RPT_API_KEY;
   if (!apiKey) throw new Error('SAP_RPT_API_KEY not set');
 
-  const history = await cds.run(SELECT.from('bankingsentinel.BCA_CREDIT_HISTORY'));
+  const history = await cds.run(SELECT.from('bankingsentinel.BCA_CREDIT_HISTORY').limit(50));
   if (history.length < 2) throw new Error('Not enough context rows for RPT-1 (need >= 2)');
 
   const contextRows = history.map(h => ({
