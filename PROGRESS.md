@@ -536,6 +536,32 @@ conversation transcript. User declined rotation, chose to clear conversation his
 disabled again on `banking-sentinel` after diagnostics (`cf disable-ssh`) and temp diagnostic
 scripts were removed from both the local repo and the container's `/tmp`.
 
+## Completed — RPT-1 sequencing change + retracted CPU-throttling theory (this session, 2026-06-19)
+Changed `srv/agents/pattern-agent.js` so RPT-1 now runs alone, awaited before PAL/LLM start
+(previously all three fired together via `Promise.allSettled`). Rationale at the time: 10/10
+isolated standalone calls to `rpt.cloud.sap` from inside the BTP container succeeded, so
+removing Pattern-Agent-level concurrency seemed likely to help. Kept the change (low cost,
+no real downside, removes one plausible contributing factor) but it is **not proven to be a
+fix** — a live test immediately after deploying it still hit `RPT-1: The operation was
+aborted due to timeout` even with RPT-1 running first/alone, which disproves "Pattern-Agent
+concurrency is the cause" as a complete explanation.
+
+Also explored and **retracted** a "CF trial-tier CPU throttling" theory (observed
+`cpu entitlement` swinging 0%→91.9% across the session) — user correctly countered that
+`mj-live-cap`, a much larger app, runs fine on the same trial org with no issues, which rules
+out generic trial-tier-can't-handle-load as the explanation. Current best (still unproven)
+hypothesis: it's specific to the network path between BTP's outbound egress IP range
+(us10 datacenter) and `rpt.cloud.sap` specifically — a SAP trial-tier consumer API that may
+itself rate-limit/route differently for cloud-datacenter-originating requests vs. a
+residential/office IP. Not verifiable without visibility into SAP's RPT-1 infrastructure.
+
+**Practical upshot, independent of root cause**: the graceful-degradation fix (RPT-1 failure
+returns a fallback instead of throwing, see above) is what's actually keeping the pipeline
+alive when this happens, and remains correct regardless of which external-network
+explanation is right. Do not re-litigate root cause without new evidence — both the
+concurrency theory and the CPU-throttling theory were tested and didn't hold up; don't
+re-propose either without something new.
+
 ## Gotchas / decisions to not forget
 - This whole IF/Trajectory thread is presented to SAP/bank stakeholders —
   algorithm choices must be justified by real bank/SAP practice (done — see

@@ -290,30 +290,29 @@ async function patternAgent(state) {
   const data = await fetchCustomerData(customerId);
   console.log(`  [Pattern] Fetched — loans:${data.loans.length} payments:${data.payments.length} collateral:${data.collateral.length}`);
 
-  // Steps 2-4 — RPT-1, PAL, LLM all run in parallel. Each emits a progress event
-  // the moment it settles so the UI can bold each result as it arrives.
   const sid = state.sessionId;
 
-  // Non-fatal like PAL below: rpt.cloud.sap is a trial-tier external endpoint
-  // with observed intermittent connect/timeout failures. One source going
-  // down shouldn't abort the whole analysis when PAL + LLM can still produce
-  // a signal — Reflection already inspects patternAssessment.rpt1.success as
-  // an evidence-quality gap, it just never got the chance to run before this
-  // was blocking. Fallback score=50 keeps routeAfterPattern on the high_risk
-  // (more thorough) path rather than silently under-scoring on missing data.
-  const rpt1Promise = (async () => {
-    try {
-      const r = await callRpt1(data, customerId);
-      console.log(`  [Pattern/RPT-1] score:${r.score} category:${r.category} confidence:${r.confidence}`);
-      progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', score: r.score, category: r.category, confidence: r.confidence, success: true });
-      return { ...r, success: true };
-    } catch (e) {
-      console.warn(`  [Pattern/RPT-1] Failed — continuing with PAL+LLM signal only: ${e.message}`);
-      progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', success: false, error: e.message });
-      return { score: 50, category: 'UNKNOWN', confidence: 0, success: false, error: e.message };
-    }
-  })();
+  // Step 2 — RPT-1 runs ALONE first, not concurrently with PAL/LLM.
+  // Diagnosed empirically this session: 10/10 standalone calls to rpt.cloud.sap
+  // succeeded from inside this same BTP container (all <2s), but it failed
+  // intermittently when racing PAL + the Claude LLM call inside the same
+  // single-threaded event loop during a full pipeline run. Running it first
+  // removes that contention instead of just tolerating the failure — the
+  // try/catch fallback below stays as a second line of defense in case the
+  // external endpoint itself is ever genuinely down.
+  let rpt1Result;
+  try {
+    const r = await callRpt1(data, customerId);
+    console.log(`  [Pattern/RPT-1] score:${r.score} category:${r.category} confidence:${r.confidence}`);
+    progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', score: r.score, category: r.category, confidence: r.confidence, success: true });
+    rpt1Result = { ...r, success: true };
+  } catch (e) {
+    console.warn(`  [Pattern/RPT-1] Failed — continuing with PAL+LLM signal only: ${e.message}`);
+    progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', success: false, error: e.message });
+    rpt1Result = { score: 50, category: 'UNKNOWN', confidence: 0, success: false, error: e.message };
+  }
 
+  // Steps 3-4 — PAL and LLM run in parallel with each other (no longer with RPT-1).
   const palPromise = (async () => {
     try {
       const findings = await runAnomalyDetection(data, customerId);
@@ -339,14 +338,13 @@ async function patternAgent(state) {
     }
   })();
 
-  // allSettled so all three emit progress events before we check failures
-  const [rpt1Settled, palSettled, llmSettled] = await Promise.allSettled([rpt1Promise, palPromise, llmPromise]);
+  // allSettled so both emit progress events before we check failures
+  const [palSettled, llmSettled] = await Promise.allSettled([palPromise, llmPromise]);
 
   // Only LLM is still blocking — RPT-1 (above) and PAL both degrade gracefully
   // instead of aborting the whole analysis. PAL failure: HANA ScriptServer
   // unavailable (3 vCPU, not on Free Tier — upgrade + grant
-  // AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user). RPT-1 failure: external
-  // trial-tier endpoint connect/timeout flakiness (observed in production).
+  // AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user). RPT-1 failure: handled above.
   if (llmSettled.status === 'rejected') throw new Error(`Pattern Agent failed:\nLLM: ${llmSettled.reason?.message}`);
   if (palSettled.status === 'rejected')
     console.warn(`  [Pattern/PAL] Skipped (ScriptServer unavailable — needs 3 vCPU paid HANA Cloud): ${palSettled.reason?.message}`);
@@ -354,7 +352,7 @@ async function patternAgent(state) {
   const palResult = palSettled.status === 'fulfilled'
     ? palSettled.value
     : { findings: [], anomalyCount: 0, totalScored: 0, success: false, error: palSettled.reason?.message };
-  const [rpt1Result, llmResult] = [rpt1Settled.value, llmSettled.value];
+  const llmResult = llmSettled.value;
 
   // Step 5 — derive combined signal and risk level
   // Combined anomaly list (used by Synthesis for APRA-ready brief)
