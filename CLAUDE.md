@@ -57,23 +57,30 @@ since they call `cds.connect.to('db')` directly without a `--profile` flag.
 
 ## Credential / endpoint drift (local .env vs CF)
 
-`.env` (local) and the CF app's env vars (`cf set-env` / `manifest.yml.template`) are two
-separate copies — nothing syncs them automatically. When a key rotates locally (API keys,
-`GRAPHDB_PASSWORD`) or the GraphDB sandbox is replaced (expires every 7 days,
-`GRAPHDB_ENDPOINT`/`GRAPHDB_PASSWORD` change), CF keeps the old value until someone runs:
+`.env` (local) and the CF app's env vars (`cf set-env`) are two separate copies — nothing
+syncs them automatically. When a key rotates locally (API keys, `GRAPHDB_PASSWORD`) or the
+GraphDB sandbox is replaced (expires every 7 days, `GRAPHDB_ENDPOINT`/`GRAPHDB_PASSWORD`
+change), CF keeps the old value until someone runs:
 
 ```bash
 cf set-env banking-sentinel <VAR> "<new value>"
 cf restage banking-sentinel
 ```
 
+`GRAPHDB_ENDPOINT`/`SOLACE_URL`/`SOLACE_VPN`/`SOLACE_USERNAME` are **not** in `manifest.yml`
+or `manifest.yml.template` — they live in `cf set-env` only, same as the actual secrets
+(`GRAPHDB_PASSWORD`, `SOLACE_PASSWORD`, etc — see the comment block at the top of each app's
+`env:` section for the full `cf set-env` list). This is deliberate: these values rotate just
+as often as passwords do, so baking them into a committed manifest meant every `cf push`
+reintroduced the stale value and clobbered whatever `cf set-env` had fixed — that exact bug
+happened once (fixed 2026-06-19). Don't add them back to the manifest even as "just config,
+not a secret" — anything with this rotation cadence belongs in `cf set-env`.
+
 `GET /a2a/health` reports a `connectivity` field — a startup self-check
 (`srv/utils/connectivity-check.js`) verifies required env vars are set and does a live
 GraphDB SPARQL `ASK` against `GRAPHDB_ENDPOINT`/`GRAPHDB_REPOSITORY`. A redirect (expired
 sandbox) or HTTP error shows up there immediately after deploy/restart — check this before
-debugging a "GraphDB traversal failed" error deeper in the pipeline. Also update
-`manifest.yml.template`'s `GRAPHDB_ENDPOINT` so a future `cf push` doesn't reintroduce the
-stale value.
+debugging a "GraphDB traversal failed" error deeper in the pipeline.
 
 ## HANA Cloud trial recovery
 

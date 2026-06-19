@@ -13,7 +13,9 @@ applications:
       - banking-sentinel-db
     env:
       NODE_ENV: production
-      # Credentials: never in this file — set once via cf set-env after first deploy:
+      # Credentials AND anything that rotates/expires (GraphDB sandbox URL,
+      # Solace connection details) — never in this file, set once via
+      # cf set-env after first deploy, re-sync whenever they rotate:
       #   cf set-env banking-sentinel ANTHROPIC_API_KEY xxx
       #   cf set-env banking-sentinel OPENAI_API_KEY xxx
       #   cf set-env banking-sentinel LANGFUSE_SECRET_KEY xxx
@@ -21,21 +23,23 @@ applications:
       #   cf set-env banking-sentinel POSTGRES_URL xxx
       #   cf set-env banking-sentinel GRAPHDB_USERNAME xxx
       #   cf set-env banking-sentinel GRAPHDB_PASSWORD xxx
+      #   cf set-env banking-sentinel GRAPHDB_ENDPOINT xxx
       #   cf set-env banking-sentinel SAP_RPT_API_KEY xxx
       #   cf set-env banking-sentinel SOLACE_PASSWORD xxx
+      #   cf set-env banking-sentinel SOLACE_URL xxx
+      #   cf set-env banking-sentinel SOLACE_VPN xxx
+      #   cf set-env banking-sentinel SOLACE_USERNAME xxx
       #   cf restage banking-sentinel
       ANTHROPIC_MODEL: claude-haiku-4-5-20251001
       OPENAI_EMBEDDING_MODEL: text-embedding-3-small
       LANGFUSE_HOST: https://us.cloud.langfuse.com
       LANGFUSE_BASE_URL: https://us.cloud.langfuse.com
-      GRAPHDB_ENDPOINT: https://hb5e1e56a3de544c297a.sandbox.graphwise.ai
       GRAPHDB_REPOSITORY: banking-sentinel
       ANOMALY_ENGINE: scikit
       SCIKIT_SERVICE_URL: https://banking-sentinel-scikit.cfapps.us10-001.hana.ondemand.com
-      SOLACE_URL: wss://mr-connection-rcgt0ju559a.messaging.solace.cloud:443
-      SOLACE_VPN: mj-live
-      SOLACE_USERNAME: solace-cloud-client
       ADMIN_IP_WHITELIST: disabled
+      LLM_PROVIDER: anthropic
+      MCP_ALLOWED_ENTITIES: BusinessPartners,Loans,LoanSchedule,LoanStatusCodes,BCA_DTI,DFKKOP,DFKKOPK,BCA_GUARANTOR,BCA_COLLATERAL,BCA_SECTOR,RiskAssessments
 
   # ── Scikit Isolation Forest anomaly service (Flask) ──────────────────────────
   # AI: separate CF app so the Node app's nodejs_buildpack doesn't need Python.

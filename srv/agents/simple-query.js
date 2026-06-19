@@ -47,7 +47,13 @@ function envForMcpServer(extraEnv) {
 }
 
 function mcpCommand() {
-  return process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  // Bare 'npx' relies on PATH lookup, which doesn't reliably include the
+  // buildpack's node bin dir for the app's actual runtime process on CF
+  // (confirmed: ENOENT in production despite npx existing alongside node).
+  // Resolve it next to the node binary actually running this process instead.
+  const npxName = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  const candidate = path.join(path.dirname(process.execPath), npxName);
+  return fs.existsSync(candidate) ? candidate : npxName;
 }
 
 function readMcpServerConfig() {
@@ -63,21 +69,16 @@ function readMcpServerConfig() {
 
 function childServerParams() {
   const configured = readMcpServerConfig();
-  if (!configured) {
-    return {
-      command: mcpCommand(),
-      args: ['-y', MCP_PACKAGE],
-      cwd: process.cwd(),
-      env: envForMcpServer(),
-      stderr: 'pipe',
-    };
-  }
 
+  // .mcp.json's `command`/`cwd` are local-dev-only (e.g. a Windows path)
+  // and not portable across environments — only its `env` overrides
+  // (API key, MCP_ALLOWED_ENTITIES) are used. `command`/`cwd` are always
+  // computed fresh for whichever host/platform is actually running.
   return {
-    command: configured.command || mcpCommand(),
-    args: configured.args || ['-y', MCP_PACKAGE],
-    cwd: configured.cwd || process.cwd(),
-    env: envForMcpServer(configured.env),
+    command: mcpCommand(),
+    args: configured?.args || ['-y', MCP_PACKAGE],
+    cwd: process.cwd(),
+    env: envForMcpServer(configured?.env),
     stderr: 'pipe',
   };
 }

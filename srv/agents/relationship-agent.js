@@ -89,7 +89,7 @@ async function runRelationshipAgent(state, customerId) {
   const llm = new ChatAnthropic({
     model:     process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
     apiKey:    process.env.ANTHROPIC_API_KEY,
-    maxTokens: 1000,
+    maxTokens: 1500,
     callbacks: lfHandler ? [lfHandler] : []
   }).bindTools(TOOLS);
 
@@ -109,7 +109,9 @@ Your goal: investigate the identified gap specifically. Do not just repeat the p
 - Recalculate group exposure including any newly discovered entities
 - Check APS 221 threshold with the updated total
 
-Return your final summary as JSON:
+When you stop calling tools, respond with ONLY the JSON object below — no preamble, no
+explanation before or after it. Keep "finding" to one sentence; this is a token budget, not
+a place for extra reasoning:
 {"nodes": [...], "edges": [...], "groupExposure": <AUD>, "aps221Pct": <pct>, "confidence": <0.0-1.0>, "finding": "<one sentence>"}`
     : `You are a banking risk analyst performing connected party graph traversal for APS 221 compliance.
 Your goal: find ALL entities connected to the start customer (direct and indirect), calculate their total group exposure, and check it against APRA APS 221 limits.
@@ -121,7 +123,9 @@ Steps:
 4. If hana_graph_traverse returns zero SPARQL connections, this is EXPECTED — many borrowers are not in BUT050 directly. Do NOT call hana_graph_traverse again from a different entity; doing so pulls in unrelated connected-party chains. The guarantor data is already included in the tool result — use those IDs for exposure_calculator.
 5. When you have a complete picture, stop calling tools and summarise
 
-Return your final summary as JSON:
+When you stop calling tools, respond with ONLY the JSON object below — no preamble, no
+explanation before or after it. Keep "finding" to one sentence; this is a token budget, not
+a place for extra reasoning:
 {"nodes": [...], "edges": [...], "groupExposure": <AUD>, "aps221Pct": <pct>, "confidence": <0.0-1.0>, "finding": "<one sentence>"}`;
 
   const userPrompt = isRequery && reQueryHint
@@ -194,7 +198,9 @@ Return your final summary as JSON:
     const rawText = extractText(lastTextMsg.content);
     const clean = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     parsed = extractJson(clean);
-    if (!parsed) console.warn('  [Relationship] JSON parse failed — using fallback');
+    if (!parsed) {
+      console.warn('  [Relationship] JSON parse failed — using fallback. Raw text:', clean.slice(0, 1000));
+    }
   }
 
   if (!parsed || !Array.isArray(parsed.nodes)) {

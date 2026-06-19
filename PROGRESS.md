@@ -429,6 +429,113 @@ trial recovery per the recovery procedure in CLAUDE.md.
 `../filter-repo-replacements.txt` and the backup bundle were local-only (outside the repo,
 not tracked) — deleted after confirming the GitHub repo looks correct.
 
+## Completed — BTP deploy + manifest credential-drift fix (this session, 2026-06-19)
+Deployed `banking-sentinel` + `banking-sentinel-scikit` to CF (`cf push`, both running). CF
+session token had expired — re-logged in via `.env`'s `CF_API`/`CF_USER`/`CF_PASSWORD`.
+
+Found and fixed the root cause of recurring `/a2a/health` GraphDB-connectivity failures:
+`manifest.yml`/`manifest.yml.template` had `GRAPHDB_ENDPOINT`, `SOLACE_URL`, `SOLACE_VPN`,
+`SOLACE_USERNAME` hardcoded in the committed `env:` block. Every `cf push` reapplies the
+manifest's env block, so even after `cf set-env`-ing fresh rotated values, the *next* push
+silently clobbered them back to the stale committed ones. Fixed by removing all 4 from both
+manifest files — they're now `cf set-env`-only, same as the existing secrets
+(`GRAPHDB_PASSWORD`, `SOLACE_PASSWORD`). Documented in `CLAUDE.md`'s "Credential / endpoint
+drift" section so this doesn't get reintroduced.
+
+Verified: `/a2a/health` → `{"status":"ok","graph":"ready","checkpointer":"postgres",
+"langfuse":"connected","connectivity":"ok"}`.
+
+**Not yet committed** — `manifest.yml` itself is gitignored (per `.cfignore`/git status
+conventions for this repo, confirm before assuming), but `manifest.yml.template` IS tracked
+and its edit (removing the 4 vars) should be committed.
+
+## Completed — RPT-1 connect-timeout diagnosis + fix (this session, 2026-06-19)
+User reported `RPT-1: fetch failed` intermittently in BTP but never locally. Ruled out
+network/auth/payload-size by testing directly inside the CF container (`cf ssh`, required
+`cf enable-ssh banking-sentinel` + restart first): raw `curl` and a standalone Node `fetch`
+with the full 200-row payload both succeeded in ~1.2s. Yet the live app failed 3 separate
+`analyseRisk` calls in the same process.
+
+Added cause-logging to `srv/utils/fetch-retry.js` (`console.error` of `err.cause`, previously
+swallowed — only the generic "fetch failed" message reached the logs) and redeployed. Next
+failure showed the real cause: `ConnectTimeoutError: Connect Timeout Error (attempted
+address: rpt.cloud.sap:443, timeout: 10000ms)` — Node's `fetch` (undici) defaults to a 10s
+TCP-connect timeout, too tight for `rpt.cloud.sap`'s trial tier under occasional load. All 3
+`fetchWithRetry` attempts hit the same timeout (network condition persisted ~23s), so retries
+alone didn't help.
+
+Fix: added `undici` as an explicit npm dependency (`^7.28.0` — Node's built-in `fetch` doesn't
+expose a way to configure connect-timeout without it) and wired a shared `Agent({ connect: {
+timeout: 30000 } })` into `fetchWithRetry` via the `dispatcher` fetch option, applied to every
+call through that helper (RPT-1 + scikit + GraphDB + OpenAI embeddings, all already routed
+through `fetchWithRetry` per #10/M-3 from an earlier session). Verified locally
+(`node -e` smoke test against httpbin) and redeployed — `/a2a/health` connectivity:ok.
+
+**Not yet verified**: whether 30s actually eliminates the intermittent failure (it was
+genuinely external/SAP-side flakiness, not something fully under our control) — watch
+`cf logs banking-sentinel --recent | grep RPT-1` after next few live runs.
+
+## Open — Relationship Agent occasional JSON parse failure (noticed this session, not yet
+investigated)
+Live log during one of the RPT-1 test runs: `[Relationship] JSON parse failed — using
+fallback` → degrades to `Graph traversal result unavailable — manual review required`, 3
+nodes, zero group exposure, confidence 0.4 (vs. normal multi-node graph + real exposure
+numbers). `extractJson()` (already wired into relationship-agent.js per CLAUDE.md) failed to
+parse the LLM's ReAct response on this run. Reflection correctly caught the degraded
+quality (gaps:5, confidence 0.52, requested a re-query) so the pipeline self-corrected rather
+than silently shipping a bad graph — but root cause of the parse failure itself (malformed
+LLM output? truncation? something `extractJson`'s brace-counting doesn't handle?) not yet
+diagnosed. Next step if it recurs: log the raw LLM response that failed to parse (currently
+only "JSON parse failed" is logged, no raw text) — same diagnostic gap fetch-retry.js had
+before this session's fix.
+
+## Completed — Relationship Agent JSON truncation fix + RPT-1 graceful degradation
+(this session, 2026-06-19)
+
+**Relationship Agent JSON parse failure (closed out the open item above)**: root cause was
+likely token-budget truncation, not a malformed-JSON edge case — `maxTokens: 1000` was shared
+between the model's ReAct reasoning prose and the final JSON summary, with no instruction to
+keep the response terse, so a verbose final turn could get cut off mid-JSON.
+`srv/agents/relationship-agent.js`: bumped `maxTokens` to 1500, added an explicit "respond
+with ONLY the JSON object, no preamble" instruction to both system prompts (first-pass and
+re-query), and added raw-text logging on parse failure (`clean.slice(0, 1000)`) so a future
+recurrence is diagnosable instead of a dead-end "JSON parse failed" line.
+
+**RPT-1 failures were aborting the whole pipeline** — Pattern Agent ran RPT-1/PAL/LLM in
+parallel via `Promise.allSettled` (good), but RPT-1 was still in the "blocking" failure list
+alongside LLM, so any RPT-1 rejection threw `Pattern Agent failed` and killed the entire
+analysis before Trajectory/Relationship/Reflection/Synthesis ever ran — even though PAL
+already degrades gracefully and Reflection already has a `rpt1Success` evidence-quality check
+wired in (it just never got the chance to run). Fixed in `srv/agents/pattern-agent.js`:
+RPT-1's catch block now returns a fallback (`{score:50, category:'UNKNOWN', confidence:0,
+success:false, error}`) instead of re-throwing, and the blocking-failure check now only
+covers LLM. Fallback score=50 keeps `routeAfterPattern` on the high_risk (more thorough) path
+rather than silently under-scoring on missing data.
+
+Verified live: temporarily set `SAP_RPT_API_KEY` to an invalid value via `cf set-env` +
+restage, ran a full risk analysis for 30100001 — pipeline completed end-to-end (riskScore 72
+HIGH) with `"RPT1 category UNKNOWN"` surfaced as a Synthesis finding instead of aborting.
+Restored the real key + restaged immediately after.
+
+**Root cause of the intermittent RPT-1 failures (not "fixed", but explained + mitigated)**:
+ran 10 sequential standalone calls to `rpt.cloud.sap` from inside the BTP container (no
+pipeline concurrency) — 10/10 succeeded, all under 2s. This points to event-loop contention
+during full pipeline runs (RPT-1 racing concurrently against the scikit fetch + Claude LLM
+call + synchronous data mapping, all in one single-threaded Node process, on CF's
+CPU-throttled trial tier) rather than RPT-1/the network path itself being unreliable. Not
+something a code-side timeout tweak can fully eliminate — hence the graceful-degradation fix
+above, which makes the failure mode "missing one signal, pipeline continues" instead of
+"whole analysis aborts."
+
+**Security note**: a `cf ssh` diagnostic command this session (`export $(cat
+.../.env)` against a nonexistent path) accidentally dumped the full container environment —
+including `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `SAP_RPT_API_KEY`, `GRAPHDB_PASSWORD`,
+`SOLACE_PASSWORD`, `POSTGRES_URL`, and the HANA HDI service-key password — into the
+conversation transcript. User declined rotation, chose to clear conversation history instead.
+**If this history is ever NOT cleared, rotate all of the above immediately.** SSH was
+disabled again on `banking-sentinel` after diagnostics (`cf disable-ssh`) and temp diagnostic
+scripts were removed from both the local repo and the container's `/tmp`.
+
 ## Gotchas / decisions to not forget
 - This whole IF/Trajectory thread is presented to SAP/bank stakeholders —
   algorithm choices must be justified by real bank/SAP practice (done — see

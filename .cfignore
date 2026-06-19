@@ -4,6 +4,7 @@ gen/
 .env
 default-env.json
 .cdsrc-private.json
+.mcp.json
 Data/ragas-results.json
 Data/ragas-dataset.json
 Data/ABPRelationship.json

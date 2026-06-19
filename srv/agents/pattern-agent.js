@@ -294,6 +294,13 @@ async function patternAgent(state) {
   // the moment it settles so the UI can bold each result as it arrives.
   const sid = state.sessionId;
 
+  // Non-fatal like PAL below: rpt.cloud.sap is a trial-tier external endpoint
+  // with observed intermittent connect/timeout failures. One source going
+  // down shouldn't abort the whole analysis when PAL + LLM can still produce
+  // a signal — Reflection already inspects patternAssessment.rpt1.success as
+  // an evidence-quality gap, it just never got the chance to run before this
+  // was blocking. Fallback score=50 keeps routeAfterPattern on the high_risk
+  // (more thorough) path rather than silently under-scoring on missing data.
   const rpt1Promise = (async () => {
     try {
       const r = await callRpt1(data, customerId);
@@ -301,8 +308,9 @@ async function patternAgent(state) {
       progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', score: r.score, category: r.category, confidence: r.confidence, success: true });
       return { ...r, success: true };
     } catch (e) {
+      console.warn(`  [Pattern/RPT-1] Failed — continuing with PAL+LLM signal only: ${e.message}`);
       progressEmitter.emit('progress', { sessionId: sid, source: 'rpt1', success: false, error: e.message });
-      throw e;
+      return { score: 50, category: 'UNKNOWN', confidence: 0, success: false, error: e.message };
     }
   })();
 
@@ -334,13 +342,12 @@ async function patternAgent(state) {
   // allSettled so all three emit progress events before we check failures
   const [rpt1Settled, palSettled, llmSettled] = await Promise.allSettled([rpt1Promise, palPromise, llmPromise]);
 
-  // RPT-1 and LLM are blocking — PAL requires HANA Cloud ScriptServer (3 vCPU, not on Free Tier)
-  // PAL failure is non-fatal: upgrade to paid HANA Cloud + grant AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user
-  const failures = [
-    rpt1Settled.status === 'rejected' && `RPT-1: ${rpt1Settled.reason?.message}`,
-    llmSettled.status  === 'rejected' && `LLM: ${llmSettled.reason?.message}`
-  ].filter(Boolean);
-  if (failures.length > 0) throw new Error(`Pattern Agent failed:\n${failures.join('\n')}`);
+  // Only LLM is still blocking — RPT-1 (above) and PAL both degrade gracefully
+  // instead of aborting the whole analysis. PAL failure: HANA ScriptServer
+  // unavailable (3 vCPU, not on Free Tier — upgrade + grant
+  // AFL__SYS_AFL_AFLPAL_EXECUTE to #OO user). RPT-1 failure: external
+  // trial-tier endpoint connect/timeout flakiness (observed in production).
+  if (llmSettled.status === 'rejected') throw new Error(`Pattern Agent failed:\nLLM: ${llmSettled.reason?.message}`);
   if (palSettled.status === 'rejected')
     console.warn(`  [Pattern/PAL] Skipped (ScriptServer unavailable — needs 3 vCPU paid HANA Cloud): ${palSettled.reason?.message}`);
 
