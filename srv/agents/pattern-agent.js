@@ -63,7 +63,7 @@ async function fetchCustomerData(customerId) {
 //     independently-observed outcome (arrears_outcome from BCA_CREDIT_HISTORY).
 //     The query row is this customer's CURRENT profile (from BCA_DTI) with
 //     arrears_outcome marked [PREDICT] — RPT-1 infers the likely outcome from
-//     the pattern across the 200 historical cases, not from a hardcoded formula.
+//     the pattern across the 50 historical cases, not from a hardcoded formula.
 // Banking: Predicts the customer's likely repayment-arrears risk category from
 //          their DTI/debt/income profile, benchmarked against a historical loan book.
 // SAP: POST to rpt.cloud.sap/api/predict — personal API token, no AI Core required.

@@ -235,23 +235,36 @@ APS221_GROUP | 7500000.00
 30910006 | 2 | Morgan Family Trust B | RETAIL_PROP
 ```
 
-### BUT050 (relationships for 30100001)
+### BUT050 (relationships for 30100001 — live data, 2026-06-24)
 ```
-30100001 → 30910005 | FAMILY_TRUST_MEMBER
-30100001 → 30910006 | FAMILY_TRUST_MEMBER
+30100001 → 30910005 | CONTACT_PERSON
+30100001 → 30910006 | CONTACT_PERSON
 30910005 → 30910006 | FAMILY_TRUST_MEMBER
 ```
 
-### BCA_DTI (30100001 record)
+### BCA_DTI (30100001 record — live data, 2026-06-24)
 ```
 PARTNER:        30100001
 DTI_RATIO:      5.80
 BREACH_FLAG:    false
 BREACH_DATE:    null
-TOTAL_DEBT:     1050000.00
-ANNUAL_INCOME:  181034.00
-INCOME_SOURCE:  CONTRACT
-INCOME_EXPIRY:  2027-04-01    ← 299 days from 2026-06-05
+TOTAL_DEBT:     2830000.00
+ANNUAL_INCOME:  490000.00
+INCOME_SOURCE:  null
+INCOME_EXPIRY:  null    ← this customer currently has no income-expiry scenario;
+                          see customer 30100003 below for a live income-expiry example
+```
+
+### BCA_DTI (30100003 record — live data, 2026-06-24, has an active income-expiry scenario)
+```
+PARTNER:        30100003
+DTI_RATIO:      7.20
+BREACH_FLAG:    true
+BREACH_DATE:    2025-08-10
+TOTAL_DEBT:     2100000.00
+ANNUAL_INCOME:  291666.67
+INCOME_SOURCE:  null
+INCOME_EXPIRY:  2026-09-15    ← 83 days from 2026-06-24
 ```
 
 ### DFKKOP (payment records for 30100001 — minimum 3 rows)
@@ -411,34 +424,39 @@ Respond with JSON only, no explanation:
 **Auth:** `Authorization: Bearer <SAP_RPT_API_KEY>`
 **Timeout:** 20 seconds
 
+Context rows are independently-labelled historical cases from a dedicated `BCA_CREDIT_HISTORY`
+table (NOT `BCA_DTI` — `BCA_DTI` only supplies the query row, the customer being predicted).
+Label column is `arrears_outcome` (LOW/MEDIUM/HIGH/CRITICAL), not `risk_category`. Index column
+is `case_id`, not `partner_id`.
+
 **Request body:**
 ```json
 {
   "rows": [
-    { "partner_id": "30100002", "dti_ratio": 4.2, "breach_flag": 0, "total_debt": 750000, "annual_income": 178000, "risk_category": "LOW" },
-    { "partner_id": "30100003", "dti_ratio": 7.2, "breach_flag": 1, "total_debt": 1300000, "annual_income": 180000, "risk_category": "HIGH" },
-    // ... up to 20 context rows from BCA_DTI with known categories
-    { "partner_id": "Q-30100001", "dti_ratio": 5.80, "breach_flag": 0, "total_debt": 1050000, "annual_income": 181034, "risk_category": "[PREDICT]" }
+    { "case_id": "HIST-0002", "dti_ratio": 4.2, "breach_flag": 0, "total_debt": 750000, "annual_income": 178000, "arrears_outcome": "LOW" },
+    { "case_id": "HIST-0003", "dti_ratio": 7.2, "breach_flag": 1, "total_debt": 1300000, "annual_income": 180000, "arrears_outcome": "HIGH" },
+    // ... up to 50 context rows from BCA_CREDIT_HISTORY (200 rows exist in the seed; only 50 are sent per call)
+    { "case_id": "Q-30100003", "dti_ratio": 7.20, "breach_flag": 1, "total_debt": 2100000, "annual_income": 291667, "arrears_outcome": "[PREDICT]" }
   ],
-  "index_column": "partner_id"
+  "index_column": "case_id"
 }
 ```
 
-**Risk category labelling rule for context rows:**
-```
-breach_flag = true → HIGH
-dti_ratio >= 5.5   → MEDIUM
-else               → LOW
-```
+**Important — do NOT include a `prediction_config` field.** Every variant tested (with or
+without `task_type`) gets rejected with a generic `ERR_PRED_PAYLOAD_INVALID`, even the exact
+payload shape from SAP's own published docs — confirmed by direct testing against the live
+API, independent of row count or data. RPT-1 auto-detects the target column from the literal
+`"[PREDICT]"` placeholder in the query row; `prediction_config` is unnecessary and currently
+breaks the call.
 
 **Response parsing:**
 ```javascript
-const category   = prediction.risk_category[0].prediction   // HIGH/MEDIUM/LOW/CRITICAL
-const confidence = prediction.risk_category[0].confidence   // 0.0-1.0
+const category   = prediction.arrears_outcome[0].prediction   // HIGH/MEDIUM/LOW/CRITICAL
+const confidence = prediction.arrears_outcome[0].confidence   // 0.0-1.0
 
 // Score within band (not across bands):
 const scoreFloors = { LOW: 0, MEDIUM: 26, HIGH: 51, CRITICAL: 76 }
-const score = Math.round(floor + 24 * confidence)
+const score = Math.round((scoreFloors[category.toUpperCase()] ?? 26) + 24 * confidence)
 ```
 
 ### Method 2 — Isolation Forest (scikit-learn Flask on port 5001)
@@ -446,18 +464,23 @@ const score = Math.round(floor + 24 * confidence)
 **Endpoint:** `POST http://localhost:5001/anomaly`
 **Timeout:** 15 seconds
 
+2D feature vector — `payment_delay_days` and `dunning_level` (0-3) — not a 1D (days_overdue,
+amount) vector. Drawn from `DFKKOP` (open items) **and** `DFKKOPK` (cleared items) combined,
+not `DFKKOP` alone. The 2D shape catches a customer whose delay *and* dunning level are both
+drifting even when neither alone crosses a fixed threshold.
+
 **Request body:**
 ```json
 {
   "portfolio": [
-    { "days_overdue": 0,  "amount": 850.00 },
-    { "days_overdue": 12, "amount": 1200.00 }
-    // up to 500 rows from DFKKOP (whole portfolio for training)
+    { "payment_delay_days": 0,  "dunning_level": 0 },
+    { "payment_delay_days": 12, "dunning_level": 1 }
+    // up to 500 rows combined from DFKKOP + DFKKOPK (whole portfolio for training)
   ],
   "payments": [
-    { "id": "P1", "days_overdue": 0,  "amount": 850.00 },
-    { "id": "P2", "days_overdue": 50, "amount": 850.00 },
-    { "id": "P3", "days_overdue": 81, "amount": 1200.00 }
+    { "id": "P1", "payment_delay_days": 0,  "dunning_level": 0 },
+    { "id": "P2", "payment_delay_days": 50, "dunning_level": 3 },
+    { "id": "P3", "payment_delay_days": 81, "dunning_level": 3 }
     // customer's own payment rows to score
   ]
 }
@@ -471,11 +494,13 @@ const score = Math.round(floor + 24 * confidence)
   "results": [
     { "id": "P1", "score": 1.0,     "label": 1,  "reason_code": null },
     { "id": "P2", "score": 0.503,   "label": 1,  "reason_code": null },
-    { "id": "P3", "score": 0.612,   "label": -1, "reason_code": "DAYS_OVERDUE" }
+    { "id": "P3", "score": 0.612,   "label": -1, "reason_code": "DUNNING_LEVEL 3 (z=2.11, portfolio mean=0.7)" }
   ]
 }
 ```
-`label -1 = outlier (anomaly), 1 = inlier`
+`label -1 = outlier (anomaly), 1 = inlier`. `reason_code` says whether `PAYMENT_DELAY_DAYS` or
+`DUNNING_LEVEL` (whichever has the larger z-score) drove the outlier flag, with the actual
+z-score and portfolio mean — not a fixed enum.
 
 **Flask service minimum implementation:**
 - Train IsolationForest on `portfolio` rows (contamination=0.1)
@@ -543,19 +568,35 @@ else                          → "stable"
 2. SELECT LIMIT_PCT FROM RegulatoryThresholds
    WHERE THRESHOLD_TYPE = 'DEBT_TO_INCOME'
 
+2b. SELECT LIMIT_PCT FROM RegulatoryThresholds
+    WHERE THRESHOLD_TYPE = 'RATE_STRESS_BUFFER'   -- APG 223 serviceability buffer, default 3%
+
 3. SELECT LOAN_ID FROM Loans WHERE PARTNER = {customerId}
 
 4. SELECT AMOUNT_DUE FROM LoanSchedule
    WHERE LOAN_ID IN ({loanIds}) AND DUE_DATE <= {incomeExpiryDate}
 ```
 
-**Forward DTI formula:**
+**Forward DTI formula (income-expiry projection):**
 ```
 daysToExpiry    = floor((incomeExpiryDate - today) / 86400000)
 effectiveIncome = annualIncome × (daysToExpiry / 365)
 futureDti       = totalDebt / effectiveIncome
 
 Only calculate when: daysToExpiry > 0 AND daysToExpiry < 365 AND annualIncome > 0
+```
+
+**Rate-stress DTI formula (second, independent projection — APG 223 +3% buffer):**
+```
+This has nothing to do with income expiry. It models a uniform interest-rate rise: the debt
+side grows by the buffer percentage, income stays constant.
+
+stressedDebt        = totalDebt × (1 + RATE_STRESS_BUFFER_PCT / 100)
+futureDtiRateStress = stressedDebt / annualIncome     // only when annualIncome > 0
+
+rateStressBreach = futureDtiRateStress > APRA_DTI_LIMIT AND currentDti <= APRA_DTI_LIMIT
+  // only flags a NEW breach the rate-stress test reveals — not one that's already breaching
+  // via the income-expiry path, which would otherwise double-count the same conflict
 ```
 
 **timeToBreach logic:**
@@ -583,11 +624,12 @@ forwardPosition = isDeteriorating → DETERIORATING
 **Output shape (`state.trajectoryAnalysis`):**
 ```json
 {
-  "currentDti":        5.8,
-  "futureDti":         7.05,
-  "daysToExpiry":      299,
-  "timeToBreach":      null,
-  "forwardPosition":   "MONITORING",
+  "currentDti":          5.8,
+  "futureDti":           7.05,
+  "futureDtiRateStress": 5.97,
+  "daysToExpiry":        299,
+  "timeToBreach":        null,
+  "forwardPosition":     "MONITORING",
   "conflictingSignals": [
     "5 statistical anomalies flagged but no regulatory breach recorded — off-balance-sheet exposure possible",
     "AUD 46,590 in scheduled payments fall within income expiry window"
@@ -898,7 +940,8 @@ brief.regulatoryRefs = [...new Set([
 ])]
 ```
 
-**RAGAS claim-source check:**
+**Claim-source overlap check (RAGAS-inspired — this is a direct cosine/word-overlap
+implementation, not the RAGAS library, which is not a dependency of this system):**
 ```javascript
 // Simple word overlap between findings text and retrieved doc content
 const claimsWords = new Set(findings.join(' ').toLowerCase().split(/\s+/))
@@ -1231,12 +1274,17 @@ Cost per pipeline run (typical):
 5. Reflection: confidence ~0.72, 1 iteration, no re-query
 6. Synthesis: 5 findings, 3 recommendations, apraReady=true
 
-### Demo 2 — DETERIORATING Risk (after APRA Notice)
+### Demo 2 — DETERIORATING Risk (income-expiry customer)
+**Note (2026-06-24): customer 30100001's `INCOME_EXPIRY` is currently `null` — this demo needs
+a customer with an active income-expiry scenario. Customer 30100003 has one live today
+(`INCOME_EXPIRY: 2026-09-15`, already `BREACH_FLAG: true`). The APRA Notice threshold-change
+step below still works on any customer; pick whichever one currently has a non-null
+`INCOME_EXPIRY` in your seed.**
 1. Click "APRA Notice" button in UI
 2. System downloads real APRA DTI Notice PDF, chunks it, embeds it
 3. Updates RegulatoryThresholds SET LIMIT_PCT=6.0
-4. Re-run: "Analyse credit risk for customer 30100001"
-5. Expected outcome: forwardPosition=DETERIORATING, timeToBreach=299
+4. Re-run: "Analyse credit risk for customer 30100003"
+5. Expected outcome: forwardPosition=DETERIORATING, timeToBreach reflects the new threshold
 6. Synthesis findings now cite 6.0x threshold, income expiry = projected breach
 
 ### Demo 3 — Rejection
@@ -1325,7 +1373,7 @@ Only ONE value changes: `RegulatoryThresholds.LIMIT_PCT` for `DEBT_TO_INCOME`.
 | Behaviour | Demo 1 (8.0x) | Demo 2 (6.0x) |
 |---|---|---|
 | forwardPosition | MONITORING | DETERIORATING |
-| timeToBreach | null | 299 days |
+| timeToBreach | null | = daysToExpiry (whatever it is for the chosen customer at run time) |
 | Synthesis finding | "approaches threshold" | "projected breach at income expiry" |
 | Pattern LLM | "approaches 8.00x" | "approaches 6.00x" |
 | apraReady | true | true |
