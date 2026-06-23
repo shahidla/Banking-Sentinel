@@ -1,4 +1,4 @@
-# Banking Sentinel: A Multi-Agent AI Risk Intelligence System Built on SAP BTP
+# Banking Sentinel: A Multi-Agent Credit-Risk Copilot on SAP HANA Cloud — Built on a Mixed AI Stack
 
 ### How Seven AI Agents Work Together to Protect an Australian Bank From Credit Risk — In Real Time
 
@@ -53,7 +53,7 @@ No single analyst. No single report. No single tool catches all of this at once.
 Risk is not one-dimensional. A borrower's risk lives across four dimensions simultaneously: their payment patterns, their future income trajectory, their network of connected parties, and whether the evidence trail is complete enough to act on. A miss in any one dimension can become a loss event. Banking Sentinel runs all four in parallel and produces a single, auditable risk brief — ready for the risk officer's desk in under two minutes.
 
 ### For SAP Customers
-Banking Sentinel runs entirely on SAP BTP — SAP HANA Cloud for data and vectors, SAP CAP for the service layer, SAP RPT-1 for tabular AI scoring, and SAP's graph engine for connected-party traversal. It proves that SAP's native AI stack can power production-grade, regulation-compliant risk intelligence — without leaving the SAP ecosystem.
+Banking Sentinel is a mixed-stack system with an explicit, deliberate SAP boundary. The data and ML layer is SAP-native and proven: SAP HANA Cloud for data and vectors, SAP CAP for the service layer, SAP RPT-1 for tabular AI scoring — interchangeable with HANA PAL and HANA Knowledge Graph Engine in production (see §11). The reasoning/orchestration layer — the LLM, LangGraph, Langfuse — is *not* SAP, and that's worth being upfront about: AI Core and AI Launchpad simply aren't available on the BTP trial tier this prototype runs on, so this is an access constraint, not a finding that the SAP stack is insufficient. Knowing exactly where that boundary sits is more useful to an SAP technical evaluator than a claim that there isn't one.
 
 ### For AI Practitioners
 Banking Sentinel is a production implementation of a LangGraph multi-agent pipeline. It demonstrates four critical AI patterns: ReAct tool-use loops for graph traversal, Reflection (a Reflexion-style critic) for evidence quality control, Human-in-the-Loop interrupts for CPS 230 co-pilot compliance, and a RAGAS-inspired claim-source overlap check (implemented directly via cosine similarity, not the RAGAS library) to detect hallucination. Every AI pattern has a named purpose. Nothing is added for its own sake.
@@ -740,7 +740,7 @@ Both express the same thing — variable-depth traversal from one business partn
 
 ## Summary
 
-Banking Sentinel demonstrates that a production-grade, regulation-compliant, multi-agent AI risk system can be built entirely on SAP BTP using SAP-native technologies — without leaving the ecosystem, without AI Core, and without compromising on the quality of risk analysis.
+Banking Sentinel demonstrates a production-grade, regulation-compliant, multi-agent AI risk system on a mixed stack with an explicit SAP boundary: SAP HANA Cloud, SAP CAP, and SAP RPT-1 carry the data and tabular-AI layer end to end, proven and ready to swap toward HANA PAL and HANA Knowledge Graph Engine in production; the reasoning and orchestration layer is non-SAP today because AI Core isn't available on the trial tier this runs on, not because it was found wanting. Knowing exactly where that line sits is the more credible story.
 
 Seven agents. Four risk dimensions. Three APRA standards. One risk officer decision. Under 80 seconds.
 
