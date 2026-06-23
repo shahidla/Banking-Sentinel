@@ -119,10 +119,11 @@ agent-pipeline explanations (RPT-1, Isolation Forest, etc.) — the user works t
 agent's mechanics one at a time in a recap-and-confirm style and expects continuity. Exact
 file paths and line numbers of code changes matter, not just summaries.
 
-**Progress tracking**: maintain `PROGRESS.md` in the project root at all times. After
+**Progress tracking**: maintain `_local-only/PROGRESS.md` at all times (kept out of git —
+see `_local-only/` in `.gitignore`). After
 completing each task/subtask, update it with what was completed (files changed, decisions
 made), what's in progress, what's next, and any gotchas/constraints/decisions that must not
-be forgotten. After any compaction or `/clear`, re-read `PROGRESS.md` and this file before
+be forgotten. After any compaction or `/clear`, re-read `_local-only/PROGRESS.md` and this file before
 doing anything else.
 
 **Reading files**: don't read entire directories or the whole repo. Read only the files
@@ -137,7 +138,7 @@ keeping it verbatim.
 use a subagent and return only a concise summary to the main conversation.
 
 **Scope discipline**: work on ONE task at a time, don't preload context for future tasks.
-When a task is complete, update `PROGRESS.md`, then stop and confirm before starting the
+When a task is complete, update `_local-only/PROGRESS.md`, then stop and confirm before starting the
 next one.
 
 ## File reading rules (STRICT)
@@ -153,6 +154,6 @@ next one.
 - NEVER use wmic or netstat process discovery to find processes.
 
 ## Progress tracking
-- Maintain PROGRESS.md: current step, key decisions, next step only.
-- Move completed phases to HISTORY.md (do not auto-read HISTORY.md).
-- After any compaction, re-read PROGRESS.md and CLAUDE.md before continuing.
+- Maintain _local-only/PROGRESS.md: current step, key decisions, next step only.
+- Move completed phases to `_local-only/HISTORY.md` (do not auto-read it).
+- After any compaction, re-read _local-only/PROGRESS.md and CLAUDE.md before continuing.

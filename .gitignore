@@ -15,3 +15,6 @@ manifest.yml
 
 # MCP server config — contains LLM provider API key
 .mcp.json
+
+# Internal/scratch — not part of the published project (untracked here, kept locally)
+_local-only/

@@ -23,7 +23,7 @@
     "@sap-ai-sdk/orchestration": "^1",
     "@sap/cds": "^8",
     "@sap/hana-client": "^2",
-    "@shahid.la/cds-db-nlquery-mcp": "^0.5.3",
+    "@shahid.la/cds-db-nlquery-mcp": "^0.7.0",
     "dotenv": "^16",
     "express": "^4",
     "langfuse": "^3",
