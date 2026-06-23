@@ -97,14 +97,14 @@ async function callRpt1(data, customerId) {
     arrears_outcome: RPT1_PLACEHOLDER
   };
 
+  // prediction_config.target_columns is omitted — every variant of it (with or
+  // without task_type) gets rejected with a generic ERR_PRED_PAYLOAD_INVALID on
+  // this API token/account, even the exact payload from SAP's own docs. Omitting
+  // it works fine: RPT-1 auto-detects the target column from the literal
+  // "[PREDICT]" placeholder in queryRow, per the documented optional behavior.
   const payload = {
     index_column: 'case_id',
-    rows:         [...contextRows, queryRow],
-    prediction_config: {
-      target_columns: [
-        { name: RPT1_TARGET_COLUMN, prediction_placeholder: RPT1_PLACEHOLDER, task_type: 'classification' }
-      ]
-    }
+    rows:         [...contextRows, queryRow]
   };
 
   const response = await fetchWithRetry('https://rpt.cloud.sap/api/predict', () => ({
