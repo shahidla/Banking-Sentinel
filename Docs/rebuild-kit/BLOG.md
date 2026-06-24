@@ -50,7 +50,7 @@ No single analyst. No single report. No single tool catches all of this at once.
 ## 2. Why This Matters — Four Audiences
 
 ### For Banks
-Risk is not one-dimensional. A borrower's risk lives across four dimensions simultaneously: their payment patterns, their future income trajectory, their network of connected parties, and whether the evidence trail is complete enough to act on. A miss in any one dimension can become a loss event. Banking Sentinel runs all four in parallel and produces a single, auditable risk brief — ready for the risk officer's desk in under two minutes.
+Risk is not one-dimensional. A borrower's risk lives across four dimensions simultaneously: their payment patterns, their future income trajectory, their network of connected parties, and whether the evidence trail is complete enough to act on. A miss in any one dimension can become a loss event. Banking Sentinel runs all four — each one building on what the last one found — and produces a single, auditable risk brief — ready for the risk officer's desk in under two minutes.
 
 ### For SAP Customers
 Banking Sentinel is a mixed-stack system with an explicit, deliberate SAP boundary. The data and ML layer is SAP-native and proven: SAP HANA Cloud for data and vectors, SAP CAP for the service layer, SAP RPT-1 for tabular AI scoring — interchangeable with HANA PAL and HANA Knowledge Graph Engine in production (see §11). The reasoning/orchestration layer — the LLM, LangGraph, Langfuse — is *not* SAP, and that's worth being upfront about: AI Core and AI Launchpad simply aren't available on the BTP trial tier this prototype runs on, so this is an access constraint, not a finding that the SAP stack is insufficient. Knowing exactly where that boundary sits is more useful to an SAP technical evaluator than a claim that there isn't one.
@@ -208,9 +208,9 @@ Verified against live HANA: 30 loan records, AUD 31,773,000.00 — confirmed aga
 
 **Purpose:** Establish the baseline risk signal. "Something feels wrong" — before any specific rule fires.
 
-**The problem it solves:** A credit scorecard tells you a number. But a number alone does not tell you whether the payment behaviour is suspicious, whether the debt structure is unusual, or whether there are statistical outliers in how this customer compares to the portfolio. Pattern Agent runs three methods simultaneously and combines their signals.
+**The problem it solves:** A credit scorecard tells you a number. But a number alone does not tell you whether the payment behaviour is suspicious, whether the debt structure is unusual, or whether there are statistical outliers in how this customer compares to the portfolio. Pattern Agent runs three methods and combines their signals.
 
-**How it works (three methods in parallel):**
+**How it works:** RPT-1 (Method 1) runs alone first — diagnosed empirically that it was prone to BTP-only timeouts when racing the other two methods inside the same single-threaded event loop. Isolation Forest (Method 2) and the LLM narrative pass (Method 3) then run in parallel with each other, but not with RPT-1.
 
 **Method 1 — SAP RPT-1 (Tabular Foundation Model)**
 The agent fetches up to 50 historical loan cases from `BCA_CREDIT_HISTORY` — a dedicated table of independently-labelled outcomes — to use as in-context examples. Each row has: case ID, DTI ratio, breach flag, total debt, annual income, and a known `arrears_outcome` (LOW/MEDIUM/HIGH/CRITICAL). It sends these to `rpt.cloud.sap/api/predict` alongside the target customer's current profile (from `BCA_DTI`) with `arrears_outcome` marked `[PREDICT]`. RPT-1 applies in-context learning and returns a predicted arrears-risk category with a confidence score, mapped to a 0-100 scale via fixed floors (LOW:0, MEDIUM:26, HIGH:51, CRITICAL:76).
