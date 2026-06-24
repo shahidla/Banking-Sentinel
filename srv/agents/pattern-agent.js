@@ -107,12 +107,16 @@ async function callRpt1(data, customerId) {
     rows:         [...contextRows, queryRow]
   };
 
+  // No retries here, deliberately — RPT-1's BTP-only timeout is a known, unresolved
+  // network issue (see project memory), not a transient blip. Retrying 3x against a
+  // hanging endpoint just triples both the wait (up to ~60s) and the rate-limit spend
+  // on a trial-tier token with a 30-call/window cap, for no observed benefit.
   const response = await fetchWithRetry('https://rpt.cloud.sap/api/predict', () => ({
     method:  'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body:    JSON.stringify(payload),
     signal:  AbortSignal.timeout(20000)
-  }));
+  }), { retries: 0 });
 
   const rawResponse = await response.text();
   console.log(`  [Pattern/RPT-1] HTTP ${response.status} — ${rawResponse.length} chars — context rows:${contextRows.length}`);
