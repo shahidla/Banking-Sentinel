@@ -1,6 +1,8 @@
-# Banking Sentinel: A Multi-Agent Credit-Risk Copilot on SAP HANA Cloud, Built on a Mixed AI Stack
+# Banking Sentinel: A Multi-Agent Credit-Risk Copilot on SAP BTP, Built on a Mixed AI Stack
 
 ### How Seven AI Agents Work Together to Protect a Bank From Credit Risk in Real Time
+
+▶️ [Watch the demo on YouTube](https://youtu.be/SajC-StscPo)
 
 ---
 
