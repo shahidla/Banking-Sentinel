@@ -97,6 +97,12 @@ metadata:
 
 ---
 
+### L15 — APS 221 group exposure calculation was measuring the wrong thing
+**What happened:** `groupExposure` in mcp-tools.js calculated SUM(BCA_GUARANTOR.COVER_AMOUNT) on the start node's loans. APS 221 requires total credit facilities (SUM of Loans.AMOUNT) across ALL connected entities in the group. These are different questions — guarantor cover vs total group lending.
+**Rule:** When implementing a regulatory calculation, verify the exact definition in the standard before coding. APS 221 group exposure = total credit facilities across connected party network, not guarantor coverage amounts.
+
+---
+
 ### L16 — Compliance flags must be deterministic, not LLM-generated
 **What happened:** `apraReady` was left as an LLM output field — the model guessed true/false. In banking, whether a brief meets APRA submission standard is a hard rule check, not a judgement call. LLM produced inconsistent results.
 **Rule:** Any field that represents a compliance or regulatory gate (apraReady, breachFlag, thresholdExceeded) must be calculated deterministically from data after the LLM returns — override whatever the LLM said. Never trust an LLM to make a compliance decision.
@@ -137,8 +143,6 @@ metadata:
 
 ---
 
----
-
 ### L22 — LangGraph silently drops state fields not declared in Annotation.Root
 **What happened:** reflectionHistory, hitlEnabled, and totalLatencyMs were all computed and returned by agents but vanished from the checkpoint. LangGraph does not warn — it silently ignores fields not in the Annotation.Root declaration.
 **Fix:** Add every field the pipeline uses to state.js with the correct reducer (last, sum, append). If a field is missing from state.js it effectively does not exist.
@@ -171,9 +175,3 @@ metadata:
 **What happened:** Pattern agent LLM received raw customer data (DTI_RATIO=5.80) but no APRA threshold. It inferred "approaches APRA limit of 6.00x" from training knowledge — the real-world APRA DTI limit. But the DB threshold was 8.0x (Demo 1 default), creating an inconsistency between pattern agent output and trajectory agent calculation.
 **Fix:** Fetch the threshold from RegulatoryThresholds in the same Promise.all as other customer data, and inject it into the LLM system prompt explicitly.
 **Rule:** Never let an LLM infer a regulatory threshold from training data. Always pass the current DB value explicitly. "The LLM knows" is not a substitute for providing the correct value in the prompt.
-
----
-
-### L15 — APS 221 group exposure calculation was measuring the wrong thing
-**What happened:** `groupExposure` in mcp-tools.js calculated SUM(BCA_GUARANTOR.COVER_AMOUNT) on the start node's loans. APS 221 requires total credit facilities (SUM of Loans.AMOUNT) across ALL connected entities in the group. These are different questions — guarantor cover vs total group lending.
-**Rule:** When implementing a regulatory calculation, verify the exact definition in the standard before coding. APS 221 group exposure = total credit facilities across connected party network, not guarantor coverage amounts.
