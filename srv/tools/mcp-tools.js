@@ -297,11 +297,23 @@ async function apra_threshold_check({ metricType, value, entityId }) {
 async function exposure_calculator({ entityIds, includeGuarantors = true }) {
   if (!entityIds || entityIds.length === 0) return { total: 0, breakdown: [] };
 
-  const guarantors = includeGuarantors
-    ? await cds.run(SELECT.from('bankingsentinel.BCA_GUARANTOR').where({ GUARANTOR_PARTNER: { in: entityIds } }))
-    : [];
-
   const loans = await cds.run(SELECT.from('bankingsentinel.Loans').where({ PARTNER: { in: entityIds } }));
+
+  // A guarantee only belongs to THIS group's exposure if the loan it covers is
+  // ALSO held by an entity already in entityIds. Found via real testing: a
+  // guarantor connected to one customer's group (e.g. a family-trust member) can
+  // also guarantee loans for entirely unrelated customers elsewhere in the
+  // portfolio. Filtering only on GUARANTOR_PARTNER (no loan-side check) pulled in
+  // that guarantor's ENTIRE guarantee book — including those unrelated loans —
+  // inflating reported group exposure ~3-4x with debt that has nothing to do
+  // with this connected group.
+  const loanIdsInGroup = loans.map(l => l.LOAN_ID);
+  const guarantors = (includeGuarantors && loanIdsInGroup.length > 0)
+    ? await cds.run(SELECT.from('bankingsentinel.BCA_GUARANTOR').where({
+        GUARANTOR_PARTNER: { in: entityIds },
+        LOAN_ID:           { in: loanIdsInGroup }
+      }))
+    : [];
 
   // APS 221 group exposure = sum of all direct loans to all connected entities
   const total = loans.reduce((sum, l) => sum + parseFloat(l.AMOUNT || 0), 0);
