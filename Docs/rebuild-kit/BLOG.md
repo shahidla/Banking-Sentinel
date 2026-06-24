@@ -657,6 +657,16 @@ CPS 230 requires that AI systems used in risk decisions include human oversight,
 
 The DTI Notice sets the threshold above which high-DTI lending requires additional oversight. Banking Sentinel reads this threshold dynamically from `RegulatoryThresholds`. When APRA changes its guidance, the threshold changes in the database — no code deployment required. The next pipeline run immediately reflects the new position.
 
+**How the threshold actually changes — a real PDF upload, not a config flag.** `POST /a2a/sync-apra` accepts a real APRA PDF (by URL or base64) and runs it through a genuine RAG ingestion pipeline:
+
+1. **Extract** — `pdf-parse` pulls the raw text out of the document.
+2. **Chunk** — an 800-character sliding window with 100-character overlap, so a sentence that spans a chunk boundary (e.g. "APS 221 requires...") doesn't lose its meaning at the seam.
+3. **Embed** — each chunk goes through OpenAI's `text-embedding-3-small` (the same model Synthesis uses for retrieval, so the cosine-similarity comparison is apples-to-apples) and is stored in `bankingsentinel.RegulatoryDocuments` — a real HANA Vector Engine table, not an in-memory cache.
+4. **Parse the actual new limit out of the text.** For a `DTI_NOTICE` upload specifically, a small set of regex patterns (`DTI ≥ 6`, "DTI ratio greater than or equal to six times", "debt-to-income ... 6 times", "DTI limit of 6", etc.) extracts the real numeric threshold from the document's own wording — it isn't told the number in advance. If a number is found, `RegulatoryThresholds.LIMIT_PCT` is updated to that exact value; if parsing fails, it says so explicitly and leaves the threshold untouched rather than guessing.
+5. **Replace, don't accumulate** — uploading a new `DTI_NOTICE` deletes the previous notice's chunks first, so Synthesis's vector search always retrieves the *current* regulatory position, not a mix of old and new guidance.
+
+The risk officer's experience: upload the new APRA notice once. The system reads its own new threshold out of the document, updates the live regulatory position, and replaces its own knowledge base — and the very next `analyseRisk` call sees the new limit and the new source text, with zero deployment in between.
+
 ---
 
 ## 9. What the Risk Officer Sees
