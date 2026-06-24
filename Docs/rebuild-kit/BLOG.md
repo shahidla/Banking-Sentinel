@@ -35,11 +35,11 @@ A borrower with a modest loan today can be the linchpin of a group with ten time
 
 The traditional tools are spreadsheets, batch reports, and credit scorecards that look at one dimension at a time. A scorecard says the debt-to-income ratio is 7.20 times, already a concern, already on file as a breach. Fine. But it does not tell you:
 
-- That the same customer's income contract expires in 83 days
-- That when it does, their effective DTI rockets to 31.66 times, nearly 4x the regulator's limit
+- That the same customer's income contract expires in 82 days
+- That when it does, their effective DTI rockets to 32.05 times, over 4x the regulator's limit
 - That their loan is under-collateralized by AUD 620,000
 - That the connected-party graph has no relationship edge for this customer at all. A guarantor obligation only surfaces through a separate table, easy to miss if you only check the graph
-- That an AI re-query can sound more confident without being more correct, and that a system needs a way to catch that difference before it reaches a board
+- That a shared guarantor connects this customer to a family trust, and that correctly scoping group exposure to only the loans within that group (not a guarantor's unrelated obligations elsewhere in the portfolio) is its own real engineering problem, not just a data-fetching one
 
 No single analyst. No single report. No single tool catches all of this at once.
 
@@ -252,7 +252,7 @@ The raw customer data (loans, DTI record, up to 12 months of cleared payment his
 
 **Purpose:** Project the customer's financial position forward in time. "Where is this heading?"
 
-**The problem it solves:** Current DTI is 7.20 times. The customer's income is from a contract that expires in 83 days. When that contract ends, the customer has the same debt but a fraction of their current income remaining this year. What does DTI look like then? And separately, even without the income expiry, what does a standard interest-rate-rise stress test do to this customer's serviceability?
+**The problem it solves:** Current DTI is 7.20 times. The customer's income is from a contract that expires in 82 days. When that contract ends, the customer has the same debt but a fraction of their current income remaining this year. What does DTI look like then? And separately, even without the income expiry, what does a standard interest-rate-rise stress test do to this customer's serviceability?
 
 **How it works:**
 
@@ -283,10 +283,10 @@ Formula:
 For 30100003:
   daysToExpiry    = 83
   effectiveIncome = annualIncome × (83 / 365)   ← only 23% of income remains
-  futureDti       = totalDebt / effectiveIncome = 31.66x
+  futureDti       = totalDebt / effectiveIncome = 32.05x
 ```
 
-*Result: Forward DTI 31.66x, 296% above the APRA 8.0x limit.*
+*Result: Forward DTI 32.05x, 301% above the APRA 8.0x limit.*
 
 **Step 4: Calculate a second, independent projection, the rate-stress test**
 
@@ -307,9 +307,9 @@ This runs independently of Step 3. A customer could pass the income-expiry check
 **Step 5: Check for conflicting signals**
 
 The agent compares Pattern Agent findings against the DTI data to identify contradictions. For 30100003, four signals fired:
-1. Income contract expires in 83 days. Primary servicing income at risk.
+1. Income contract expires in 82 days. Primary servicing income at risk.
 2. Active APRA DTI breach combined with imminent income loss. Compounding risk event.
-3. Forward DTI of 31.7× projected. 296% above APRA limit post-expiry.
+3. Forward DTI of 32.0× projected. 301% above APRA limit post-expiry.
 4. AUD 125,400 in scheduled loan payments fall within the income expiry window.
 
 **Tables read from HANA:**
@@ -322,14 +322,14 @@ The agent compares Pattern Agent findings against the DTI data to identify contr
 ```json
 {
   "currentDti": 7.2,
-  "futureDti": 31.66,
+  "futureDti": 32.05,
   "futureDtiRateStress": 7.42,
   "daysToExpiry": 83,
   "forwardPosition": "DETERIORATING",
   "conflictingSignals": [
-    "Income contract expires in 83 days — primary servicing income at risk",
+    "Income contract expires in 82 days — primary servicing income at risk",
     "Active APRA DTI breach combined with imminent income loss — compounding risk event",
-    "Forward DTI of 31.7× projected — 296% above APRA limit post-expiry",
+    "Forward DTI of 32.0× projected — 301% above APRA limit post-expiry",
     "AUD 125,400 in scheduled payments fall within income expiry window"
   ]
 }
@@ -395,7 +395,9 @@ Step 4: LLM reasons → "Complete. I have enough to summarise."
 }
 ```
 
-This first pass is real and grounded. It matches `BCA_GUARANTOR` exactly (Rose Courtney's cover on L-004 is AUD 2.1M, the same as the loan amount). But notice what it *missed*: because `BUT050` has no relationship row for this customer, `hana_graph_traverse` alone returns zero edges. The only reason the guarantor showed up at all is that `exposure_calculator` separately queries `BCA_GUARANTOR` directly, a real gap between "what the graph shows" and "what the relational tables show" that becomes important one step later.
+This first pass is real and grounded. It matches `BCA_GUARANTOR` exactly (Rose Courtney's cover on L-004 is AUD 2.1M, the same as the loan amount). Notice what it *missed*: because `BUT050` has no relationship row for this customer, `hana_graph_traverse` alone returns zero edges. The only reason the guarantor showed up at all is that `exposure_calculator` separately queries `BCA_GUARANTOR` directly, a real gap between "what the graph shows" and "what the relational tables show."
+
+**A real bug we found and fixed while building this exact example.** `exposure_calculator` originally summed a connected guarantor's *entire* guarantee book, every loan they back anywhere in the portfolio, not just the loans within this customer's group. Rose Courtney also guarantees loans for three other, unrelated customers elsewhere in the bank. Pulling those in inflated reported group exposure from a correct AUD 2.1M to a false AUD 11.78M (157% of the APS 221 limit) on a re-query, and it happened with two different starting customers who happen to share a guarantor, which is exactly the kind of bug that looks like a one-off coincidence until you check the data twice. The fix scopes guarantee cover to only loans already held by an entity in the connected group. The walkthrough below reflects the corrected behaviour, verified against live HANA after the fix.
 
 **What the BUT050 table looks like** (for a customer that *does* have graph relationships, e.g. 30100001):
 
@@ -434,27 +436,38 @@ Reflection, a Reflexion-style critic step, means the LLM evaluates the prior age
 
 The LLM returns a confidence score (0.0-1.0) and, if confidence is below 0.70, a specific `reQueryHint`, a targeted instruction for the Relationship Agent to go deeper.
 
-**For 30100003, attempt 1:**
+**For 30100003, attempt 1 (live run, post-fix):**
 
 ```json
 {
   "overallConfidence": 0.58,
   "gaps": [
-    "Graph traversal incomplete — only 1 node with 0 edges; guarantor 30910005 relationship not materialised in the relationship graph despite being named in the finding",
-    "APS 221 exposure of AUD 2.1M (28%) sits awkwardly next to a CRITICAL risk score (87) — no exposure-to-risk reconciliation provided",
-    "Income expiry in 83 days drives a 31.66× forward DTI, but Relationship found no contract-level evidence supporting it",
-    "Pattern confidence 0.46 ('unclear' signal) conflicts with Relationship confidence 0.95"
+    "Graph traversal incomplete — only 1 node despite CRITICAL risk and a guarantor relationship claimed; guarantor 30910005 not traversed for counter-guarantees, parent entities, or cross-collateral exposure",
+    "Pattern confidence (0.46) contradicts Relationship confidence (0.95) — unclear signal plus low pattern confidence suggests risk drivers not yet identified in the graph structure",
+    "APS 221 exposure (28%) appears manageable, but CRITICAL risk score (87) and deteriorating DTI (7.2 → 32.05) lack corresponding graph-based evidence; missing connection between income expiry and liability cascade",
+    "No TRBK defaults, arrears, or covenant breaches documented despite CRITICAL classification and imminent income loss",
+    "Scheduled payment window (AUD 125,400 in 82 days) not mapped to specific loan tranches, guarantees, or maturity dates in the relationship graph"
   ],
-  "reQueryHint": "Traverse the full guarantor network to node 30910005 and any parent entities; reconcile why APS 221 headroom exists despite CRITICAL risk and imminent breach.",
-  "reasoning": "Graph shows only the customer node with zero edges despite naming a guarantor; relationship confidence cannot override incomplete traversal and unresolved signal conflicts."
+  "reQueryHint": "From customer 30100003, traverse all loan tranches and follow guarantor 30910005 for parent guarantees, cross-default clauses, and counter-guarantee relationships. Flag any loans with maturity at or under 82 days.",
+  "reasoning": "High trajectory risk is plausible but unmoored from relationship evidence; the single-node graph and low pattern confidence suggest the risk story exists operationally but hasn't been validated through full entity traversal."
 }
 ```
 
 **Routing:** 0.58 is below the 0.70 threshold, so it re-queries (attempt 1). Relationship Agent re-runs with the hint.
 
-**Relationship Agent, re-query pass:** Re-traversal still finds no new graph edges, but this time the LLM's `exposure_calculator` reasoning asserts much larger guarantor obligations ("AUD 6.18M and AUD 3.5M"), pushing reported exposure to AUD 11.78M (157.1% of the APS 221 limit, a CRITICAL breach), with a finding claiming the first pass had "excluded guarantor network obligations... creating a false 72% headroom illusion."
+**Relationship Agent, re-query pass:** This is where the bug above used to inflate the number. After the fix, the re-traversal genuinely adds one real fact, Rose Courtney's family-trust connection to 30910006, without changing the exposure figure at all:
 
-**This second-pass number does not hold up.** The real `BCA_GUARANTOR` record for this loan shows exactly one guarantee: Rose Courtney, AUD 2.1M, matching the loan amount precisely. The "6.18M + 3.5M = 9.68M" figure has no corresponding row in any table queried. Worth being precise about where this happened: `exposure_calculator` is a deterministic function, a plain `cds.run()` SELECT against `BCA_GUARANTOR` and `Loans` plus arithmetic, with no LLM inside it. It cannot fabricate a number; it can only return what those tables actually contain. The fabrication is in the LLM's own written reasoning and finding text during the ReAct loop, asserted after the tool call, not returned by it. Same for `hana_graph_traverse`: it's a SPARQL query against GraphDB, also deterministic, which is exactly why it returned the same 0 edges on both passes. The graph and the calculator never lied. The LLM's narration of them did.
+```json
+{
+  "nodes": ["30100003"],
+  "groupExposure": 2100000,
+  "aps221Pct": 28.0,
+  "confidence": 0.72,
+  "finding": "Guarantor 30910005 (Rose Courtney) connected to family trust member 30910006; group exposure AUD 2.1M (28% of APS 221 limit) remains non-breaching. Loan tranche expiry, payment schedule, and cross-default clause details were not returned by traversal."
+}
+```
+
+Same AUD 2.1M. Same 28%. The only thing that changed is an honest new fact (the family-trust link) and an honest new gap (loan-level facility details aren't in the graph at all). No fabricated crisis, because there's no longer a code path that can produce one.
 
 **For 30100003, attempt 2 (after the re-query):**
 
@@ -462,21 +475,21 @@ The LLM returns a confidence score (0.0-1.0) and, if confidence is below 0.70, a
 {
   "overallConfidence": 0.58,
   "gaps": [
-    "Graph still collapsed to 1 node despite the re-query — parent entities/guarantor network claimed but not actually traversed",
-    "APS 221 breach (157.1%) has no facility-level breakdown or TRBK records to verify the AUD 11.78M composition",
-    "Pattern confidence (0.46) still contradicts Relationship confidence (0.92) — no resolution",
-    "Guarantor obligation source unverified — AUD 9.68M cited as 'previous analysis' but no entity nodes or TRBK references shown"
+    "Graph traversal halted at 1 node despite CRITICAL risk — no parent entities, upstream guarantors, or trust beneficiaries mapped beyond 30910005/30910006",
+    "APS 221 exposure at 28% (non-breaching) contradicts the CRITICAL risk score and 32x forward DTI — the exposure calculation may not reflect contingent liabilities or cross-default cascade",
+    "Loan-level details (tranche expiry, payment schedule, cross-default triggers) explicitly noted as absent — Trajectory's 82-day income expiry and AUD 125,400 scheduled payments lack corresponding TRBK facility records",
+    "Signal quality mismatch: rpt1Success and palSuccess both true with pattern confidence 0.46, but 'signal: unclear' prevents attributing CRITICAL to a specific driver"
   ],
-  "reasoning": "Confidence does not improve on re-query — the second pass added an assertion, not verified evidence."
+  "reasoning": "CRITICAL risk and a deteriorating forward DTI are unmoored from graph findings (1 node, non-breaching exposure); absent loan facility records and an incomplete guarantor/trust network prevent validating whether exposure cascade or cross-default mechanics justify the severity classification."
 }
 ```
 
 **The routing decision:**
-- Confidence stayed at 0.58, below 0.70, on **both** attempts
-- Maximum 2 re-queries reached. The pipeline does not loop forever. It proceeds anyway to Human Approval, carrying the low confidence score forward rather than blocking
-- Crucially, low confidence here doesn't get silently dropped. It flows into Synthesis, which (next section) runs its own independent check and catches the same problem a second way
+- Confidence stayed at 0.58, below 0.70, on **both** attempts, and the exposure figure stayed at the same correct AUD 2.1M on both attempts too
+- Maximum 2 re-queries reached. The pipeline does not loop forever. It proceeds anyway to Human Approval, carrying the gaps forward rather than blocking
+- The honest gap here isn't "the LLM made something up." It's that this customer's CRITICAL classification is genuinely driven by Pattern and Trajectory (the under-collateralized loan, the income-expiry DTI spike), not by the relationship graph, and the relationship graph's own evidence (a clean, real 28%) can't explain that on its own. Reflection correctly refuses to paper over that mismatch.
 
-**Why this matters:** Reflection is the only agent that looks at the entire pipeline's output holistically. Here it did its job correctly twice. It never let an ungrounded number talk its way past the 0.70 threshold, even when a re-query handed back a more "complete-sounding" answer. That a re-query *can* make a finding more confident-sounding without making it more true is exactly why the threshold check exists independently of the LLM's own self-assessment.
+**Why this matters:** Reflection is the only agent that looks at the entire pipeline's output holistically. Here, it correctly distinguishes "this signal is genuinely clean" from "this signal explains the whole risk picture," and won't let a re-query manufacture false agreement between the two just to clear the confidence threshold.
 
 ---
 
@@ -531,104 +544,104 @@ A cosine-similarity check measures how much the LLM's findings overlap with the 
 **Step 5: Persist to HANA**
 The risk assessment is written to `bankingsentinel.RiskAssessments`. Token counts and cost are written to `bankingsentinel.AuditLog`. Both are permanent records under CPS 230.
 
-**For 30100003, the produced brief (live run, 2026-06-24):**
+**For 30100003, the produced brief (live run, post-fix):**
 
 ```json
 {
-  "riskScore": 92,
+  "riskScore": 87,
   "riskLevel": "CRITICAL",
-  "confidence": 0.58,
+  "confidence": 0.46,
   "findings": [
     {
-      "finding": "Group exposure AUD 11.78M exceeds APS221 limit by 157.1%; CRITICAL breach.",
-      "standard": "APS221",
+      "finding": "Forward DTI 32.05x projected post-income expiry in 82 days; 301% above APRA limit.",
+      "standard": "DTI_NOTICE",
       "severity": "HIGH",
-      "evidenceSource": "relationship",
-      "confidence": 0.92
-    },
-    {
-      "finding": "Loan L-004 AUD 2.1M exceeds collateral AUD 1.48M by AUD 620K; security deficiency.",
-      "standard": "APS221",
-      "severity": "HIGH",
-      "evidenceSource": "pattern",
+      "evidenceSource": "trajectory",
       "confidence": 0.46
     },
     {
-      "finding": "Income contract expires 83 days; primary servicing income at imminent risk.",
-      "standard": "DTI_NOTICE",
-      "severity": "HIGH",
-      "evidenceSource": "trajectory",
-      "confidence": 0.85
-    },
-    {
-      "finding": "Forward DTI 31.66x post-expiry; 296% above APRA 8x limit; severe deterioration trajectory.",
-      "standard": "DTI_NOTICE",
-      "severity": "HIGH",
-      "evidenceSource": "trajectory",
-      "confidence": 0.8
-    },
-    {
-      "finding": "AUD 9.68M guarantor obligations unverified; graph traversal incomplete; confidence contradiction 46% vs 92%.",
+      "finding": "Loan L-004 AUD 2.1M exceeds collateral value AUD 1.48M by AUD 620K (LVR breach).",
       "standard": "APS221",
       "severity": "HIGH",
+      "evidenceSource": "pattern",
+      "confidence": 0.72
+    },
+    {
+      "finding": "Income contract expires in 82 days; primary servicing income at imminent risk.",
+      "standard": "DTI_NOTICE",
+      "severity": "HIGH",
+      "evidenceSource": "trajectory",
+      "confidence": 0.46
+    },
+    {
+      "finding": "APS 221 exposure 28% non-breaching contradicts CRITICAL risk score; signal driver unclear.",
+      "standard": "APS221",
+      "severity": "MEDIUM",
+      "evidenceSource": "reflection",
+      "confidence": 0.46
+    },
+    {
+      "finding": "Graph traversal incomplete; guarantor network, cross-default triggers, loan facility records absent.",
+      "standard": "APS221",
+      "severity": "MEDIUM",
       "evidenceSource": "reflection",
       "confidence": 0.58
     }
   ],
   "recommendations": [
-    "Expand graph traversal to capture all parent entities and guarantor network; verify AUD 9.68M obligation chain with TRBK facility records.",
-    "Link APS221 breach components to specific facilities; obtain collateral valuation for L-004 and refinance options before income expiry.",
-    "Implement immediate income monitoring; establish contingency servicing plan for 83-day expiry window and AUD 125.4K payment schedule overlap."
+    "Urgent loan-level facility query to validate tranche expiry, cross-default mechanics, and payment schedule alignment with the income expiry window.",
+    "Expand guarantor/trust network traversal to map contingent liabilities and cascade risk beyond the current 1-node graph.",
+    "Require customer income renewal evidence or alternative servicing capacity documentation before the 82-day expiry."
   ],
-  "regulatoryRefs": ["APS221", "DTI_NOTICE"],
+  "regulatoryRefs": ["DTI_NOTICE", "APS221"],
   "uncertainties": [
-    "Graph collapsed to single node despite the re-query; parent entity and guarantor network traversal incomplete — actual exposure underestimated.",
-    "APS221 breach lacks facility-level breakdown; no TRBK records attached to verify the 11.78M composition.",
-    "Pattern confidence 0.46 ('unclear' signal) contradicts relationship confidence 0.92; the underlying tool data does not support it.",
-    "CPS 230 guardrail: low claim-source overlap (9%) — findings warrant manual review"
+    "Loan facility records missing; cannot validate the 82-day income expiry or AUD 125,400 scheduled payment timing.",
+    "Cross-default clause details absent; exposure cascade risk to guarantor 30910005 and family trust member 30910006 unquantified.",
+    "Signal driver unresolved: rpt1Conf 0.46 with a CRITICAL classification is unmoored from APS 221 non-breach (28%) and 0/7 PAL anomalies.",
+    "CPS 230 guardrail: low claim-source overlap (10%) — findings warrant manual review"
   ],
   "apraReady": false
 }
 ```
 
-Notice that Finding 1 and Finding 5 are in direct tension. Synthesis reports the CRITICAL 157.1% breach the Relationship Agent asserted, *and* flags in its own uncertainties that the AUD 9.68M behind it is unverified, *and* a 9% claim-source overlap, *and* sets `apraReady: false`. The brief does not pretend to have resolved a contradiction it can't actually resolve. It surfaces the contradiction and stops short of certifying it. That is the deterministic guardrail (Step 3) working exactly as designed: an LLM-written brief cannot mark its own homework "done" by simply asserting confidence.
+Notice what Finding 4 is actually saying: the APS 221 exposure genuinely doesn't breach (28%, correct, verified), and that genuinely *does* sit next to a CRITICAL score, because the CRITICAL classification is driven by Trajectory and Pattern (the income-expiry DTI spike, the under-collateralized loan), not by group exposure at all. The brief doesn't force these into false agreement. It states the real mismatch plainly, flags a 10% claim-source overlap, and sets `apraReady: false`. That's the deterministic guardrail (Step 3) working as designed: a brief that's honest about which of its own findings disagree, rather than one that resolves the disagreement by inventing a number nobody asked for.
 
 ---
 
 ## 7. A Real Example: Customer 30100003
 
-Let us trace the full pipeline from the moment the query is entered to the moment the risk brief appears on screen. This is a live run, captured 2026-06-24, with HITL off (auto-advance through human approval).
+Let us trace the full pipeline from the moment the query is entered to the moment the risk brief appears on screen. This is a live run against the corrected `exposure_calculator` (see Agent 3), with HITL off (auto-advance through human approval).
 
 **The query:** *"Analyse credit risk for customer 30100003"*
 
 **Who is 30100003?**
-A retail customer with one business loan (L-004, AUD 2.1 million, retail property sector). Annual income AUD 291,667 from a contract expiring 2026-09-15, 83 days from this run. Current DTI is 7.20 times, already flagged in `BCA_DTI` as an active breach (`BREACH_FLAG: true`, dated 2025-08-10). On the surface this already looks concerning. What Banking Sentinel adds is *how much worse* it gets at income expiry, and, just as important, where its own evidence trail runs out.
+A retail customer with one business loan (L-004, AUD 2.1 million, retail property sector). Annual income AUD 291,667 from a contract expiring 2026-09-15, 82 days from this run. Current DTI is 7.20 times, already flagged in `BCA_DTI` as an active breach (`BREACH_FLAG: true`, dated 2025-08-10). On the surface this already looks concerning. What Banking Sentinel adds is *how much worse* it gets at income expiry, and, just as important, an honest account of which of its own signals do and don't agree.
 
-**The pipeline execution, phase sequence (real run, total 73.98s):**
+**The pipeline execution, phase sequence (real run, total 67.0s):**
 
 | Phase | What happened |
 |---|---|
 | Intake | Classifies RISK_ANALYSIS, customerId=30100003 |
 | Pattern | RPT-1 → CRITICAL, confidence 0.46, score 87. Isolation Forest (scikit) → 0/7 outliers. LLM → 2 anomalies (L-004 under-collateralized by AUD 620K). Combined: score 87, CRITICAL, routes to high_risk. |
-| Trajectory | Current DTI 7.20x. Forward DTI (income-expiry projection): 31.66x, 296% above the APRA 8x limit. Rate-stress DTI (independent +3% buffer check): 7.42x. Forward position: DETERIORATING. 4 conflicting signals raised. |
-| Relationship (pass 1) | Graph traversal: 1 node, 0 edges (no BUT050 relationship row exists). Exposure calculator (via `BCA_GUARANTOR` directly): AUD 2.1M, 28% of APS 221 limit, looks clean. Confidence 0.95. |
-| Reflection (attempt 1) | Confidence 0.58, below the 0.70 threshold. 4 gaps raised, most pointed: a CRITICAL Pattern score next to a "clean" 28% exposure reading doesn't add up. Routes to re-query. |
-| Relationship (pass 2, re-query) | Re-traversal still finds 0 new edges, but the LLM asserts AUD 9.68M in additional guarantor obligations, pushing exposure to AUD 11.78M, 157.1% of the limit, a claimed CRITICAL breach. Confidence 0.92. |
-| Reflection (attempt 2) | Confidence 0.58, unchanged. 4 new gaps, all pointing at the same problem: the second pass added an assertion, not verified evidence. Maximum re-queries (2) reached, proceeds to Human Approval anyway, carrying the low confidence forward. |
+| Trajectory | Current DTI 7.20x. Forward DTI (income-expiry projection): 32.05x, 301% above the APRA 8x limit. Rate-stress DTI (independent +3% buffer check): 7.42x. Forward position: DETERIORATING. 4 conflicting signals raised. |
+| Relationship (pass 1) | Graph traversal: 1 node, 0 edges (no BUT050 relationship row exists). Exposure calculator (via `BCA_GUARANTOR`, correctly scoped to this group): AUD 2.1M, 28% of APS 221 limit. Confidence 0.95. |
+| Reflection (attempt 1) | Confidence 0.58, below the 0.70 threshold. 5 gaps raised, most pointed: a CRITICAL Pattern score next to a clean 28% exposure reading isn't explained by the graph yet. Routes to re-query. |
+| Relationship (pass 2, re-query) | Re-traversal still finds 0 new edges, but adds a real fact: guarantor 30910005 (Rose Courtney) is connected to family trust member 30910006. Exposure stays the same, correct AUD 2.1M, 28%. Confidence 0.72. |
+| Reflection (attempt 2) | Confidence 0.58, unchanged. 4 gaps, all converging on the same honest point: the CRITICAL classification comes from Pattern and Trajectory, not from group exposure, and the relationship graph can't be made to explain it. Maximum re-queries (2) reached, proceeds to Human Approval anyway, carrying the gaps forward. |
 | Human Approval | HITL off for this run, auto-advances. |
-| Synthesis | 4 HANA Vector queries fire; 7 APRA regulatory chunks retrieved. Claude Haiku writes the brief. Claim-source overlap: 9% (low). Deterministic `apraReady` check: **false**. |
+| Synthesis | 4 HANA Vector queries fire; 7 APRA regulatory chunks retrieved. Claude Haiku writes the brief. Claim-source overlap: 10% (low). Deterministic `apraReady` check: **false**. |
 | Persist | Written to `RiskAssessments` and `AuditLog` in HANA. Risk brief delivered via SSE. |
 
-**Total pipeline time: 73.98 seconds (HITL off)**
+**Total pipeline time: 67.0 seconds (HITL off)**
 **Total cost: AUD 0.0025**
-**Tokens consumed: 2,927 input / 709 output**
+**Tokens consumed: 2,919 input / 694 output**
 
 **What the pipeline found that a scorecard would have missed:**
-1. The income contract expires in 83 days. Forward DTI rockets to 31.66x, 296% above the APRA limit.
+1. The income contract expires in 82 days. Forward DTI rockets to 32.05x, 301% above the APRA limit.
 2. Loan L-004 is under-collateralized by AUD 620,000, a security deficiency a single DTI number wouldn't surface.
 3. The relationship graph genuinely has no edge for this customer's guarantor relationship. It only surfaces via a separate table, not the graph traversal tool.
-4. A re-query *raised* confidence-sounding language (157% CRITICAL breach) without raising actual evidence, and the system caught the difference: confidence stayed at 0.58, claim-source overlap measured only 9%, and `apraReady` stayed false.
-5. The risk brief explicitly says what it does not know, including, here, that its own most dramatic finding (the AUD 9.68M guarantor obligation) is unverified.
+4. The CRITICAL classification doesn't come from group exposure at all, it comes from income expiry and under-collateralization, and the brief says so plainly rather than forcing every signal to agree with the headline score.
+5. The risk brief explicitly says what it does not know: loan-level facility records, cross-default exposure to the guarantor and trust member, and why a CRITICAL score sits next to a clean exposure reading.
 
 ---
 
@@ -669,17 +682,17 @@ The risk officer's experience: upload the new APRA notice once. The system reads
 The Banking Sentinel UI displays the pipeline running in real time via Server-Sent Events (SSE). As each agent completes, its output appears on screen, bolded and populated.
 
 **The dashboard shows** (live values for the 30100003 run above):
-- **Risk Score**: 92 / 100, CRITICAL
+- **Risk Score**: 87 / 100, CRITICAL
 - **Pattern Signal**: unclear (2 anomalies)
 - **RPT-1**: CRITICAL, 46% confidence
 - **Anomaly Detection (scikit-learn)**: 0 / 7 payment rows flagged as outliers. This dashboard row shows whichever engine actually ran; it's labelled "PAL" only when `ANOMALY_ENGINE=pal` is set and the HANA PAL service genuinely executed
-- **Relationship Graph**: interactive canvas; first pass 1 node / 0 edges, re-query pass still 1 node but a contested AUD 9.68M obligation claim
-- **Group Exposure**: AUD 2,100,000 verified (28% of APS 221 limit) vs. AUD 11,780,000 claimed-but-unverified (157.1%)
-- **Trajectory**: current DTI 7.20x → forward DTI 31.66x (in 83 days); rate-stress DTI 7.42x
-- **Reflection**: confidence 0.58 (both attempts), 4 gaps each time, max re-queries reached
+- **Relationship Graph**: interactive canvas; first pass 1 node / 0 edges, re-query pass still 1 node, adds the family-trust link to 30910006 without changing the exposure figure
+- **Group Exposure**: AUD 2,100,000, 28% of the APS 221 limit, consistent across both passes
+- **Trajectory**: current DTI 7.20x → forward DTI 32.05x (in 82 days); rate-stress DTI 7.42x
+- **Reflection**: confidence 0.58 (both attempts), 5 then 4 gaps, max re-queries reached
 - **HITL Status**: auto-approved (HITL off) for this run
 - **Synthesis**: full risk brief with findings, recommendations, regulatory refs, uncertainties; `apraReady: false`
-- **Audit**: cost AUD 0.0025, latency 73.98s, tokens 3,636 total (2,927 in / 709 out)
+- **Audit**: cost AUD 0.0025, latency 67.0s, tokens 3,613 total (2,919 in / 694 out)
 
 The report page merges all of this into a single printable brief. Every View Details panel shows the same data as the report, so what the risk officer approves is exactly what goes into the permanent record.
 
@@ -710,6 +723,10 @@ Early iterations of the Relationship Agent would, on finding 0 connections for t
 ### 6. AuditLog and state persistence are separate concerns
 
 The `graph.updateState()` call persists data to the LangGraph checkpoint (PostgreSQL). The `logToAuditLog()` call writes to HANA. They are independent. If `graph.updateState()` throws and `logToAuditLog()` depends on it completing, the audit record is lost. The fix: wrap `graph.updateState()` in try-catch so `logToAuditLog()` always runs.
+
+### 7. A connected entity's own unrelated obligations are not this group's exposure
+
+`exposure_calculator` queried `BCA_GUARANTOR` filtered only on `GUARANTOR_PARTNER`, with no check on whose loan was actually being guaranteed. A guarantor connected to one customer's group can also guarantee loans for entirely unrelated customers elsewhere in the portfolio, and that filter pulled in their *entire* guarantee book. This inflated reported APS 221 group exposure from a correct AUD 2.1M (28% of the limit) to a false AUD 11.78M (157%) on re-query, and it reproduced identically across two different starting customers who happened to share a guarantor, which is exactly the kind of bug that looks like a coincidence until you check the underlying data twice. The fix: a guarantee only counts toward this group's exposure when the loan it covers is held by an entity already in the group, not merely guaranteed by one. Being connected to a customer's group doesn't mean every other loan that connection backs belongs to that group.
 
 ---
 
@@ -762,7 +779,7 @@ Banking Sentinel is a complete, regulation-compliant, multi-agent AI risk system
 
 Seven agents. Four risk dimensions. Three APRA standards. One risk officer decision. Under 80 seconds.
 
-The customer who already shows a DTI breach on a scorecard, 7.20x, is actually a CRITICAL risk customer with a forward DTI of 31.66x at income expiry in 83 days, a loan under-collateralized by AUD 620,000, a connected-party graph with no relationship edge to show for it, and a re-query that produced a more dramatic-sounding exposure figure the system itself never verified, and correctly refused to certify.
+The customer who already shows a DTI breach on a scorecard, 7.20x, is actually a CRITICAL risk customer with a forward DTI of 32.05x at income expiry in 82 days, a loan under-collateralized by AUD 620,000, a connected-party graph with no relationship edge to show for it, and a CRITICAL classification that the brief is honest doesn't come from group exposure at all, because group exposure (AUD 2.1M, 28%, stable across a re-query) genuinely doesn't explain it.
 
 Banking Sentinel does not approve or reject. It finds. It explains. It acknowledges what it does not know. And it gives the risk officer everything they need to make a confident, documented, APRA-compliant decision.
 
