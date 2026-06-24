@@ -100,6 +100,7 @@ Banking Sentinel is a **multi-agent AI risk intelligence system** deployed on SA
 | Embeddings | OpenAI text-embedding-3-small | APRA document vectorisation |
 | Observability | Langfuse | Per-agent token usage, latency, traces |
 | Real-time UI | Server-Sent Events (SSE) | Live agent progress in browser |
+| Event Mesh | Solace (Advanced Event Mesh) | Publishes pipeline events to `banking/*` topics — a real, persistent broker connection, genuinely sending messages, but no consumer is wired up within this demo; the UI's live updates come via SSE, not Solace |
 | Frontend | Vanilla HTML/CSS/JS | Bank-grade UI — no framework dependencies |
 
 ### Why SAP RPT-1?
@@ -775,6 +776,6 @@ That is the purpose. Every line of code serves it.
 
 ---
 
-*Built on: SAP BTP Cloud Foundry · SAP HANA Cloud · SAP CAP · SAP RPT-1 · LangGraph · Claude Haiku 4.5 · GraphDB / HANA KGE · scikit-learn / HANA PAL · Langfuse*
+*Built on: SAP BTP Cloud Foundry · SAP HANA Cloud · SAP CAP · SAP RPT-1 · LangGraph · Claude Haiku 4.5 · GraphDB / HANA KGE · scikit-learn / HANA PAL · Langfuse · Solace*
 
 *APRA Standards: APS 221 (Large Exposures) · CPS 230 (Operational Resilience) · DTI Notice (Debt-to-Income)*
