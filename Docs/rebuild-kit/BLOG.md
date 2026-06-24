@@ -187,7 +187,20 @@ The agent also extracts the customer ID. SAP Business Partner numbers are 8-digi
 }
 ```
 
-**What happens next:** If `isRiskAnalysis`, the pipeline continues to the Pattern Agent. If `isSimpleDataQuery`, a direct HANA CDS query runs and the result is returned immediately. If `isInappropriateRequest`, a firm refusal is returned explaining that the system does not approve or override — that is a human decision.
+**What happens next:** If `isRiskAnalysis`, the pipeline continues to the Pattern Agent. If `isSimpleDataQuery`, the query is delegated to a published MCP server (`cds-db-nlquery-mcp`) that translates it into a real CDS query — including JOINs and aggregates where needed — directly against `db/schema.cds`, then a second Claude Haiku call turns the result into a concise written answer. If `isInappropriateRequest`, a firm refusal is returned explaining that the system does not approve or override — that is a human decision.
+
+**A live `SIMPLE_DATA_QUERY` example:**
+
+*Query:* `"What is the total loan amount across all customers?"`
+
+This isn't a single-row lookup — it requires a real SQL aggregate (`SUM(AMOUNT)`) across every loan in the portfolio, with no customer ID given at all. The Intake Agent correctly classifies it as `SIMPLE_DATA_QUERY` with `customerId: null`. The MCP server plans a structured query descriptor (`{"entity": "Loans", "aggregate": [{"fn": "sum", "col": "AMOUNT", "as": "total_loan_amount"}]}`) — never raw SQL text — executes it as a real CDS query, and returns the result for Claude Haiku to phrase:
+
+> **Total Loan Amount Across All Customers**
+> Total Loan Amount: AUD 31,773,000.00
+>
+> Would you like a full risk analysis of any specific borrower?
+
+Verified against live HANA: 30 loan records, AUD 31,773,000.00 — confirmed against a direct `SUM(AMOUNT)` query as ground truth. This needed two rounds of fixes in the underlying `cds-db-nlquery-mcp` package — the query-planning LLM occasionally emitted a function-call string (`"SUM(AMOUNT)"`, then a wider variant with a trailing alias) as a literal column name instead of using the structured aggregate field. Both are now rejected up front with an actionable error instead of reaching HANA as a cryptic failure or, worse, silently returning a wrong total.
 
 ---
 
